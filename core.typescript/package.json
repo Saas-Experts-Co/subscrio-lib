@@ -1,6 +1,10 @@
 {
   "name": "@subscrio/core",
   "version": "0.1.0",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "restricted"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

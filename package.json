@@ -1,0 +1,13 @@
+{
+  "name": "subscrio-workspace",
+  "private": true,
+  "scripts": {
+    "build:core": "cd core.typescript && pnpm build",
+    "build:all": "pnpm build:core && cd server && pnpm build",
+    "test:core": "cd core.typescript && pnpm test",
+    "dev:server": "cd server && pnpm dev"
+  },
+  "devDependencies": {
+    "pnpm": "^8.0.0"
+  }
+}
