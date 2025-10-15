@@ -1,0 +1,76 @@
+import { Entity } from '../base/Entity.js';
+import { FeatureStatus } from '../value-objects/FeatureStatus.js';
+import { FeatureValueType } from '../value-objects/FeatureValueType.js';
+import { DomainError } from '../../application/errors/index.js';
+
+export interface FeatureProps {
+  key: string;
+  displayName: string;
+  description?: string;
+  valueType: FeatureValueType;
+  defaultValue: string;
+  groupName?: string;
+  status: FeatureStatus;
+  validator?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class Feature extends Entity<FeatureProps> {
+  get key(): string {
+    return this.props.key;
+  }
+
+  get displayName(): string {
+    return this.props.displayName;
+  }
+
+  get status(): FeatureStatus {
+    return this.props.status;
+  }
+
+  get valueType(): FeatureValueType {
+    return this.props.valueType;
+  }
+
+  get defaultValue(): string {
+    return this.props.defaultValue;
+  }
+
+  archive(): void {
+    this.props.status = FeatureStatus.Archived;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = FeatureStatus.Active;
+    this.props.updatedAt = new Date();
+  }
+
+  canDelete(): boolean {
+    return this.props.status === FeatureStatus.Archived;
+  }
+
+  updateDisplayName(name: string): void {
+    if (!name || name.length === 0) {
+      throw new DomainError('Display name cannot be empty');
+    }
+    this.props.displayName = name;
+    this.props.updatedAt = new Date();
+  }
+
+  validateValue(value: string): boolean {
+    switch (this.props.valueType) {
+      case FeatureValueType.Toggle:
+        return value === 'true' || value === 'false';
+      case FeatureValueType.Numeric:
+        return !isNaN(Number(value));
+      case FeatureValueType.Text:
+        return typeof value === 'string';
+      default:
+        return false;
+    }
+  }
+}
+

@@ -33,8 +33,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@subscrio/core':
-        specifier: file:../core
-        version: file:../core(@types/pg@8.15.5)
+        specifier: file:../core.typescript
+        version: file:../core.typescript(@types/pg@8.15.5)
       '@tanstack/react-query':
         specifier: ^5.62.11
         version: 5.90.2(react@18.3.1)
@@ -784,8 +784,8 @@ packages:
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
 
-  '@subscrio/core@file:../core':
-    resolution: {directory: ../core, type: directory}
+  '@subscrio/core@file:../core.typescript':
+    resolution: {directory: ../core.typescript, type: directory}
 
   '@svgdotjs/svg.draggable.js@3.0.6':
     resolution: {integrity: sha512-7iJFm9lL3C40HQcqzEfezK2l+dW2CpoVY3b77KQGqc8GXWa6LhhmX5Ckv7alQfUXBuZbjpICZ+Dvq1czlGx7gA==}
@@ -2973,7 +2973,7 @@ snapshots:
 
   '@sinclair/typebox@0.27.8': {}
 
-  '@subscrio/core@file:../core(@types/pg@8.15.5)':
+  '@subscrio/core@file:../core.typescript(@types/pg@8.15.5)':
     dependencies:
       bcryptjs: 2.4.3
       drizzle-orm: 0.44.6(@types/pg@8.15.5)(pg@8.16.3)

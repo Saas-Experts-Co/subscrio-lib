@@ -12,10 +12,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment
-const packagesRoot = resolve(__dirname, '../..');
-loadEnv({ path: resolve(packagesRoot, '.env') });
+const serverRoot = resolve(__dirname, '..');
+loadEnv({ path: resolve(serverRoot, '.env') });
 
-console.log('📁 Loading .env from:', resolve(packagesRoot, '.env'));
+console.log('📁 Loading .env from:', resolve(serverRoot, '.env'));
 console.log('🔗 DATABASE_URL:', process.env.DATABASE_URL ? '✓ Set' : '✗ Not set');
 
 const app = express();
