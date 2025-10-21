@@ -30,10 +30,9 @@ const subscrio = new Subscrio({
 - `subscrio.customers` - CustomerManagementService
 - `subscrio.apiKeys` - APIKeyManagementService
 - `subscrio.subscriptions` - SubscriptionManagementService
-- `subscrio.renewalCycles` - RenewalCycleManagementService
+- `subscrio.billingCycles` - BillingCycleManagementService
 - `subscrio.featureChecker` - FeatureCheckerService
 - `subscrio.stripe` - StripeIntegrationService
-- `subscrio.config` - ConfigurationSyncService
 
 **Instance Methods:**
 - `await subscrio.installSchema(adminPassphrase?): Promise<void>` - Install database schema
@@ -60,12 +59,10 @@ const subscrio = new Subscrio({
 **ProductDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
   key: string;
   displayName: string;
   description?: string;
   status: string;                 // 'active' | 'inactive' | 'archived'
-  displayOrder: number;
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601
   updatedAt: string;              // ISO 8601
@@ -92,7 +89,6 @@ const subscrio = new Subscrio({
 **FeatureDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
   key: string;
   displayName: string;
   description?: string;
@@ -100,7 +96,6 @@ const subscrio = new Subscrio({
   defaultValue: string;
   groupName?: string;
   status: string;                 // 'active' | 'archived'
-  displayOrder: number;
   validator?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601
@@ -113,13 +108,12 @@ const subscrio = new Subscrio({
 **CreatePlanDto:**
 ```typescript
 {
-  productId: string;              // UUID of the product
+  productKey: string;             // Key of the product
   key: string;                    // lowercase-with-hyphens, unique within product
   displayName: string;            // 1-255 chars
   description?: string;           // max 1000 chars
-  defaultRenewalCycleId?: string; // UUID of renewal cycle
-  onExpireTransitionToPlanId?: string; // UUID of plan to transition to
-  displayOrder?: number;          // integer >= 0
+  defaultRenewalCycleKey?: string; // Key of renewal cycle
+  onExpireTransitionToPlanKey?: string; // Key of plan to transition to
   metadata?: Record<string, unknown>;
 }
 ```
@@ -127,49 +121,46 @@ const subscrio = new Subscrio({
 **PlanDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
-  productId: string;              // UUID
+  productKey: string;             // Product key
   key: string;
   displayName: string;
   description?: string;
   status: string;                 // 'active' | 'inactive' | 'archived'
-  defaultRenewalCycleId?: string; // UUID
-  onExpireTransitionToPlanId?: string; // UUID
-  displayOrder: number;
+  defaultRenewalCycleKey?: string; // Renewal cycle key
+  onExpireTransitionToPlanKey?: string; // Plan key
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601
   updatedAt: string;              // ISO 8601
 }
 ```
 
-### RenewalCycle
+### BillingCycle
 
-**CreateRenewalCycleDto:**
+**CreateBillingCycleDto:**
 ```typescript
 {
-  key: string;                    // lowercase-with-hyphens, unique
+  productKey: string;             // Key of the product
+  planKey: string;                // Key of the plan
+  key: string;                    // lowercase-with-hyphens, unique within plan
   displayName: string;            // 1-255 chars
   description?: string;           // max 1000 chars
   durationValue: number;          // integer >= 1
-  durationUnit: 'days' | 'months' | 'years';
-  gracePeriodDays?: number;       // integer >= 0, default 0
-  displayOrder?: number;          // integer >= 0
-  metadata?: Record<string, unknown>;
+  durationUnit: 'days' | 'weeks' | 'months' | 'years';
+  externalProductId?: string;     // max 255 chars (e.g., Stripe price ID)
 }
 ```
 
-**RenewalCycleDto (Output):**
+**BillingCycleDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
+  productKey: string;             // Product key
+  planKey: string;                // Plan key
   key: string;
   displayName: string;
   description?: string;
   durationValue: number;
-  durationUnit: string;           // 'days' | 'months' | 'years'
-  gracePeriodDays: number;
-  displayOrder: number;
-  metadata?: Record<string, unknown>;
+  durationUnit: string;           // 'days' | 'weeks' | 'months' | 'years'
+  externalProductId?: string;
   createdAt: string;              // ISO 8601
   updatedAt: string;              // ISO 8601
 }
@@ -180,7 +171,7 @@ const subscrio = new Subscrio({
 **CreateCustomerDto:**
 ```typescript
 {
-  externalId: string;             // 1-255 chars, unique (your user ID)
+  key: string;                    // 1-255 chars, unique (your user ID)
   displayName?: string;           // max 255 chars
   email?: string;                 // valid email
   externalBillingId?: string;     // max 255 chars (e.g., Stripe customer ID)
@@ -191,8 +182,7 @@ const subscrio = new Subscrio({
 **CustomerDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
-  externalId: string;
+  key: string;
   displayName?: string;
   email?: string;
   externalBillingId?: string;
@@ -208,12 +198,14 @@ const subscrio = new Subscrio({
 **CreateSubscriptionDto:**
 ```typescript
 {
-  customerExternalId: string;     // Customer's external ID
-  planId: string;                 // UUID of plan
-  renewalCycleId?: string;        // UUID of renewal cycle (optional)
-  status?: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended';
+  key: string;                    // Unique subscription key
+  customerKey: string;            // Customer's key
+  productKey: string;             // Product key
+  planKey: string;                // Plan key
+  billingCycleKey: string;        // Billing cycle key (required)
   activationDate?: Date | string; // ISO datetime
   expirationDate?: Date | string; // ISO datetime
+  cancellationDate?: Date | string; // ISO datetime
   trialEndDate?: Date | string;   // ISO datetime
   currentPeriodStart?: Date | string; // ISO datetime
   currentPeriodEnd?: Date | string;   // ISO datetime
@@ -226,11 +218,12 @@ const subscrio = new Subscrio({
 **SubscriptionDto (Output):**
 ```typescript
 {
-  id: string;                     // UUIDv7
-  customerId: string;             // UUID (internal customer ID)
-  planId: string;                 // UUID
-  renewalCycleId?: string;        // UUID
-  status: string;                 // 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
+  key: string;                    // Subscription key
+  customerKey: string;            // Customer key
+  productKey: string;             // Product key
+  planKey: string;                // Plan key
+  billingCycleKey: string;        // Billing cycle key
+  status: string;                 // 'pending' | 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
   activationDate?: string;        // ISO 8601
   expirationDate?: string;        // ISO 8601
   cancellationDate?: string;      // ISO 8601
@@ -256,21 +249,20 @@ const subscrio = new Subscrio({
 createProduct(dto: CreateProductDto): Promise<ProductDto>
 
 // Read
-getProduct(id: string): Promise<ProductDto | null>
-getProductByKey(key: string): Promise<ProductDto | null>
+getProduct(key: string): Promise<ProductDto | null>
 listProducts(filters?: ProductFilterDto): Promise<ProductDto[]>
 
 // Update
-updateProduct(id: string, dto: UpdateProductDto): Promise<ProductDto>
-activateProduct(id: string): Promise<ProductDto>
-archiveProduct(id: string): Promise<ProductDto>
+updateProduct(key: string, dto: UpdateProductDto): Promise<ProductDto>
+activateProduct(key: string): Promise<ProductDto>
+archiveProduct(key: string): Promise<ProductDto>
 
 // Delete
-deleteProduct(id: string): Promise<void>
+deleteProduct(key: string): Promise<void>
 
 // Feature Association
-associateFeature(productId: string, featureId: string, displayOrder?: number): Promise<void>
-dissociateFeature(productId: string, featureId: string): Promise<void>
+associateFeature(productKey: string, featureKey: string): Promise<void>
+dissociateFeature(productKey: string, featureKey: string): Promise<void>
 ```
 
 ### FeatureManagementService (`subscrio.features`)
@@ -280,18 +272,17 @@ dissociateFeature(productId: string, featureId: string): Promise<void>
 createFeature(dto: CreateFeatureDto): Promise<FeatureDto>
 
 // Read
-getFeature(id: string): Promise<FeatureDto | null>
-getFeatureByKey(key: string): Promise<FeatureDto | null>
+getFeature(key: string): Promise<FeatureDto | null>
 listFeatures(filters?: FeatureFilterDto): Promise<FeatureDto[]>
-getFeaturesByProduct(productId: string): Promise<FeatureDto[]>
+getFeaturesByProduct(productKey: string): Promise<FeatureDto[]>
 
 // Update
-updateFeature(id: string, dto: UpdateFeatureDto): Promise<FeatureDto>
-archiveFeature(id: string): Promise<void>
-unarchiveFeature(id: string): Promise<void>
+updateFeature(key: string, dto: UpdateFeatureDto): Promise<FeatureDto>
+archiveFeature(key: string): Promise<void>
+unarchiveFeature(key: string): Promise<void>
 
 // Delete
-deleteFeature(id: string): Promise<void>
+deleteFeature(key: string): Promise<void>
 ```
 
 ### PlanManagementService (`subscrio.plans`)
@@ -301,43 +292,45 @@ deleteFeature(id: string): Promise<void>
 createPlan(dto: CreatePlanDto): Promise<PlanDto>
 
 // Read
-getPlan(id: string): Promise<PlanDto | null>
-getPlanByProductIdAndKey(productId: string, key: string): Promise<PlanDto | null>
+getPlan(productKey: string, planKey: string): Promise<PlanDto | null>
 listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
-getPlansByProduct(productId: string): Promise<PlanDto[]>
-getPlanFeatures(planId: string): Promise<Array<{ featureId: string; value: string }>>
-getFeatureValue(planId: string, featureId: string): Promise<string | null>
+getPlansByProduct(productKey: string): Promise<PlanDto[]>
+getPlanFeatures(productKey: string, planKey: string): Promise<Array<{ featureKey: string; value: string }>>
+getFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<string | null>
 
 // Update
-updatePlan(id: string, dto: UpdatePlanDto): Promise<PlanDto>
-activatePlan(id: string): Promise<void>
-deactivatePlan(id: string): Promise<void>
-archivePlan(id: string): Promise<void>
-setFeatureValue(planId: string, featureId: string, value: string): Promise<void>
-removeFeatureValue(planId: string, featureId: string): Promise<void>
+updatePlan(productKey: string, planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
+activatePlan(productKey: string, planKey: string): Promise<void>
+deactivatePlan(productKey: string, planKey: string): Promise<void>
+archivePlan(productKey: string, planKey: string): Promise<void>
+setFeatureValue(productKey: string, planKey: string, featureKey: string, value: string): Promise<void>
+removeFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<void>
 
 // Delete
-deletePlan(id: string): Promise<void>
+deletePlan(productKey: string, planKey: string): Promise<void>
 ```
 
-### RenewalCycleManagementService (`subscrio.renewalCycles`)
+### BillingCycleManagementService (`subscrio.billingCycles`)
 
 ```typescript
 // Create
-createRenewalCycle(dto: CreateRenewalCycleDto): Promise<RenewalCycleDto>
+createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 
 // Read
-getRenewalCycle(id: string): Promise<RenewalCycleDto | null>
-getRenewalCycleByKey(key: string): Promise<RenewalCycleDto | null>
-listRenewalCycles(filters?: RenewalCycleFilterDto): Promise<RenewalCycleDto[]>
-getRenewalCyclesByDurationUnit(durationUnit: DurationUnit): Promise<RenewalCycleDto[]>
-getDefaultRenewalCycles(): Promise<RenewalCycleDto[]>
+getBillingCycle(productKey: string, planKey: string, key: string): Promise<BillingCycleDto | null>
+getBillingCyclesByPlan(productKey: string, planKey: string): Promise<BillingCycleDto[]>
+listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
+getBillingCyclesByDurationUnit(durationUnit: DurationUnit): Promise<BillingCycleDto[]>
+getDefaultBillingCycles(): Promise<BillingCycleDto[]>
 
 // Update
-updateRenewalCycle(id: string, dto: UpdateRenewalCycleDto): Promise<RenewalCycleDto>
+updateBillingCycle(productKey: string, planKey: string, key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto>
 
 // Delete
-deleteRenewalCycle(id: string): Promise<void>
+deleteBillingCycle(productKey: string, planKey: string, key: string): Promise<void>
+
+// Utility
+calculateNextPeriodEnd(billingCycleId: string, currentPeriodEnd: Date): Promise<Date>
 ```
 
 ### CustomerManagementService (`subscrio.customers`)
@@ -347,19 +340,17 @@ deleteRenewalCycle(id: string): Promise<void>
 createCustomer(dto: CreateCustomerDto): Promise<CustomerDto>
 
 // Read
-getCustomer(id: string): Promise<CustomerDto | null>
-getCustomerByExternalId(externalId: string): Promise<CustomerDto | null>
-getCustomerByExternalBillingId(externalBillingId: string): Promise<CustomerDto | null>
+getCustomer(externalId: string): Promise<CustomerDto | null>
 listCustomers(filters?: CustomerFilterDto): Promise<CustomerDto[]>
 
 // Update
-updateCustomer(id: string, dto: UpdateCustomerDto): Promise<CustomerDto>
-activateCustomer(id: string): Promise<void>
-suspendCustomer(id: string): Promise<void>
-markCustomerDeleted(id: string): Promise<void>
+updateCustomer(externalId: string, dto: UpdateCustomerDto): Promise<CustomerDto>
+activateCustomer(externalId: string): Promise<void>
+suspendCustomer(externalId: string): Promise<void>
+markCustomerDeleted(externalId: string): Promise<void>
 
 // Delete
-deleteCustomer(id: string): Promise<void>
+deleteCustomer(externalId: string): Promise<void>
 ```
 
 ### SubscriptionManagementService (`subscrio.subscriptions`)
@@ -369,30 +360,30 @@ deleteCustomer(id: string): Promise<void>
 createSubscription(dto: CreateSubscriptionDto): Promise<SubscriptionDto>
 
 // Read
-getSubscription(id: string): Promise<SubscriptionDto | null>
+getSubscription(subscriptionKey: string): Promise<SubscriptionDto | null>
 getSubscriptionByStripeId(stripeId: string): Promise<SubscriptionDto | null>
 listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]>
-getSubscriptionsByCustomer(customerExternalId: string): Promise<SubscriptionDto[]>
-getActiveSubscriptionsByCustomer(customerExternalId: string): Promise<SubscriptionDto[]>
+getSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]>
+getActiveSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]>
 
 // Update
-updateSubscription(id: string, dto: UpdateSubscriptionDto): Promise<SubscriptionDto>
-cancelSubscription(id: string): Promise<void>
-expireSubscription(id: string): Promise<void>
-renewSubscription(id: string): Promise<void>
+updateSubscription(subscriptionKey: string, dto: UpdateSubscriptionDto): Promise<SubscriptionDto>
+cancelSubscription(subscriptionKey: string): Promise<void>
+expireSubscription(subscriptionKey: string): Promise<void>
+renewSubscription(subscriptionKey: string): Promise<void>
 
 // Delete
-deleteSubscription(id: string): Promise<void>
+deleteSubscription(subscriptionKey: string): Promise<void>
 
 // Feature Overrides
 addFeatureOverride(
-  subscriptionId: string,
-  featureId: string,
+  subscriptionKey: string,
+  featureKey: string,
   value: string,
   type: 'permanent' | 'temporary'
 ): Promise<void>
-removeFeatureOverride(subscriptionId: string, featureId: string): Promise<void>
-clearTemporaryOverrides(subscriptionId: string): Promise<void>
+removeFeatureOverride(subscriptionKey: string, featureKey: string): Promise<void>
+clearTemporaryOverrides(subscriptionKey: string): Promise<void>
 ```
 
 ### FeatureCheckerService (`subscrio.featureChecker`)
@@ -405,6 +396,13 @@ isEnabled(
   customerExternalId: string,
   featureKey: string
 ): Promise<boolean>
+
+// Get feature value for a customer
+getValue<T = string>(
+  customerExternalId: string,
+  featureKey: string,
+  defaultValue?: T
+): Promise<T | null>
 
 // Get all features for a customer (returns Map<featureKey, value>)
 getAllFeatures(
@@ -419,10 +417,11 @@ getFeaturesForSubscription(
 // Check if customer has access to a plan
 hasPlanAccess(
   customerExternalId: string,
-  planId: string
+  productKey: string,
+  planKey: string
 ): Promise<boolean>
 
-// Get active plan IDs for customer
+// Get active plan keys for customer
 getActivePlans(
   customerExternalId: string
 ): Promise<string[]>
@@ -431,9 +430,11 @@ getActivePlans(
 getFeatureUsageSummary(
   customerExternalId: string
 ): Promise<{
-  features: Map<string, string>;
-  activePlans: string[];
-  subscriptions: SubscriptionDto[];
+  activeSubscriptions: number;
+  enabledFeatures: string[];
+  disabledFeatures: string[];
+  numericFeatures: Map<string, number>;
+  textFeatures: Map<string, string>;
 }>
 ```
 
@@ -447,16 +448,9 @@ processStripeEvent(event: Stripe.Event): Promise<void>
 createStripeSubscription(
   customerExternalId: string,
   planId: string,
-  renewalCycleId: string,
-  priceId: string
-): Promise<SubscriptionDto>
-```
-
-### ConfigurationSyncService (`subscrio.config`)
-
-```typescript
-// Sync configuration from JSON
-syncConfiguration(config: SubscrioConfiguration): Promise<ConfigSyncResult>
+  billingCycleId: string,
+  stripePriceId: string
+): Promise<Subscription>
 ```
 
 ---
@@ -469,26 +463,27 @@ syncConfiguration(config: SubscrioConfiguration): Promise<ConfigSyncResult>
 - Managed via `associateFeature()` and `dissociateFeature()`
 
 ### Product → Plans (One-to-Many)
-- Plans **belong to a Product** (via `productId`)
+- Plans **belong to a Product** (via `productKey`)
 - Product can have multiple plans
 - Plans are unique by `key` within a product
 
 ### Plan → Features (via Feature Values)
 - Plans set values for their product's features
 - Managed via `setFeatureValue()` and `removeFeatureValue()`
-- Returns array of `{ featureId, value }`
+- Returns array of `{ featureKey, value }`
 
-### Plan → RenewalCycle (Optional Reference)
-- Plans can reference a `defaultRenewalCycleId`
-- Renewal cycles are independent entities
+### Plan → BillingCycle (One-to-Many)
+- Plans can have multiple billing cycles
+- Billing cycles are unique by `key` within a plan
+- Billing cycles can reference external product IDs (e.g., Stripe price IDs)
 
 ### Customer → Subscriptions (One-to-Many)
-- Customers identified by `externalId` (your user ID)
+- Customers identified by `key` (your user ID)
 - Customers can have multiple active subscriptions
-- Subscriptions link to plans via `planId`
+- Subscriptions link to plans via `planKey`
 
 ### Subscription → Plan (Many-to-One)
-- Subscription references a plan via `planId`
+- Subscription references a plan via `planKey`
 - Subscription can override feature values
 
 ## Feature Resolution Hierarchy
@@ -506,27 +501,22 @@ When checking feature values via `featureChecker`:
 
 ## Important Notes
 
-### IDs
-- All entity IDs are **UUIDv7**
-- Generate at application layer, not database
-- Customers use `externalId` (your system's ID)
+### Keys vs IDs
+- **Keys** are human-readable strings (e.g., "professional", "max-projects")
+- **IDs** are UUIDs (internal only)
+- Use `getByKey()` methods to lookup by key
+- All public APIs use keys, not IDs
 
 ### Product-Plan-Feature Relationship
 1. Create Product
 2. Create Features (globally)
 3. Associate Features with Product
-4. Create Plans with Product ID
+4. Create Plans with Product Key
 5. Set Feature Values on Plans
 
-### Keys vs IDs
-- **Keys** are human-readable strings (e.g., "professional", "max-projects")
-- **IDs** are UUIDs
-- Use `getByKey()` methods to lookup by key
-- Most relationships use IDs
-
-### Customer External ID
-- Always use **your application's user/customer ID** as `externalId`
-- Feature checker uses `customerExternalId` (your ID, not Subscrio's UUID)
+### Customer Keys
+- Always use **your application's user/customer ID** as `key`
+- Feature checker uses `customerExternalId` (your key, not Subscrio's internal ID)
 
 ### Stripe Integration
 - Optional
