@@ -30,11 +30,11 @@ export class DrizzleCustomerRepository implements ICustomerRepository {
     return record ? CustomerMapper.toDomain(record) : null;
   }
 
-  async findByExternalId(externalId: string): Promise<Customer | null> {
+  async findByKey(key: string): Promise<Customer | null> {
     const [record] = await this.db
       .select()
       .from(customers)
-      .where(eq(customers.key, externalId))
+      .where(eq(customers.key, key))
       .limit(1);
     
     return record ? CustomerMapper.toDomain(record) : null;

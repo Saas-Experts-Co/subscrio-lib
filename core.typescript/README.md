@@ -47,7 +47,7 @@ Product
                 └── externalProductId: string
 
 Customer
-├── externalId: string (your app's user ID)
+├── key: string (your app's user ID)
 ├── displayName: string
 ├── email: string
 └── Subscriptions (one-to-many)
@@ -98,7 +98,6 @@ const freePlan = await subscrio.plans.createPlan({
 
 // Create one billing cycle
 const monthlyCycle = await subscrio.billingCycles.createBillingCycle({
-  productKey: product.key,
   planKey: freePlan.key,
   key: 'monthly',
   displayName: 'Monthly',
@@ -107,7 +106,7 @@ const monthlyCycle = await subscrio.billingCycles.createBillingCycle({
 });
 
 // Set feature value for plan
-await subscrio.plans.setFeatureValue(product.key, freePlan.key, maxProjects.key, '3');
+await subscrio.plans.setFeatureValue(freePlan.key, maxProjects.key, '3');
 ```
 
 ### 2. Create Customer and Subscription
@@ -115,7 +114,7 @@ await subscrio.plans.setFeatureValue(product.key, freePlan.key, maxProjects.key,
 ```typescript
 // Create customer
 const customer = await subscrio.customers.createCustomer({
-  externalId: 'user-123'
+  key: 'user-123'
 });
 
 // Create subscription

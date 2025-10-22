@@ -73,6 +73,17 @@ export class Subscription extends Entity<SubscriptionProps> {
     this.props.updatedAt = new Date();
   }
 
+  archive(): void {
+    this.props.status = SubscriptionStatus.Expired;
+    this.props.expirationDate = new Date();
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = SubscriptionStatus.Active;
+    this.props.updatedAt = new Date();
+  }
+
   setExpirationDate(date: Date): void {
     this.props.expirationDate = date;
     this.props.updatedAt = new Date();

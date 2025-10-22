@@ -47,6 +47,18 @@ export class BillingCycle extends Entity<BillingCycleProps> {
     return nextDate;
   }
 
+  archive(): void {
+    // Billing cycles don't have status, so we'll use a different approach
+    // This method is here for consistency but may not be used
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    // Billing cycles don't have status, so we'll use a different approach
+    // This method is here for consistency but may not be used
+    this.props.updatedAt = new Date();
+  }
+
   canDelete(): boolean {
     // TODO: Check if any plans are using this billing cycle
     return true;

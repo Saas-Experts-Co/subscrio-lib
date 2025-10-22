@@ -137,13 +137,13 @@ export class ProductManagementService {
     return ProductMapper.toDto(product);
   }
 
-  async activateProduct(key: string): Promise<ProductDto> {
+  async unarchiveProduct(key: string): Promise<ProductDto> {
     const product = await this.productRepository.findByKey(key);
     if (!product) {
       throw new NotFoundError(`Product with key '${key}' not found`);
     }
 
-    product.activate();
+    product.unarchive();
     await this.productRepository.save(product);
 
     return ProductMapper.toDto(product);

@@ -40,18 +40,13 @@ export class Plan extends Entity<PlanProps> {
     return this.props.status;
   }
 
-  activate(): void {
-    this.props.status = PlanStatus.Active;
-    this.props.updatedAt = new Date();
-  }
-
-  deactivate(): void {
-    this.props.status = PlanStatus.Inactive;
-    this.props.updatedAt = new Date();
-  }
-
   archive(): void {
     this.props.status = PlanStatus.Archived;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = PlanStatus.Active;
     this.props.updatedAt = new Date();
   }
 

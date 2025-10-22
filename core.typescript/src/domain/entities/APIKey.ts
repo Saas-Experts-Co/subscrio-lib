@@ -35,8 +35,13 @@ export class APIKey extends Entity<APIKeyProps> {
     return this.props.scope;
   }
 
-  revoke(): void {
+  archive(): void {
     this.props.status = APIKeyStatus.Revoked;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = APIKeyStatus.Active;
     this.props.updatedAt = new Date();
   }
 

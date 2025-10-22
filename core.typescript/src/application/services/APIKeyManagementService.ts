@@ -109,13 +109,23 @@ export class APIKeyManagementService {
   // API keys should not be exposed once created. Use infrastructure
   // repository methods directly for internal operations only.
 
-  async revokeAPIKey(key: string): Promise<void> {
+  async archiveAPIKey(key: string): Promise<void> {
     const apiKey = await this.apiKeyRepository.findByKey(key);
     if (!apiKey) {
       throw new NotFoundError(`API key with key '${key}' not found`);
     }
 
-    apiKey.revoke();
+    apiKey.archive();
+    await this.apiKeyRepository.save(apiKey);
+  }
+
+  async unarchiveAPIKey(key: string): Promise<void> {
+    const apiKey = await this.apiKeyRepository.findByKey(key);
+    if (!apiKey) {
+      throw new NotFoundError(`API key with key '${key}' not found`);
+    }
+
+    apiKey.unarchive();
     await this.apiKeyRepository.save(apiKey);
   }
 

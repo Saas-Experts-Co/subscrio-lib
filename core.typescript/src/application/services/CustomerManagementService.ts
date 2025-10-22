@@ -34,7 +34,7 @@ export class CustomerManagementService {
     const validatedDto = validationResult.data;
 
     // Check if key already exists
-    const existing = await this.customerRepository.findByExternalId(validatedDto.key);
+    const existing = await this.customerRepository.findByKey(validatedDto.key);
     if (existing) {
       throw new ConflictError(`Customer with key '${validatedDto.key}' already exists`);
     }
@@ -63,7 +63,7 @@ export class CustomerManagementService {
     return CustomerMapper.toDto(customer);
   }
 
-  async updateCustomer(externalId: string, dto: UpdateCustomerDto): Promise<CustomerDto> {
+  async updateCustomer(key: string, dto: UpdateCustomerDto): Promise<CustomerDto> {
     const validationResult = UpdateCustomerDtoSchema.safeParse(dto);
     if (!validationResult.success) {
       throw new ValidationError(
@@ -73,14 +73,14 @@ export class CustomerManagementService {
     }
     const validatedDto = validationResult.data;
 
-    const customer = await this.customerRepository.findByExternalId(externalId);
+    const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${externalId}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found`);
     }
 
     // Check for conflicts if updating key
     if (validatedDto.key && validatedDto.key !== customer.key) {
-      const existing = await this.customerRepository.findByExternalId(validatedDto.key);
+      const existing = await this.customerRepository.findByKey(validatedDto.key);
       if (existing && existing.id !== customer.id) {
         throw new ConflictError(`Customer with key '${validatedDto.key}' already exists`);
       }
@@ -115,8 +115,8 @@ export class CustomerManagementService {
     return CustomerMapper.toDto(customer);
   }
 
-  async getCustomer(externalId: string): Promise<CustomerDto | null> {
-    const customer = await this.customerRepository.findByExternalId(externalId);
+  async getCustomer(key: string): Promise<CustomerDto | null> {
+    const customer = await this.customerRepository.findByKey(key);
     return customer ? CustomerMapper.toDto(customer) : null;
   }
 
@@ -133,40 +133,30 @@ export class CustomerManagementService {
     return customers.map(CustomerMapper.toDto);
   }
 
-  async activateCustomer(externalId: string): Promise<void> {
-    const customer = await this.customerRepository.findByExternalId(externalId);
+  async archiveCustomer(key: string): Promise<void> {
+    const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${externalId}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found`);
     }
 
-    customer.activate();
+    customer.archive();
     await this.customerRepository.save(customer);
   }
 
-  async suspendCustomer(externalId: string): Promise<void> {
-    const customer = await this.customerRepository.findByExternalId(externalId);
+  async unarchiveCustomer(key: string): Promise<void> {
+    const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${externalId}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found`);
     }
 
-    customer.suspend();
+    customer.unarchive();
     await this.customerRepository.save(customer);
   }
 
-  async markCustomerDeleted(externalId: string): Promise<void> {
-    const customer = await this.customerRepository.findByExternalId(externalId);
+  async deleteCustomer(key: string): Promise<void> {
+    const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${externalId}' not found`);
-    }
-
-    customer.markDeleted();
-    await this.customerRepository.save(customer);
-  }
-
-  async deleteCustomer(externalId: string): Promise<void> {
-    const customer = await this.customerRepository.findByExternalId(externalId);
-    if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${externalId}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found`);
     }
 
     if (!customer.canDelete()) {

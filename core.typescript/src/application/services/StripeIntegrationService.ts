@@ -228,15 +228,15 @@ export class StripeIntegrationService {
    * Create Stripe subscription from Subscrio data
    */
   async createStripeSubscription(
-    customerExternalId: string,
+    customerKey: string,
     planId: string,
     billingCycleId: string,
     stripePriceId: string
   ): Promise<Subscription> {
     // Find customer
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
-      throw new NotFoundError(`Customer with external ID '${customerExternalId}' not found`);
+      throw new NotFoundError(`Customer with key '${customerKey}' not found`);
     }
 
     if (!customer.externalBillingId) {

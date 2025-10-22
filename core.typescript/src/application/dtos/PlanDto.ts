@@ -7,7 +7,7 @@ export const CreatePlanDtoSchema = z.object({
   key: z.string()
     .min(1, 'Key is required')
     .max(255, 'Key too long')
-    .regex(/^[a-z0-9-]+$/, 'Key must be lowercase alphanumeric with hyphens'),
+    .regex(/^[a-z0-9-]+$/, 'Key must be globally unique across all plans'),
   displayName: z.string()
     .min(1, 'Display name is required')
     .max(255, 'Display name too long'),

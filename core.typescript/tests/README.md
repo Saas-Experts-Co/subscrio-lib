@@ -188,13 +188,12 @@ Every public method must have tests:
 
 ### CustomerManagementService (`subscrio.customers`)
 - `createCustomer(dto)` - Create new customer
-- `updateCustomer(externalId, dto)` - Update existing customer
-- `getCustomer(externalId)` - Get customer by external ID
+- `updateCustomer(key, dto)` - Update existing customer
+- `getCustomer(key)` - Get customer by key
 - `listCustomers(filters?)` - List customers with optional filters
-- `activateCustomer(externalId)` - Activate customer
-- `suspendCustomer(externalId)` - Suspend customer
-- `markCustomerDeleted(externalId)` - Mark customer as deleted
-- `deleteCustomer(externalId)` - Delete customer
+- `archiveCustomer(key)` - Archive customer
+- `unarchiveCustomer(key)` - Unarchive customer
+- `deleteCustomer(key)` - Delete customer
 
 ### APIKeyManagementService (`subscrio.apiKeys`)
 - `createAPIKey(dto)` - Create new API key (returns plaintext)
@@ -231,16 +230,16 @@ Every public method must have tests:
 - `getDefaultBillingCycles()` - Get default billing cycles
 
 ### FeatureCheckerService (`subscrio.featureChecker`) - **CRITICAL**
-- `isEnabled(customerExternalId, featureKey)` - Check if feature is enabled
-- `getAllFeatures(customerExternalId)` - Get all feature values for customer
+- `isEnabled(customerKey, featureKey)` - Check if feature is enabled
+- `getAllFeatures(customerKey)` - Get all feature values for customer
 - `getFeaturesForSubscription(subscriptionKey)` - Get features for specific subscription
-- `hasPlanAccess(customerExternalId, planKey)` - Check if customer has plan access
-- `getActivePlans(customerExternalId)` - Get active plans for customer
-- `getFeatureUsageSummary(customerExternalId)` - Get feature usage summary
+- `hasPlanAccess(customerKey, planKey)` - Check if customer has plan access
+- `getActivePlans(customerKey)` - Get active plans for customer
+- `getFeatureUsageSummary(customerKey)` - Get feature usage summary
 
 ### StripeIntegrationService (`subscrio.stripe`)
 - `processStripeEvent(event)` - Process verified Stripe webhook event
-- `createStripeSubscription(customerExternalId, planKey, billingCycleKey)` - Create Stripe subscription
+- `createStripeSubscription(customerKey, planKey, billingCycleKey)` - Create Stripe subscription
 
 ## Example Test: Feature Resolution Hierarchy
 

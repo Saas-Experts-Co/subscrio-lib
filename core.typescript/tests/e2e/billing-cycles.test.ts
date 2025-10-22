@@ -28,7 +28,6 @@ describe('Billing Cycles E2E Tests', () => {
   describe('CRUD Operations', () => {
     test('creates billing cycle (days)', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'daily-cycle',
         displayName: 'Daily Cycle',
@@ -46,7 +45,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('creates billing cycle (weeks)', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'weekly-cycle',
         displayName: 'Weekly Cycle',
@@ -59,7 +57,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('creates billing cycle (months)', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'monthly-cycle',
         displayName: 'Monthly Cycle',
@@ -72,7 +69,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('creates billing cycle (years)', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'yearly-cycle',
         displayName: 'Yearly Cycle',
@@ -85,7 +81,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('creates billing cycle with external product ID', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'stripe-monthly',
         displayName: 'Stripe Monthly',
@@ -99,7 +94,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('retrieves billing cycle by key', async () => {
       const created = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'retrieve-cycle',
         displayName: 'Retrieve Cycle',
@@ -107,14 +101,13 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
-      const retrieved = await subscrio.billingCycles.getBillingCycle(testProduct.key, testPlan.key, created.key);
+      const retrieved = await subscrio.billingCycles.getBillingCycle(created.key);
       expect(retrieved).toBeDefined();
       expect(retrieved?.key).toBe(created.key);
     });
 
     test('updates billing cycle display name', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'update-name-cycle',
         displayName: 'Original Name',
@@ -122,7 +115,7 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
-      const updated = await subscrio.billingCycles.updateBillingCycle(testProduct.key, testPlan.key, cycle.key, {
+      const updated = await subscrio.billingCycles.updateBillingCycle(cycle.key, {
         displayName: 'Updated Name'
       });
 
@@ -131,7 +124,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('updates billing cycle duration', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'update-duration-cycle',
         displayName: 'Update Duration',
@@ -139,7 +131,7 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
-      const updated = await subscrio.billingCycles.updateBillingCycle(testProduct.key, testPlan.key, cycle.key, {
+      const updated = await subscrio.billingCycles.updateBillingCycle(cycle.key, {
         durationValue: 3
       });
 
@@ -148,7 +140,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('updates external product ID', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'update-external-id',
         displayName: 'Update External ID',
@@ -156,7 +147,7 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
-      const updated = await subscrio.billingCycles.updateBillingCycle(testProduct.key, testPlan.key, cycle.key, {
+      const updated = await subscrio.billingCycles.updateBillingCycle(cycle.key, {
         externalProductId: 'price_updated'
       });
 
@@ -164,7 +155,7 @@ describe('Billing Cycles E2E Tests', () => {
     });
 
     test('returns null for non-existent billing cycle', async () => {
-      const result = await subscrio.billingCycles.getBillingCycle(testProduct.key, testPlan.key, 'non-existent-cycle');
+      const result = await subscrio.billingCycles.getBillingCycle('non-existent-cycle');
       expect(result).toBeNull();
     });
   });
@@ -172,7 +163,6 @@ describe('Billing Cycles E2E Tests', () => {
   describe('Validation Tests', () => {
     test('throws error for duplicate billing cycle key', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'duplicate-cycle',
         displayName: 'Cycle 1',
@@ -182,7 +172,6 @@ describe('Billing Cycles E2E Tests', () => {
 
       await expect(
         subscrio.billingCycles.createBillingCycle({
-          productKey: testProduct.key,
           planKey: testPlan.key,
           key: 'duplicate-cycle',
           displayName: 'Cycle 2',
@@ -195,7 +184,6 @@ describe('Billing Cycles E2E Tests', () => {
     test('throws error for invalid duration unit', async () => {
       await expect(
         subscrio.billingCycles.createBillingCycle({
-          productKey: testProduct.key,
           planKey: testPlan.key,
           key: 'invalid-unit',
           displayName: 'Invalid Unit',
@@ -208,7 +196,6 @@ describe('Billing Cycles E2E Tests', () => {
     test('throws error for zero duration value', async () => {
       await expect(
         subscrio.billingCycles.createBillingCycle({
-          productKey: testProduct.key,
           planKey: testPlan.key,
           key: 'zero-duration',
           displayName: 'Zero Duration',
@@ -221,7 +208,6 @@ describe('Billing Cycles E2E Tests', () => {
     test('throws error for negative duration value', async () => {
       await expect(
         subscrio.billingCycles.createBillingCycle({
-          productKey: testProduct.key,
           planKey: testPlan.key,
           key: 'negative-duration',
           displayName: 'Negative Duration',
@@ -234,7 +220,6 @@ describe('Billing Cycles E2E Tests', () => {
     test('validates key format', async () => {
       await expect(
         subscrio.billingCycles.createBillingCycle({
-          productKey: testProduct.key,
           planKey: testPlan.key,
           key: 'Invalid Key!',
           displayName: 'Invalid',
@@ -248,7 +233,6 @@ describe('Billing Cycles E2E Tests', () => {
   describe('List & Filter Tests', () => {
     test('lists all billing cycles', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'list-cycle-1',
         displayName: 'List Cycle 1',
@@ -256,7 +240,6 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'list-cycle-2',
         displayName: 'List Cycle 2',
@@ -264,13 +247,12 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'years'
       });
 
-      const cycles = await subscrio.billingCycles.getBillingCyclesByPlan(testProduct.key, testPlan.key);
+      const cycles = await subscrio.billingCycles.getBillingCyclesByPlan(testPlan.key);
       expect(cycles.length).toBeGreaterThanOrEqual(2);
     });
 
     test('filters by duration unit (days)', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'filter-days',
         displayName: 'Filter Days',
@@ -284,7 +266,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('filters by duration unit (weeks)', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'filter-weeks',
         displayName: 'Filter Weeks',
@@ -298,7 +279,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('filters by duration unit (months)', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'filter-months',
         displayName: 'Filter Months',
@@ -312,7 +292,6 @@ describe('Billing Cycles E2E Tests', () => {
 
     test('filters by duration unit (years)', async () => {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'filter-years',
         displayName: 'Filter Years',
@@ -325,7 +304,7 @@ describe('Billing Cycles E2E Tests', () => {
     });
 
     test('paginates billing cycle list', async () => {
-      const allCycles = await subscrio.billingCycles.getBillingCyclesByPlan(testProduct.key, testPlan.key);
+      const allCycles = await subscrio.billingCycles.getBillingCyclesByPlan(testPlan.key);
       // Verify we have billing cycles (from previous tests)
       expect(allCycles.length).toBeGreaterThan(0);
       
@@ -338,7 +317,6 @@ describe('Billing Cycles E2E Tests', () => {
   describe('Relationship Tests', () => {
     test('deletes billing cycle with no references', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: testProduct.key,
         planKey: testPlan.key,
         key: 'delete-cycle',
         displayName: 'Delete Cycle',
@@ -346,9 +324,9 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
-      await subscrio.billingCycles.deleteBillingCycle(testProduct.key, testPlan.key, cycle.key);
+      await subscrio.billingCycles.deleteBillingCycle(cycle.key);
 
-      const retrieved = await subscrio.billingCycles.getBillingCycle(testProduct.key, testPlan.key, cycle.key);
+      const retrieved = await subscrio.billingCycles.getBillingCycle(cycle.key);
       expect(retrieved).toBeNull();
     });
   });

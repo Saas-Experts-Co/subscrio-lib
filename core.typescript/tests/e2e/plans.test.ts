@@ -32,7 +32,7 @@ describe('Plans E2E Tests', () => {
       expect(plan.status).toBe('active');
     });
 
-    test('retrieves plan by product and plan keys', async () => {
+    test('retrieves plan by plan key', async () => {
       const product = await subscrio.products.createProduct({
         key: 'retrieve-product',
         displayName: 'Retrieve Product'
@@ -44,7 +44,7 @@ describe('Plans E2E Tests', () => {
         displayName: 'Retrieve Plan'
       });
 
-      const retrieved = await subscrio.plans.getPlan(product.key, created.key);
+      const retrieved = await subscrio.plans.getPlan(created.key);
       expect(retrieved).toBeDefined();
       expect(retrieved?.key).toBe(created.key);
       expect(retrieved?.productKey).toBe(product.key);
@@ -62,7 +62,7 @@ describe('Plans E2E Tests', () => {
         displayName: 'Original Name'
       });
 
-      const updated = await subscrio.plans.updatePlan(product.key, plan.key, {
+      const updated = await subscrio.plans.updatePlan(plan.key, {
         displayName: 'Updated Name'
       });
 
@@ -82,7 +82,7 @@ describe('Plans E2E Tests', () => {
         description: 'Old description'
       });
 
-      const updated = await subscrio.plans.updatePlan(product.key, plan.key, {
+      const updated = await subscrio.plans.updatePlan(plan.key, {
         description: 'New description'
       });
 
@@ -95,7 +95,7 @@ describe('Plans E2E Tests', () => {
         displayName: 'Null Plan Product'
       });
 
-      const result = await subscrio.plans.getPlan(product.key, 'non-existent-plan');
+      const result = await subscrio.plans.getPlan('non-existent-plan');
       expect(result).toBeNull();
     });
 
@@ -106,7 +106,7 @@ describe('Plans E2E Tests', () => {
       });
 
       await expect(
-        subscrio.plans.updatePlan(product.key, 'non-existent', {
+        subscrio.plans.updatePlan('non-existent', {
           displayName: 'New Name'
         })
       ).rejects.toThrow('not found');
@@ -144,28 +144,7 @@ describe('Plans E2E Tests', () => {
       ).rejects.toThrow();
     });
 
-    test('throws error for duplicate plan key within same product', async () => {
-      const product = await subscrio.products.createProduct({
-        key: 'duplicate-plan-product',
-        displayName: 'Duplicate Plan Product'
-      });
-
-      await subscrio.plans.createPlan({
-        productKey: product.key,
-        key: 'duplicate-plan',
-        displayName: 'Plan 1'
-      });
-
-      await expect(
-        subscrio.plans.createPlan({
-          productKey: product.key,
-          key: 'duplicate-plan',
-          displayName: 'Plan 2'
-        })
-      ).rejects.toThrow('already exists');
-    });
-
-    test('allows duplicate plan key across different products', async () => {
+    test('throws error for duplicate plan key globally', async () => {
       const product1 = await subscrio.products.createProduct({
         key: 'product-1-dup',
         displayName: 'Product 1'
@@ -178,17 +157,17 @@ describe('Plans E2E Tests', () => {
 
       await subscrio.plans.createPlan({
         productKey: product1.key,
-        key: 'same-key',
+        key: 'duplicate-plan',
         displayName: 'Plan 1'
       });
 
-      const plan2 = await subscrio.plans.createPlan({
-        productKey: product2.key,
-        key: 'same-key',
-        displayName: 'Plan 2'
-      });
-
-      expect(plan2.key).toBe('same-key');
+      await expect(
+        subscrio.plans.createPlan({
+          productKey: product2.key,
+          key: 'duplicate-plan',
+          displayName: 'Plan 2'
+        })
+      ).rejects.toThrow('already exists');
     });
 
     test('throws error for non-existent product key', async () => {
@@ -215,10 +194,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Activate Plan'
       });
 
-      await subscrio.plans.deactivatePlan(product.key, plan.key);
-      await subscrio.plans.activatePlan(product.key, plan.key);
+      await subscrio.plans.deactivatePlan(plan.key);
+      await subscrio.plans.activatePlan(plan.key);
 
-      const retrieved = await subscrio.plans.getPlan(product.key, plan.key);
+      const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved?.status).toBe('active');
     });
 
@@ -234,9 +213,9 @@ describe('Plans E2E Tests', () => {
         displayName: 'Deactivate Plan'
       });
 
-      await subscrio.plans.deactivatePlan(product.key, plan.key);
+      await subscrio.plans.deactivatePlan(plan.key);
 
-      const retrieved = await subscrio.plans.getPlan(product.key, plan.key);
+      const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved?.status).toBe('inactive');
     });
 
@@ -252,9 +231,9 @@ describe('Plans E2E Tests', () => {
         displayName: 'Archive Plan'
       });
 
-      await subscrio.plans.archivePlan(product.key, plan.key);
+      await subscrio.plans.archivePlan(plan.key);
 
-      const retrieved = await subscrio.plans.getPlan(product.key, plan.key);
+      const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved?.status).toBe('archived');
     });
 
@@ -270,10 +249,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Delete Plan'
       });
 
-      await subscrio.plans.archivePlan(product.key, plan.key);
-      await subscrio.plans.deletePlan(product.key, plan.key);
+      await subscrio.plans.archivePlan(plan.key);
+      await subscrio.plans.deletePlan(plan.key);
 
-      const retrieved = await subscrio.plans.getPlan(product.key, plan.key);
+      const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved).toBeNull();
     });
 
@@ -290,7 +269,7 @@ describe('Plans E2E Tests', () => {
       });
 
       await expect(
-        subscrio.plans.deletePlan(product.key, plan.key)
+        subscrio.plans.deletePlan(plan.key)
       ).rejects.toThrow('archived');
     });
 
@@ -306,10 +285,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Delete Inactive Plan'
       });
 
-      await subscrio.plans.deactivatePlan(product.key, plan.key);
+      await subscrio.plans.deactivatePlan(plan.key);
 
       await expect(
-        subscrio.plans.deletePlan(product.key, plan.key)
+        subscrio.plans.deletePlan(plan.key)
       ).rejects.toThrow('archived');
     });
   });
@@ -469,9 +448,9 @@ describe('Plans E2E Tests', () => {
         displayName: 'Set Value Plan'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '50');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '50');
 
-      const value = await subscrio.plans.getFeatureValue(product.key, plan.key, feature.key);
+      const value = await subscrio.plans.getFeatureValue(plan.key, feature.key);
       expect(value).toBe('50');
     });
 
@@ -496,10 +475,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Update Value Plan'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '50');
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '100');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '50');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '100');
 
-      const value = await subscrio.plans.getFeatureValue(product.key, plan.key, feature.key);
+      const value = await subscrio.plans.getFeatureValue(plan.key, feature.key);
       expect(value).toBe('100');
     });
 
@@ -524,10 +503,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Remove Value Plan'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '50');
-      await subscrio.plans.removeFeatureValue(product.key, plan.key, feature.key);
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '50');
+      await subscrio.plans.removeFeatureValue(plan.key, feature.key);
 
-      const value = await subscrio.plans.getFeatureValue(product.key, plan.key, feature.key);
+      const value = await subscrio.plans.getFeatureValue(plan.key, feature.key);
       expect(value).toBeNull();
     });
 
@@ -552,9 +531,9 @@ describe('Plans E2E Tests', () => {
         displayName: 'Get Value Plan'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, 'true');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, 'true');
 
-      const value = await subscrio.plans.getFeatureValue(product.key, plan.key, feature.key);
+      const value = await subscrio.plans.getFeatureValue(plan.key, feature.key);
       expect(value).toBe('true');
     });
 
@@ -579,7 +558,7 @@ describe('Plans E2E Tests', () => {
         displayName: 'Null Value Plan'
       });
 
-      const value = await subscrio.plans.getFeatureValue(product.key, plan.key, feature.key);
+      const value = await subscrio.plans.getFeatureValue(plan.key, feature.key);
       expect(value).toBeNull();
     });
 
@@ -612,10 +591,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'All Features Plan'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature1.key, '50');
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature2.key, 'true');
+      await subscrio.plans.setFeatureValue(plan.key, feature1.key, '50');
+      await subscrio.plans.setFeatureValue(plan.key, feature2.key, 'true');
 
-      const features = await subscrio.plans.getPlanFeatures(product.key, plan.key);
+      const features = await subscrio.plans.getPlanFeatures(plan.key);
       expect(features.length).toBe(2);
       expect(features.find(f => f.featureKey === feature1.key)?.value).toBe('50');
       expect(features.find(f => f.featureKey === feature2.key)?.value).toBe('true');
@@ -634,7 +613,7 @@ describe('Plans E2E Tests', () => {
       });
 
       await expect(
-        subscrio.plans.setFeatureValue(product.key, plan.key, 'non-existent-feature', '50')
+        subscrio.plans.setFeatureValue(plan.key, 'non-existent-feature', '50')
       ).rejects.toThrow('not found');
     });
 
@@ -652,7 +631,7 @@ describe('Plans E2E Tests', () => {
       });
 
       await expect(
-        subscrio.plans.setFeatureValue(product.key, 'non-existent-plan', feature.key, '50')
+        subscrio.plans.setFeatureValue('non-existent-plan', feature.key, '50')
       ).rejects.toThrow('not found');
     });
   });

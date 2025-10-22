@@ -4,7 +4,7 @@ import { CustomerFilterDto } from '../dtos/CustomerDto.js';
 export interface ICustomerRepository {
   save(customer: Customer): Promise<void>;
   findById(id: string): Promise<Customer | null>;
-  findByExternalId(externalId: string): Promise<Customer | null>;
+  findByKey(key: string): Promise<Customer | null>;
   findByExternalBillingId(externalBillingId: string): Promise<Customer | null>;
   findAll(filters?: CustomerFilterDto): Promise<Customer[]>;
   delete(id: string): Promise<void>;

@@ -25,18 +25,13 @@ export class Customer extends Entity<CustomerProps> {
     return this.props.externalBillingId;
   }
 
-  suspend(): void {
-    this.props.status = CustomerStatus.Suspended;
-    this.props.updatedAt = new Date();
-  }
-
-  activate(): void {
-    this.props.status = CustomerStatus.Active;
-    this.props.updatedAt = new Date();
-  }
-
-  markDeleted(): void {
+  archive(): void {
     this.props.status = CustomerStatus.Deleted;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = CustomerStatus.Active;
     this.props.updatedAt = new Date();
   }
 

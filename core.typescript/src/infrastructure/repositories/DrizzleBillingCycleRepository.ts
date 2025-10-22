@@ -31,16 +31,11 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
     return record ? BillingCycleMapper.toDomain(record) : null;
   }
 
-  async findByKey(key: string, planId?: string): Promise<BillingCycle | null> {
-    const conditions = [eq(billing_cycles.key, key)];
-    if (planId) {
-      conditions.push(eq(billing_cycles.plan_id, planId));
-    }
-    
+  async findByKey(key: string): Promise<BillingCycle | null> {
     const [record] = await this.db
       .select()
       .from(billing_cycles)
-      .where(and(...conditions))
+      .where(eq(billing_cycles.key, key))
       .limit(1);
     
     return record ? BillingCycleMapper.toDomain(record) : null;

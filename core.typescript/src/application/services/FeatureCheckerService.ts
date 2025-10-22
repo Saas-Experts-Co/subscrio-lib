@@ -102,13 +102,13 @@ export class FeatureCheckerService {
    * Get feature value for a customer in a specific product
    */
   async getValueForCustomer<T = string>(
-    customerExternalId: string,
+    customerKey: string,
     productKey: string,
     featureKey: string,
     defaultValue?: T
   ): Promise<T | null> {
     // Find customer
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       return defaultValue ?? null;
     }
@@ -176,11 +176,11 @@ export class FeatureCheckerService {
    * Check if a feature is enabled for a customer in a specific product
    */
   async isEnabledForCustomer(
-    customerExternalId: string,
+    customerKey: string,
     productKey: string,
     featureKey: string
   ): Promise<boolean> {
-    const value = await this.getValueForCustomer(customerExternalId, productKey, featureKey);
+    const value = await this.getValueForCustomer(customerKey, productKey, featureKey);
     return value?.toLowerCase() === 'true';
   }
 
@@ -188,10 +188,10 @@ export class FeatureCheckerService {
    * Get all feature values for a customer in a specific product
    */
   async getAllFeaturesForCustomer(
-    customerExternalId: string,
+    customerKey: string,
     productKey: string
   ): Promise<Map<string, string>> {
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       return new Map();
     }
@@ -243,11 +243,11 @@ export class FeatureCheckerService {
    * Check if customer has access to a specific plan
    */
   async hasPlanAccess(
-    customerExternalId: string,
+    customerKey: string,
     productKey: string,
     planKey: string
   ): Promise<boolean> {
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       return false;
     }
@@ -257,7 +257,7 @@ export class FeatureCheckerService {
       return false;
     }
 
-    const plan = await this.planRepository.findByKey(productKey, planKey);
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
       return false;
     }
@@ -273,8 +273,8 @@ export class FeatureCheckerService {
   /**
    * Get all active plans for a customer
    */
-  async getActivePlans(customerExternalId: string): Promise<string[]> {
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+  async getActivePlans(customerKey: string): Promise<string[]> {
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       return [];
     }
@@ -299,7 +299,7 @@ export class FeatureCheckerService {
    * Get feature usage summary for a customer in a specific product
    */
   async getFeatureUsageSummary(
-    customerExternalId: string,
+    customerKey: string,
     productKey: string
   ): Promise<{
     activeSubscriptions: number;
@@ -308,12 +308,12 @@ export class FeatureCheckerService {
     numericFeatures: Map<string, number>;
     textFeatures: Map<string, string>;
   }> {
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    const customer = await this.customerRepository.findByKey(customerKey);
     const activeSubscriptions = customer 
       ? (await this.subscriptionRepository.findByCustomerId(customer.id, { status: SubscriptionStatus.Active, limit: 100, offset: 0 })).length
       : 0;
 
-    const allFeatures = await this.getAllFeaturesForCustomer(customerExternalId, productKey);
+    const allFeatures = await this.getAllFeaturesForCustomer(customerKey, productKey);
     
     const enabledFeatures: string[] = [];
     const disabledFeatures: string[] = [];

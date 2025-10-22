@@ -37,15 +37,15 @@ export class BillingCycleManagementService {
     const validatedDto = validationResult.data;
 
     // Verify plan exists
-    const plan = await this.planRepository.findByKey(validatedDto.productKey, validatedDto.planKey);
+    const plan = await this.planRepository.findByKey(validatedDto.planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${validatedDto.planKey}' not found in product '${validatedDto.productKey}'`);
+      throw new NotFoundError(`Plan with key '${validatedDto.planKey}' not found`);
     }
 
-    // Check if key already exists for this plan
-    const existing = await this.billingCycleRepository.findByKey(validatedDto.key, plan.id);
+    // Check if key already exists globally
+    const existing = await this.billingCycleRepository.findByKey(validatedDto.key);
     if (existing) {
-      throw new ConflictError(`Billing cycle with key '${validatedDto.key}' already exists for this plan`);
+      throw new ConflictError(`Billing cycle with key '${validatedDto.key}' already exists`);
     }
 
     // Validate duration unit
@@ -72,10 +72,10 @@ export class BillingCycleManagementService {
     }, id);
 
     await this.billingCycleRepository.save(billingCycle);
-    return BillingCycleMapper.toDto(billingCycle, validatedDto.productKey, validatedDto.planKey);
+    return BillingCycleMapper.toDto(billingCycle, plan.productKey, plan.key);
   }
 
-  async updateBillingCycle(productKey: string, planKey: string, key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto> {
+  async updateBillingCycle(key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto> {
     const validationResult = UpdateBillingCycleDtoSchema.safeParse(dto);
     if (!validationResult.success) {
       throw new ValidationError(
@@ -85,15 +85,9 @@ export class BillingCycleManagementService {
     }
     const validatedDto = validationResult.data;
 
-    // Verify plan exists
-    const plan = await this.planRepository.findByKey(productKey, planKey);
-    if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found in product '${productKey}'`);
-    }
-
-    const billingCycle = await this.billingCycleRepository.findByKey(key, plan.id);
+    const billingCycle = await this.billingCycleRepository.findByKey(key);
     if (!billingCycle) {
-      throw new NotFoundError(`Billing cycle with key '${key}' not found for this plan`);
+      throw new NotFoundError(`Billing cycle with key '${key}' not found`);
     }
 
     // Update properties
@@ -121,29 +115,40 @@ export class BillingCycleManagementService {
 
     billingCycle.props.updatedAt = new Date();
     await this.billingCycleRepository.save(billingCycle);
-    return BillingCycleMapper.toDto(billingCycle, productKey, planKey);
+    
+    // Get plan to resolve keys for DTO
+    const plan = await this.planRepository.findById(billingCycle.props.planId);
+    if (!plan) {
+      throw new NotFoundError(`Plan not found for billing cycle`);
+    }
+    
+    return BillingCycleMapper.toDto(billingCycle, plan.productKey, plan.key);
   }
 
-  async getBillingCycle(productKey: string, planKey: string, key: string): Promise<BillingCycleDto | null> {
-    // Verify plan exists
-    const plan = await this.planRepository.findByKey(productKey, planKey);
-    if (!plan) {
+  async getBillingCycle(key: string): Promise<BillingCycleDto | null> {
+    const billingCycle = await this.billingCycleRepository.findByKey(key);
+    if (!billingCycle) {
       return null;
     }
 
-    const billingCycle = await this.billingCycleRepository.findByKey(key, plan.id);
-    return billingCycle ? BillingCycleMapper.toDto(billingCycle, productKey, planKey) : null;
+    // Get plan to resolve keys for DTO
+    const plan = await this.planRepository.findById(billingCycle.props.planId);
+    if (!plan) {
+      throw new NotFoundError(`Plan not found for billing cycle`);
+    }
+
+    return BillingCycleMapper.toDto(billingCycle, plan.productKey, plan.key);
   }
 
-  async getBillingCyclesByPlan(productKey: string, planKey: string): Promise<BillingCycleDto[]> {
+  async getBillingCyclesByPlan(planKey: string): Promise<BillingCycleDto[]> {
     // Verify plan exists
-    const plan = await this.planRepository.findByKey(productKey, planKey);
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found in product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     const billingCycles = await this.billingCycleRepository.findByPlan(plan.id);
-    return billingCycles.map(bc => BillingCycleMapper.toDto(bc, productKey, planKey));
+    return billingCycles.map(bc => BillingCycleMapper.toDto(bc, plan.productKey, plan.key));
   }
 
   async listBillingCycles(filters: BillingCycleFilterDto = { limit: 50, offset: 0 }): Promise<BillingCycleDto[]> {
@@ -156,11 +161,8 @@ export class BillingCycleManagementService {
     }
 
     // If filtering by plan, get plan first
-    if (validationResult.data.productKey && validationResult.data.planKey) {
-      return this.getBillingCyclesByPlan(
-        validationResult.data.productKey, 
-        validationResult.data.planKey
-      );
+    if (validationResult.data.planKey) {
+      return this.getBillingCyclesByPlan(validationResult.data.planKey);
     }
 
     // Otherwise list all (need to resolve productKey/planKey for each)
@@ -177,16 +179,30 @@ export class BillingCycleManagementService {
     return dtos;
   }
 
-  async deleteBillingCycle(productKey: string, planKey: string, key: string): Promise<void> {
-    // Verify plan exists
-    const plan = await this.planRepository.findByKey(productKey, planKey);
-    if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found in product '${productKey}'`);
+  async archiveBillingCycle(key: string): Promise<void> {
+    const billingCycle = await this.billingCycleRepository.findByKey(key);
+    if (!billingCycle) {
+      throw new NotFoundError(`Billing cycle with key '${key}' not found`);
     }
 
-    const billingCycle = await this.billingCycleRepository.findByKey(key, plan.id);
+    billingCycle.archive();
+    await this.billingCycleRepository.save(billingCycle);
+  }
+
+  async unarchiveBillingCycle(key: string): Promise<void> {
+    const billingCycle = await this.billingCycleRepository.findByKey(key);
     if (!billingCycle) {
-      throw new NotFoundError(`Billing cycle with key '${key}' not found for this plan`);
+      throw new NotFoundError(`Billing cycle with key '${key}' not found`);
+    }
+
+    billingCycle.unarchive();
+    await this.billingCycleRepository.save(billingCycle);
+  }
+
+  async deleteBillingCycle(key: string): Promise<void> {
+    const billingCycle = await this.billingCycleRepository.findByKey(key);
+    if (!billingCycle) {
+      throw new NotFoundError(`Billing cycle with key '${key}' not found`);
     }
 
     if (!billingCycle.canDelete()) {

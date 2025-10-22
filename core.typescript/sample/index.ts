@@ -49,18 +49,7 @@ function printDivider() {
 }
 
 // Interactive mode functions
-async function waitForUserInput(message: string = 'Press ENTER to continue...'): Promise<void> {
-  if (!isInteractive) return;
-  
-  console.log(`\n⏸️  ${message}`);
-  console.log('   (Use Ctrl+C to exit, or just press ENTER to continue)');
-  
-  return new Promise<void>((resolve) => {
-    process.stdin.once('data', () => {
-      resolve();
-    });
-  });
-}
+// Removed unused function
 
 async function promptForDatabaseInspection(phase: string, step: string): Promise<void> {
   if (!isInteractive) return;
@@ -127,12 +116,11 @@ async function printFeatures(
         if (!hasOverride) {
           // Check if plan has value
           const sub = subscriptions[0];
-          const plan = await subscrio.plans.getPlan(productKey, sub.planKey);
+          const plan = await subscrio.plans.getPlan(sub.planKey);
           if (plan) {
             // Check if plan has a specific value for this feature
             try {
               const planValue = await subscrio.plans.getFeatureValue(
-                productKey,
                 plan.key,
                 key
               );
@@ -323,13 +311,11 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
 
   // Starter plan
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'starter',
     'max-projects',
     '10'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'starter',
     'max-users-per-project',
     '10'
@@ -338,25 +324,21 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
 
   // Professional plan
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'professional',
     'max-projects',
     '50'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'professional',
     'max-users-per-project',
     '25'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'professional',
     'gantt-charts',
     'true'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'professional',
     'api-access',
     'true'
@@ -365,31 +347,26 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
 
   // Enterprise plan
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'enterprise',
     'max-projects',
     '999999'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'enterprise',
     'max-users-per-project',
     '999999'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'enterprise',
     'gantt-charts',
     'true'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'enterprise',
     'custom-branding',
     'true'
   );
   await subscrio.plans.setFeatureValue(
-    'projecthub',
     'enterprise',
     'api-access',
     'true'
@@ -406,7 +383,6 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   for (const planKey of ['starter', 'professional', 'enterprise']) {
     try {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: 'projecthub',
         planKey,
         key: 'monthly',
         displayName: 'Monthly',
@@ -423,7 +399,6 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
 
     try {
       await subscrio.billingCycles.createBillingCycle({
-        productKey: 'projecthub',
         planKey,
         key: 'annual',
         displayName: 'Annual',
@@ -466,6 +441,9 @@ async function runPhase2_CustomerOnboarding(subscrio: Subscrio) {
     if (error.message?.includes('already exists')) {
       printSuccess(`Customer already exists: Acme Corporation (acme-corp)`);
       customer = await subscrio.customers.getCustomer('acme-corp');
+      if (!customer) {
+        throw new Error('Customer not found after creation');
+      }
     } else {
       throw error;
     }
@@ -497,6 +475,9 @@ async function runPhase2_CustomerOnboarding(subscrio: Subscrio) {
     if (error.message?.includes('already exists')) {
       printSuccess(`Trial subscription already exists: acme-starter-trial`);
       subscription = await subscrio.subscriptions.getSubscription('acme-starter-trial');
+      if (!subscription) {
+        throw new Error('Subscription not found after creation');
+      }
     } else {
       throw error;
     }
@@ -516,7 +497,7 @@ async function runPhase2_CustomerOnboarding(subscrio: Subscrio) {
 
   // Method 1: Get specific feature value
   const maxProjects = await subscrio.featureChecker.getValueForCustomer(
-    customer.key,
+    customer!.key,
     'projecthub',
     'max-projects'
   );
@@ -524,18 +505,18 @@ async function runPhase2_CustomerOnboarding(subscrio: Subscrio) {
 
   // Method 2: Check if toggle is enabled
   const hasGantt = await subscrio.featureChecker.isEnabledForCustomer(
-    customer.key,
+    customer!.key,
     'projecthub',
     'gantt-charts'
   );
   printInfo(`Method 2 - isEnabledForCustomer('gantt-charts'): ${hasGantt}`, 1);
 
   // Method 3: Get all features
-  await printFeatures(customer.key, 'projecthub', subscrio, 'trial subscription');
+  await printFeatures(customer!.key, 'projecthub', subscrio, 'trial subscription');
 
   // Method 4: Get feature usage summary
   const summary = await subscrio.featureChecker.getFeatureUsageSummary(
-    customer.key,
+    customer!.key,
     'projecthub'
   );
   console.log('│');
@@ -665,7 +646,6 @@ async function runPhase5_ExpirationAndTransition(subscrio: Subscrio) {
   // Create a billing cycle for the free plan first
   try {
     await subscrio.billingCycles.createBillingCycle({
-      productKey: 'projecthub',
       planKey: 'free',
       key: 'free-monthly',
       displayName: 'Free Monthly',

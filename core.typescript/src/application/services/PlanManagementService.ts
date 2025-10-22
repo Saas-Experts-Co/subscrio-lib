@@ -77,14 +77,11 @@ export class PlanManagementService {
       throw new NotFoundError(`Product with key '${validatedDto.productKey}' not found`);
     }
 
-    // Check if plan key already exists for this product
-    const existing = await this.planRepository.findByKey(
-      product.key, 
-      validatedDto.key
-    );
+    // Check if plan key already exists globally
+    const existing = await this.planRepository.findByKey(validatedDto.key);
     if (existing) {
       throw new ConflictError(
-        `Plan with key '${validatedDto.key}' already exists for this product`
+        `Plan with key '${validatedDto.key}' already exists`
       );
     }
 
@@ -103,13 +100,10 @@ export class PlanManagementService {
     // Verify transition plan if provided
     let onExpireTransitionToPlanId: string | undefined;
     if (validatedDto.onExpireTransitionToPlanKey) {
-      const transitionPlan = await this.planRepository.findByKey(
-        product.key,
-        validatedDto.onExpireTransitionToPlanKey
-      );
+      const transitionPlan = await this.planRepository.findByKey(validatedDto.onExpireTransitionToPlanKey);
       if (!transitionPlan) {
         throw new NotFoundError(
-          `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found for this product`
+          `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found`
         );
       }
       onExpireTransitionToPlanId = transitionPlan.id;
@@ -140,7 +134,7 @@ export class PlanManagementService {
     );
   }
 
-  async updatePlan(productKey: string, planKey: string, dto: UpdatePlanDto): Promise<PlanDto> {
+  async updatePlan(planKey: string, dto: UpdatePlanDto): Promise<PlanDto> {
     const validationResult = UpdatePlanDtoSchema.safeParse(dto);
     if (!validationResult.success) {
       throw new ValidationError(
@@ -150,15 +144,9 @@ export class PlanManagementService {
     }
     const validatedDto = validationResult.data;
 
-    // Find product
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     // Update properties
@@ -183,13 +171,10 @@ export class PlanManagementService {
     }
     if (validatedDto.onExpireTransitionToPlanKey !== undefined) {
       if (validatedDto.onExpireTransitionToPlanKey) {
-        const transitionPlan = await this.planRepository.findByKey(
-          product.key,
-          validatedDto.onExpireTransitionToPlanKey
-        );
+        const transitionPlan = await this.planRepository.findByKey(validatedDto.onExpireTransitionToPlanKey);
         if (!transitionPlan) {
           throw new NotFoundError(
-            `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found for this product`
+            `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found`
           );
         }
         plan.props.onExpireTransitionToPlanId = transitionPlan.id;
@@ -208,13 +193,8 @@ export class PlanManagementService {
     return PlanMapper.toDto(plan, keys.productKey, keys.defaultRenewalCycleKey, keys.onExpireTransitionToPlanKey);
   }
 
-  async getPlan(productKey: string, planKey: string): Promise<PlanDto | null> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      return null;
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async getPlan(planKey: string): Promise<PlanDto | null> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
       return null;
     }
@@ -264,60 +244,30 @@ export class PlanManagementService {
     return planDtos;
   }
 
-  async activatePlan(productKey: string, planKey: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async archivePlan(planKey: string): Promise<void> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
-    }
-
-    plan.activate();
-    await this.planRepository.save(plan);
-  }
-
-  async deactivatePlan(productKey: string, planKey: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
-    if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
-    }
-
-    plan.deactivate();
-    await this.planRepository.save(plan);
-  }
-
-  async archivePlan(productKey: string, planKey: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
-    if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     plan.archive();
     await this.planRepository.save(plan);
   }
 
-  async deletePlan(productKey: string, planKey: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
+  async unarchivePlan(planKey: string): Promise<void> {
+    const plan = await this.planRepository.findByKey(planKey);
+    if (!plan) {
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+    plan.unarchive();
+    await this.planRepository.save(plan);
+  }
+
+  async deletePlan(planKey: string): Promise<void> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     if (!plan.canDelete()) {
@@ -330,15 +280,10 @@ export class PlanManagementService {
     await this.planRepository.delete(plan.id);
   }
 
-  async setFeatureValue(productKey: string, planKey: string, featureKey: string, value: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     const feature = await this.featureRepository.findByKey(featureKey);
@@ -353,15 +298,10 @@ export class PlanManagementService {
     await this.planRepository.save(plan);
   }
 
-  async removeFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<void> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async removeFeatureValue(planKey: string, featureKey: string): Promise<void> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     const feature = await this.featureRepository.findByKey(featureKey);
@@ -373,15 +313,10 @@ export class PlanManagementService {
     await this.planRepository.save(plan);
   }
 
-  async getFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<string | null> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async getFeatureValue(planKey: string, featureKey: string): Promise<string | null> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     const feature = await this.featureRepository.findByKey(featureKey);
@@ -392,15 +327,10 @@ export class PlanManagementService {
     return plan.getFeatureValue(feature.id);
   }
 
-  async getPlanFeatures(productKey: string, planKey: string): Promise<Array<{ featureKey: string; value: string }>> {
-    const product = await this.productRepository.findByKey(productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${productKey}' not found`);
-    }
-
-    const plan = await this.planRepository.findByKey(product.key, planKey);
+  async getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: string }>> {
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${planKey}' not found for product '${productKey}'`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     // Map feature IDs to keys

@@ -24,18 +24,13 @@ export class Product extends Entity<ProductProps> {
     return this.props.status;
   }
 
-  activate(): void {
-    this.props.status = ProductStatus.Active;
-    this.props.updatedAt = new Date();
-  }
-
-  deactivate(): void {
-    this.props.status = ProductStatus.Inactive;
-    this.props.updatedAt = new Date();
-  }
-
   archive(): void {
     this.props.status = ProductStatus.Archived;
+    this.props.updatedAt = new Date();
+  }
+
+  unarchive(): void {
+    this.props.status = ProductStatus.Active;
     this.props.updatedAt = new Date();
   }
 

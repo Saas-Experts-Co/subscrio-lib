@@ -51,11 +51,11 @@ export class DrizzlePlanRepository implements IPlanRepository {
     return PlanMapper.toDomain(record, featureValues);
   }
 
-  async findByKey(productKey: string, key: string): Promise<Plan | null> {
+  async findByKey(key: string): Promise<Plan | null> {
     const [record] = await this.db
       .select()
       .from(plans)
-      .where(and(eq(plans.product_key, productKey), eq(plans.key, key)))
+      .where(eq(plans.key, key))
       .limit(1);
     
     if (!record) return null;

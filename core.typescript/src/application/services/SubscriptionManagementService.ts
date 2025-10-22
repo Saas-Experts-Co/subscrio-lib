@@ -77,7 +77,7 @@ export class SubscriptionManagementService {
     const validatedDto = validationResult.data;
 
     // Verify customer exists
-    const customer = await this.customerRepository.findByExternalId(validatedDto.customerKey);
+    const customer = await this.customerRepository.findByKey(validatedDto.customerKey);
     if (!customer) {
       throw new NotFoundError(`Customer with key '${validatedDto.customerKey}' not found`);
     }
@@ -89,13 +89,13 @@ export class SubscriptionManagementService {
     }
 
     // Verify plan exists
-    const plan = await this.planRepository.findByKey(product.key, validatedDto.planKey);
+    const plan = await this.planRepository.findByKey(validatedDto.planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with key '${validatedDto.planKey}' not found for product '${validatedDto.productKey}'`);
+      throw new NotFoundError(`Plan with key '${validatedDto.planKey}' not found`);
     }
 
     // Verify billing cycle exists (required)
-    const billingCycle = await this.billingCycleRepository.findByKey(validatedDto.billingCycleKey, plan.id);
+    const billingCycle = await this.billingCycleRepository.findByKey(validatedDto.billingCycleKey);
     if (!billingCycle) {
       throw new NotFoundError(`Billing cycle with key '${validatedDto.billingCycleKey}' not found for plan '${validatedDto.planKey}'`);
     }
@@ -232,7 +232,7 @@ export class SubscriptionManagementService {
     
     // Apply key-based filters (post-fetch filtering)
     if (filters?.customerKey) {
-      const customer = await this.customerRepository.findByExternalId(filters.customerKey);
+      const customer = await this.customerRepository.findByKey(filters.customerKey);
       if (customer) {
         subscriptions = subscriptions.filter(s => s.customerId === customer.id);
       } else {
@@ -254,7 +254,7 @@ export class SubscriptionManagementService {
 
     if (filters?.planKey) {
       if (filters?.productKey) {
-        const plan = await this.planRepository.findByKey(filters.productKey, filters.planKey);
+        const plan = await this.planRepository.findByKey(filters.planKey);
         if (plan) {
           subscriptions = subscriptions.filter(s => s.planId === plan.id);
         } else {
@@ -279,7 +279,7 @@ export class SubscriptionManagementService {
   }
 
   async getSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]> {
-    const customer = await this.customerRepository.findByExternalId(customerKey);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       throw new NotFoundError(`Customer with key '${customerKey}' not found`);
     }
@@ -295,7 +295,7 @@ export class SubscriptionManagementService {
   }
 
   async getActiveSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]> {
-    const customer = await this.customerRepository.findByExternalId(customerKey);
+    const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
       throw new NotFoundError(`Customer with key '${customerKey}' not found`);
     }
@@ -341,6 +341,26 @@ export class SubscriptionManagementService {
     }
 
     subscription.renew();
+    await this.subscriptionRepository.save(subscription);
+  }
+
+  async archiveSubscription(subscriptionKey: string): Promise<void> {
+    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
+    if (!subscription) {
+      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
+    }
+
+    subscription.archive();
+    await this.subscriptionRepository.save(subscription);
+  }
+
+  async unarchiveSubscription(subscriptionKey: string): Promise<void> {
+    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
+    if (!subscription) {
+      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
+    }
+
+    subscription.unarchive();
     await this.subscriptionRepository.save(subscription);
   }
 
