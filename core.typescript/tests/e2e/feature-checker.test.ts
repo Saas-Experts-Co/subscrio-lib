@@ -60,7 +60,7 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       // Should return feature default
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('10');
     });
 
@@ -111,7 +111,7 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       // Should return plan value
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('50');
     });
 
@@ -169,22 +169,34 @@ describe('Feature Checker E2E Tests', () => {
       );
 
       // Should return subscription override
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('5000');
     });
 
     test('returns null for non-existent customer', async () => {
-      const value = await subscrio.featureChecker.getValue('non-existent', 'any-feature');
+      // Create a product for this test
+      const product = await subscrio.products.createProduct({
+        key: 'null-test-product',
+        displayName: 'Null Test Product'
+      });
+
+      const value = await subscrio.featureChecker.getValueForCustomer('non-existent', product.key, 'any-feature');
       expect(value).toBeNull();
     });
 
     test('returns null for non-existent feature', async () => {
+      // Create a product for this test
+      const product = await subscrio.products.createProduct({
+        key: 'null-feature-product',
+        displayName: 'Null Feature Product'
+      });
+
       const customer = await subscrio.customers.createCustomer({
         key: 'null-test-customer',
         displayName: 'Null Test'
       });
 
-      const value = await subscrio.featureChecker.getValue(customer.key, 'non-existent-feature');
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, 'non-existent-feature');
       expect(value).toBeNull();
     });
   });
@@ -244,7 +256,7 @@ describe('Feature Checker E2E Tests', () => {
       );
 
       // Should return override (25), not plan (10) or default (3)
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('25');
     });
 
@@ -302,7 +314,7 @@ describe('Feature Checker E2E Tests', () => {
       );
 
       // Should return override (15), not default (5)
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('15');
     });
 
@@ -352,7 +364,7 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       // Should return plan value (100), not default (10)
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('100');
     });
 
@@ -400,7 +412,7 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       // Should return default (1)
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('1');
     });
   });
@@ -428,7 +440,7 @@ describe('Feature Checker E2E Tests', () => {
 
       // No subscription created
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('false');
     });
   });
@@ -479,7 +491,7 @@ describe('Feature Checker E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      const isEnabled = await subscrio.featureChecker.isEnabled(customer.key, feature.key);
+      const isEnabled = await subscrio.featureChecker.isEnabledForCustomer(customer.key, product.key, feature.key);
       expect(isEnabled).toBe(true);
     });
 
@@ -503,7 +515,7 @@ describe('Feature Checker E2E Tests', () => {
         displayName: 'Toggle Customer 2'
       });
 
-      const isEnabled = await subscrio.featureChecker.isEnabled(customer.key, feature.key);
+      const isEnabled = await subscrio.featureChecker.isEnabledForCustomer(customer.key, product.key, feature.key);
       expect(isEnabled).toBe(false);
     });
 
@@ -527,7 +539,7 @@ describe('Feature Checker E2E Tests', () => {
         displayName: 'Numeric Customer'
       });
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('100');
       expect(parseInt(value as string)).toBe(100);
     });
@@ -552,7 +564,7 @@ describe('Feature Checker E2E Tests', () => {
         displayName: 'Text Customer'
       });
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('#000000');
     });
   });
@@ -608,7 +620,7 @@ describe('Feature Checker E2E Tests', () => {
         'permanent'
       );
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('50');
     });
 
@@ -662,7 +674,7 @@ describe('Feature Checker E2E Tests', () => {
         'temporary'
       );
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('75');
     });
 
@@ -719,7 +731,7 @@ describe('Feature Checker E2E Tests', () => {
       // Clear temporary overrides
       await subscrio.subscriptions.clearTemporaryOverrides(subscription.key);
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('10'); // Should fall back to default
     });
 
@@ -793,8 +805,8 @@ describe('Feature Checker E2E Tests', () => {
       // Clear temporary overrides
       await subscrio.subscriptions.clearTemporaryOverrides(subscription.key);
 
-      const value1 = await subscrio.featureChecker.getValue(customer.key, feature1.key);
-      const value2 = await subscrio.featureChecker.getValue(customer.key, feature2.key);
+      const value1 = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature1.key);
+      const value2 = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature2.key);
 
       expect(value1).toBe('50'); // Permanent should remain
       expect(value2).toBe('20'); // Temporary cleared, falls back to default
@@ -856,7 +868,7 @@ describe('Feature Checker E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      const allFeatures = await subscrio.featureChecker.getAllFeatures(customer.key);
+      const allFeatures = await subscrio.featureChecker.getAllFeaturesForCustomer(customer.key, product.key);
       
       expect(allFeatures.get(feature1.key)).toBe('25');
       expect(allFeatures.get(feature2.key)).toBe('true');
@@ -905,7 +917,7 @@ describe('Feature Checker E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      const summary = await subscrio.featureChecker.getFeatureUsageSummary(customer.key);
+      const summary = await subscrio.featureChecker.getFeatureUsageSummary(customer.key, product.key);
       
       expect(summary).toBeDefined();
       expect(summary.activeSubscriptions).toBeGreaterThan(0);

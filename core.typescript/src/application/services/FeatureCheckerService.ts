@@ -21,29 +21,21 @@ export class FeatureCheckerService {
   }
 
   /**
-   * Check if a feature is enabled for a customer
+   * Get feature value for a specific subscription
    */
-  async isEnabled(
-    customerExternalId: string,
-    featureKey: string
-  ): Promise<boolean> {
-    const value = await this.getValue(customerExternalId, featureKey);
-    
-    // Toggle features: check if value is 'true'
-    return value?.toLowerCase() === 'true';
-  }
-
-  /**
-   * Get feature value for a customer
-   */
-  async getValue<T = string>(
-    customerExternalId: string,
+  async getValueForSubscription<T = string>(
+    subscriptionKey: string,
     featureKey: string,
     defaultValue?: T
   ): Promise<T | null> {
-    // Find customer
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
-    if (!customer) {
+    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
+    if (!subscription) {
+      return defaultValue ?? null;
+    }
+
+    // Get plan
+    const plan = await this.planRepository.findById(subscription.planId);
+    if (!plan) {
       return defaultValue ?? null;
     }
 
@@ -53,82 +45,31 @@ export class FeatureCheckerService {
       return defaultValue ?? null;
     }
 
-    // Get all active subscriptions for customer
-    const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
-    );
-
-    if (subscriptions.length === 0) {
-      // No active subscriptions, return default
-      return (feature.defaultValue as T) ?? defaultValue ?? null;
-    }
-
-    // Get plans for subscriptions
-    const planIds = subscriptions.map(s => s.planId);
-    const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
-
     // Resolve using hierarchy
-    let resolvedValue: string | null = null;
-
-    for (const subscription of subscriptions) {
-      const plan = planMap.get(subscription.planId);
-      const value = this.resolver.resolve(feature, plan ?? null, subscription);
-      
-      // If this subscription has an override, use it immediately
-      if (subscription.getFeatureOverride(feature.id)) {
-        resolvedValue = value;
-        break;
-      }
-      
-      // Otherwise keep checking
-      if (!resolvedValue) {
-        resolvedValue = value;
-      }
-    }
-
-    return (resolvedValue as T) ?? defaultValue ?? null;
+    const value = this.resolver.resolve(feature, plan, subscription);
+    return (value as T) ?? defaultValue ?? null;
   }
 
   /**
-   * Get all feature values for a customer
+   * Check if a feature is enabled for a specific subscription
    */
-  async getAllFeatures(
-    customerExternalId: string
-  ): Promise<Map<string, string>> {
-    const customer = await this.customerRepository.findByExternalId(customerExternalId);
-    if (!customer) {
-      return new Map();
-    }
-
-    // Get all features
-    const features = await this.featureRepository.findAll();
-
-    // Get all active subscriptions
-    const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
-    );
-
-    // Get plans
-    const planIds = subscriptions.map(s => s.planId);
-    const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
-
-    // Resolve all features
-    return this.resolver.resolveAll(features, planMap, subscriptions);
+  async isEnabledForSubscription(
+    subscriptionKey: string,
+    featureKey: string
+  ): Promise<boolean> {
+    const value = await this.getValueForSubscription(subscriptionKey, featureKey);
+    return value?.toLowerCase() === 'true';
   }
 
   /**
-   * Get feature values for a specific subscription
+   * Get all feature values for a specific subscription
    */
-  async getFeaturesForSubscription(
-    subscriptionId: string
+  async getAllFeaturesForSubscription(
+    subscriptionKey: string
   ): Promise<Map<string, string>> {
-    const subscription = await this.subscriptionRepository.findById(subscriptionId);
+    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
     if (!subscription) {
-      throw new NotFoundError(`Subscription with id '${subscriptionId}' not found`);
+      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
     // Get plan
@@ -156,6 +97,147 @@ export class FeatureCheckerService {
 
     return resolved;
   }
+
+  /**
+   * Get feature value for a customer in a specific product
+   */
+  async getValueForCustomer<T = string>(
+    customerExternalId: string,
+    productKey: string,
+    featureKey: string,
+    defaultValue?: T
+  ): Promise<T | null> {
+    // Find customer
+    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    if (!customer) {
+      return defaultValue ?? null;
+    }
+
+    // Get product
+    const product = await this.productRepository.findByKey(productKey);
+    if (!product) {
+      return defaultValue ?? null;
+    }
+
+    // Get feature
+    const feature = await this.featureRepository.findByKey(featureKey);
+    if (!feature) {
+      return defaultValue ?? null;
+    }
+
+    // Get active subscriptions for this customer and product
+    const subscriptions = await this.subscriptionRepository.findByCustomerId(
+      customer.id,
+      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+    );
+
+    // Filter subscriptions for this product
+    const productSubscriptions = [];
+    for (const subscription of subscriptions) {
+      const plan = await this.planRepository.findById(subscription.planId);
+      if (plan && plan.productKey === productKey) {
+        productSubscriptions.push(subscription);
+      }
+    }
+
+    if (productSubscriptions.length === 0) {
+      // No active subscriptions for this product, return feature default
+      return (feature.defaultValue as T) ?? defaultValue ?? null;
+    }
+
+    // Get plans for subscriptions
+    const planIds = productSubscriptions.map(s => s.planId);
+    const plans = await this.planRepository.findByIds(planIds);
+    const planMap = new Map(plans.map(p => [p.id, p]));
+
+    // Resolve using hierarchy
+    let resolvedValue: string | null = null;
+
+    for (const subscription of productSubscriptions) {
+      const plan = planMap.get(subscription.planId);
+      const value = this.resolver.resolve(feature, plan ?? null, subscription);
+      
+      // If this subscription has an override, use it immediately
+      if (subscription.getFeatureOverride(feature.id)) {
+        resolvedValue = value;
+        break;
+      }
+      
+      // Otherwise keep checking
+      if (!resolvedValue) {
+        resolvedValue = value;
+      }
+    }
+
+    return (resolvedValue as T) ?? defaultValue ?? null;
+  }
+
+  /**
+   * Check if a feature is enabled for a customer in a specific product
+   */
+  async isEnabledForCustomer(
+    customerExternalId: string,
+    productKey: string,
+    featureKey: string
+  ): Promise<boolean> {
+    const value = await this.getValueForCustomer(customerExternalId, productKey, featureKey);
+    return value?.toLowerCase() === 'true';
+  }
+
+  /**
+   * Get all feature values for a customer in a specific product
+   */
+  async getAllFeaturesForCustomer(
+    customerExternalId: string,
+    productKey: string
+  ): Promise<Map<string, string>> {
+    const customer = await this.customerRepository.findByExternalId(customerExternalId);
+    if (!customer) {
+      return new Map();
+    }
+
+    // Get product
+    const product = await this.productRepository.findByKey(productKey);
+    if (!product) {
+      return new Map();
+    }
+
+    // Get all features for the product
+    const features = await this.featureRepository.findByProduct(product.id);
+
+    // Get active subscriptions for this customer and product
+    const subscriptions = await this.subscriptionRepository.findByCustomerId(
+      customer.id,
+      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+    );
+
+    // Filter subscriptions for this product
+    const productSubscriptions = [];
+    for (const subscription of subscriptions) {
+      const plan = await this.planRepository.findById(subscription.planId);
+      if (plan && plan.productKey === productKey) {
+        productSubscriptions.push(subscription);
+      }
+    }
+
+    if (productSubscriptions.length === 0) {
+      // No active subscriptions for this product, return feature defaults
+      const resolved = new Map<string, string>();
+      for (const feature of features) {
+        resolved.set(feature.key, feature.defaultValue);
+      }
+      return resolved;
+    }
+
+    // Get plans for subscriptions
+    const planIds = productSubscriptions.map(s => s.planId);
+    const plans = await this.planRepository.findByIds(planIds);
+    const planMap = new Map(plans.map(p => [p.id, p]));
+
+    // Resolve all features
+    return this.resolver.resolveAll(features, planMap, productSubscriptions);
+  }
+
 
   /**
    * Check if customer has access to a specific plan
@@ -214,9 +296,12 @@ export class FeatureCheckerService {
   }
 
   /**
-   * Get feature usage summary for a customer
+   * Get feature usage summary for a customer in a specific product
    */
-  async getFeatureUsageSummary(customerExternalId: string): Promise<{
+  async getFeatureUsageSummary(
+    customerExternalId: string,
+    productKey: string
+  ): Promise<{
     activeSubscriptions: number;
     enabledFeatures: string[];
     disabledFeatures: string[];
@@ -228,7 +313,7 @@ export class FeatureCheckerService {
       ? (await this.subscriptionRepository.findByCustomerId(customer.id, { status: SubscriptionStatus.Active, limit: 100, offset: 0 })).length
       : 0;
 
-    const allFeatures = await this.getAllFeatures(customerExternalId);
+    const allFeatures = await this.getAllFeaturesForCustomer(customerExternalId, productKey);
     
     const enabledFeatures: string[] = [];
     const disabledFeatures: string[] = [];
@@ -236,7 +321,9 @@ export class FeatureCheckerService {
     const textFeatures = new Map<string, string>();
 
     // Get all features to determine their types
-    const features = await this.featureRepository.findAll();
+    const features = await this.featureRepository.findByProduct(
+      (await this.productRepository.findByKey(productKey))?.id || ''
+    );
     const featureTypeMap = new Map(features.map(f => [f.key, f.valueType]));
 
     for (const [featureKey, value] of allFeatures) {

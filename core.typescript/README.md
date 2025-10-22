@@ -131,20 +131,24 @@ const subscription = await subscrio.subscriptions.createSubscription({
 ### 3. Check Feature Availability
 
 ```typescript
-// Get features for specific subscription (recommended)
-const subscriptionFeatures = await subscrio.featureChecker.getFeaturesForSubscription(subscription.id);
+// Option 1: Get features for specific subscription (most reliable)
+const subscriptionFeatures = await subscrio.featureChecker.getAllFeaturesForSubscription(subscription.key);
 console.log(subscriptionFeatures.get('max-projects')); // "3"
 
-// Check if feature is enabled (for toggle features)
-const hasTeamAccess = await subscrio.featureChecker.isEnabled('user-123', 'team-collaboration');
-console.log(hasTeamAccess); // true/false
-
-// Get single feature value for customer (across all products)
-const maxProjects = await subscrio.featureChecker.getValue('user-123', 'max-projects');
+// Option 2: Get single feature value for customer in specific product
+const maxProjects = await subscrio.featureChecker.getValueForCustomer('user-123', product.key, 'max-projects');
 console.log(maxProjects); // "3"
 
+// Option 3: Check if feature is enabled (for toggle features)
+const hasTeamAccess = await subscrio.featureChecker.isEnabledForCustomer('user-123', product.key, 'team-collaboration');
+console.log(hasTeamAccess); // true/false
+
+// Option 4: Get all features for customer in specific product
+const allFeatures = await subscrio.featureChecker.getAllFeaturesForCustomer('user-123', product.key);
+console.log(allFeatures.get('max-projects')); // "3"
+
 // Enforce limits in your app
-const maxProjects = parseInt(await subscrio.featureChecker.getValue('user-123', 'max-projects') || '0');
+const maxProjects = parseInt(await subscrio.featureChecker.getValueForCustomer('user-123', product.key, 'max-projects') || '0');
 if (currentProjectCount >= maxProjects) {
   throw new Error('Project limit reached');
 }

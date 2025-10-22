@@ -899,7 +899,7 @@ describe('Subscriptions E2E Tests', () => {
         'permanent'
       );
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('100');
     });
 
@@ -953,7 +953,7 @@ describe('Subscriptions E2E Tests', () => {
         'permanent'
       );
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('true');
     });
 
@@ -1007,7 +1007,7 @@ describe('Subscriptions E2E Tests', () => {
         'temporary'
       );
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('20');
     });
 
@@ -1063,7 +1063,7 @@ describe('Subscriptions E2E Tests', () => {
 
       await subscrio.subscriptions.removeFeatureOverride(subscription.key, feature.key);
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('10'); // Falls back to default
     });
 
@@ -1119,7 +1119,7 @@ describe('Subscriptions E2E Tests', () => {
 
       await subscrio.subscriptions.clearTemporaryOverrides(subscription.key);
 
-      const value = await subscrio.featureChecker.getValue(customer.key, feature.key);
+      const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
       expect(value).toBe('10'); // Falls back to default
     });
 
@@ -1190,8 +1190,8 @@ describe('Subscriptions E2E Tests', () => {
 
       await subscrio.subscriptions.clearTemporaryOverrides(subscription.key);
 
-      const value1 = await subscrio.featureChecker.getValue(customer.key, feature1.key);
-      const value2 = await subscrio.featureChecker.getValue(customer.key, feature2.key);
+      const value1 = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature1.key);
+      const value2 = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature2.key);
 
       expect(value1).toBe('100'); // Permanent preserved
       expect(value2).toBe('20');  // Temporary cleared, falls back to default

@@ -391,27 +391,39 @@ clearTemporaryOverrides(subscriptionKey: string): Promise<void>
 **Primary API for checking features in your application:**
 
 ```typescript
-// Check if toggle feature is enabled
-isEnabled(
-  customerExternalId: string,
-  featureKey: string
-): Promise<boolean>
-
-// Get feature value for a customer
-getValue<T = string>(
-  customerExternalId: string,
+// Subscription-based methods (most reliable)
+getValueForSubscription<T = string>(
+  subscriptionKey: string,
   featureKey: string,
   defaultValue?: T
 ): Promise<T | null>
 
-// Get all features for a customer (returns Map<featureKey, value>)
-getAllFeatures(
-  customerExternalId: string
+isEnabledForSubscription(
+  subscriptionKey: string,
+  featureKey: string
+): Promise<boolean>
+
+getAllFeaturesForSubscription(
+  subscriptionKey: string
 ): Promise<Map<string, string>>
 
-// Get features for a specific subscription
-getFeaturesForSubscription(
-  subscriptionId: string
+// Customer + Product-based methods
+getValueForCustomer<T = string>(
+  customerExternalId: string,
+  productKey: string,
+  featureKey: string,
+  defaultValue?: T
+): Promise<T | null>
+
+isEnabledForCustomer(
+  customerExternalId: string,
+  productKey: string,
+  featureKey: string
+): Promise<boolean>
+
+getAllFeaturesForCustomer(
+  customerExternalId: string,
+  productKey: string
 ): Promise<Map<string, string>>
 
 // Check if customer has access to a plan
@@ -426,9 +438,10 @@ getActivePlans(
   customerExternalId: string
 ): Promise<string[]>
 
-// Get usage summary
+// Get usage summary for a specific product
 getFeatureUsageSummary(
-  customerExternalId: string
+  customerExternalId: string,
+  productKey: string
 ): Promise<{
   activeSubscriptions: number;
   enabledFeatures: string[];
