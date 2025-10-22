@@ -43,7 +43,7 @@ Download from postgresql.org and install
 ### 2. Run Tests
 
 ```bash
-cd packages/core
+cd core.typescript
 pnpm test
 ```
 
@@ -59,14 +59,24 @@ pnpm test:watch
 pnpm test:coverage
 ```
 
+### 5. Debug Mode (Keep Test Database)
+
+```bash
+pnpm test:debug
+```
+
+This runs tests with `KEEP_TEST_DB=true` to preserve the test database for debugging.
+
 ## Test Structure
 
 ```
 tests/
 ├── setup/
-│   ├── database.ts      # Database creation/teardown
-│   ├── fixtures.ts      # Test data factories
-│   └── vitest-setup.ts  # Global test setup
+│   ├── database.ts              # Database creation/teardown utilities
+│   ├── get-connection.ts        # Test database connection helper
+│   ├── test-instance.ts         # Shared test instance management
+│   ├── vitest-global-setup.ts   # Global setup (runs once)
+│   └── vitest-setup.ts          # Per-test setup
 └── e2e/
     ├── products.test.ts
     ├── features.test.ts
@@ -81,25 +91,22 @@ tests/
 
 ## Database Setup Pattern
 
+**Current Implementation**: Uses global setup with a shared test database for all tests.
+
 Each test file follows this pattern:
 
 ```typescript
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { Subscrio } from '@subscrio/core';
-import { setupTestDatabase, teardownTestDatabase } from '../setup/database';
+import { describe, test, expect, beforeAll } from 'vitest';
+import { Subscrio } from '../../src/index.js';
+import { getTestConnectionString } from '../setup/get-connection.js';
 
 describe('Entity E2E Tests', () => {
   let subscrio: Subscrio;
-  let dbName: string;
   
-  beforeAll(async () => {
-    const context = await setupTestDatabase();
-    subscrio = context.subscrio;
-    dbName = context.dbName;
-  });
-  
-  afterAll(async () => {
-    await teardownTestDatabase(dbName);
+  beforeAll(() => {
+    subscrio = new Subscrio({
+      database: { connectionString: getTestConnectionString() }
+    });
   });
 
   test('does something', async () => {
@@ -108,70 +115,29 @@ describe('Entity E2E Tests', () => {
 });
 ```
 
-### Database Setup Utility
+### Database Setup Architecture
 
-**`tests/setup/database.ts`:**
-```typescript
-import { randomUUID } from 'crypto';
-import { Client } from 'pg';
-import { Subscrio } from '@subscrio/core';
+**Global Setup** (`tests/setup/vitest-global-setup.ts`):
+- Creates a single shared test database (`subscrio_test`)
+- Runs once before all test files
+- Handles cleanup of dangling test databases
+- Sets up global test environment
 
-export interface TestContext {
-  dbName: string;
-  connectionString: string;
-  subscrio: Subscrio;
-}
+**Per-Test Setup** (`tests/setup/vitest-setup.ts`):
+- Runs before each test file
+- Provides access to global test database
+- Declares global TypeScript types
 
-export async function setupTestDatabase(): Promise<TestContext> {
-  // Generate unique database name
-  const dbName = `subscrio_test_${randomUUID().replace(/-/g, '')}`;
-  
-  // Connect to postgres database to create test DB
-  const adminClient = new Client({
-    connectionString: process.env.TEST_DATABASE_URL || 
-      'postgresql://postgres:postgres@localhost:5432/postgres'
-  });
-  
-  await adminClient.connect();
-  await adminClient.query(`CREATE DATABASE ${dbName}`);
-  await adminClient.end();
-  
-  // Build connection string for test database
-  const baseUrl = process.env.TEST_DATABASE_URL || 
-    'postgresql://postgres:postgres@localhost:5432/postgres';
-  const connectionString = baseUrl.replace(/\/[^/]*$/, `/${dbName}`);
-  
-  // Initialize Subscrio with test database
-  const subscrio = new Subscrio({
-    database: { connectionString }
-  });
-  
-  // Install schema using public API
-  await subscrio.installSchema();
-  
-  return { dbName, connectionString, subscrio };
-}
+**Database Utilities** (`tests/setup/database.ts`):
+- `setupTestDatabase()` - Creates shared test database
+- `teardownTestDatabase()` - Cleans up test database
+- `cleanupDanglingTestDatabases()` - Removes orphaned test databases
+- Supports `KEEP_TEST_DB=true` for debugging
 
-export async function teardownTestDatabase(dbName: string): Promise<void> {
-  const adminClient = new Client({
-    connectionString: process.env.TEST_DATABASE_URL ||
-      'postgresql://postgres:postgres@localhost:5432/postgres'
-  });
-  
-  await adminClient.connect();
-  
-  // Terminate connections and drop database
-  await adminClient.query(`
-    SELECT pg_terminate_backend(pg_stat_activity.pid)
-    FROM pg_stat_activity
-    WHERE pg_stat_activity.datname = '${dbName}'
-      AND pid <> pg_backend_pid()
-  `);
-  
-  await adminClient.query(`DROP DATABASE IF EXISTS ${dbName}`);
-  await adminClient.end();
-}
-```
+**Connection Helper** (`tests/setup/get-connection.ts`):
+- Provides consistent test database connection string
+- Uses `TEST_DATABASE_URL` environment variable
+- Falls back to default PostgreSQL connection
 
 ## Public API Test Coverage
 
@@ -185,78 +151,96 @@ Every public method must have tests:
 - `close()`
 
 ### ProductManagementService (`subscrio.products`)
-- `createProduct()`
-- `updateProduct()`
-- `deleteProduct()`
-- `archiveProduct()`
-- `getProduct()`
-- `getProductByKey()`
-- `listProducts()`
-- `associateFeature()`
-- `dissociateFeature()`
+- `createProduct(dto)` - Create new product
+- `updateProduct(key, dto)` - Update existing product
+- `getProduct(key)` - Get product by key
+- `listProducts(filters?)` - List products with optional filters
+- `deleteProduct(key)` - Delete product (must be archived)
+- `archiveProduct(key)` - Archive product
+- `activateProduct(key)` - Activate product
+- `associateFeature(productKey, featureKey)` - Associate feature with product
+- `dissociateFeature(productKey, featureKey)` - Remove feature from product
 
 ### FeatureManagementService (`subscrio.features`)
-- `createFeature()`
-- `updateFeature()`
-- `deleteFeature()`
-- `archiveFeature()`
-- `unarchiveFeature()`
-- `getFeature()`
-- `listFeatures()`
-- `getFeaturesByProduct()`
+- `createFeature(dto)` - Create new feature
+- `updateFeature(key, dto)` - Update existing feature
+- `getFeature(key)` - Get feature by key
+- `listFeatures(filters?)` - List features with optional filters
+- `deleteFeature(key)` - Delete feature (must be archived)
+- `archiveFeature(key)` - Archive feature
+- `unarchiveFeature(key)` - Unarchive feature
+- `getFeaturesByProduct(productKey)` - Get features for a product
 
 ### PlanManagementService (`subscrio.plans`)
-- `createPlan()`
-- `updatePlan()`
-- `deletePlan()`
-- `archivePlan()`
-- `getPlan()`
-- `listPlans()`
-- `setFeatureValue()`
-- `removeFeatureValue()`
-- `getPlanWithFeatures()`
+- `createPlan(dto)` - Create new plan
+- `updatePlan(productKey, planKey, dto)` - Update existing plan
+- `getPlan(productKey, planKey)` - Get plan by product and plan keys
+- `listPlans(filters?)` - List plans with optional filters
+- `getPlansByProduct(productKey)` - Get plans for a product
+- `deletePlan(productKey, planKey)` - Delete plan (must be archived)
+- `activatePlan(productKey, planKey)` - Activate plan
+- `deactivatePlan(productKey, planKey)` - Deactivate plan
+- `archivePlan(productKey, planKey)` - Archive plan
+- `setFeatureValue(productKey, planKey, featureKey, value)` - Set feature value for plan
+- `removeFeatureValue(productKey, planKey, featureKey)` - Remove feature value from plan
+- `getFeatureValue(productKey, planKey, featureKey)` - Get feature value for plan
+- `getPlanFeatures(productKey, planKey)` - Get all features for a plan
 
 ### CustomerManagementService (`subscrio.customers`)
-- `createCustomer()`
-- `updateCustomer()`
-- `deleteCustomer()`
-- `suspendCustomer()`
-- `activateCustomer()`
-- `getCustomer()`
-- `listCustomers()`
+- `createCustomer(dto)` - Create new customer
+- `updateCustomer(externalId, dto)` - Update existing customer
+- `getCustomer(externalId)` - Get customer by external ID
+- `listCustomers(filters?)` - List customers with optional filters
+- `activateCustomer(externalId)` - Activate customer
+- `suspendCustomer(externalId)` - Suspend customer
+- `markCustomerDeleted(externalId)` - Mark customer as deleted
+- `deleteCustomer(externalId)` - Delete customer
 
 ### APIKeyManagementService (`subscrio.apiKeys`)
-- `createAPIKey()`
-- `revokeAPIKey()`
-- `getAPIKey()`
-- `listAPIKeys()`
-- `validateAPIKey()`
+- `createAPIKey(dto)` - Create new API key (returns plaintext)
+- `updateAPIKey(key, dto)` - Update existing API key
+- `revokeAPIKey(key)` - Revoke API key
+- `deleteAPIKey(key)` - Delete API key
+- `validateAPIKey(plaintextKey, requiredScope?)` - Validate API key
+- `getAPIKeyByPlaintext(plaintextKey)` - Get API key by plaintext
 
 ### SubscriptionManagementService (`subscrio.subscriptions`)
-- `createSubscription()`
-- `cancelSubscription()`
-- `getSubscription()`
-- `listSubscriptions()`
-- `getCustomerSubscriptions()`
-- `addFeatureOverride()`
-- `removeFeatureOverride()`
+- `createSubscription(dto)` - Create new subscription
+- `updateSubscription(subscriptionKey, dto)` - Update existing subscription
+- `getSubscription(subscriptionKey)` - Get subscription by key
+- `getSubscriptionByStripeId(stripeId)` - Get subscription by Stripe ID
+- `listSubscriptions(filters?)` - List subscriptions with optional filters
+- `getSubscriptionsByCustomer(customerKey)` - Get all subscriptions for customer
+- `getActiveSubscriptionsByCustomer(customerKey)` - Get active subscriptions for customer
+- `cancelSubscription(subscriptionKey)` - Cancel subscription
+- `expireSubscription(subscriptionKey)` - Expire subscription
+- `renewSubscription(subscriptionKey)` - Renew subscription
+- `deleteSubscription(subscriptionKey)` - Delete subscription
+- `addFeatureOverride(subscriptionKey, featureKey, value, type)` - Add feature override
+- `removeFeatureOverride(subscriptionKey, featureKey)` - Remove feature override
+- `clearTemporaryOverrides(subscriptionKey)` - Clear temporary overrides
 
 ### BillingCycleManagementService (`subscrio.billingCycles`)
-- `createBillingCycle()`
-- `updateBillingCycle()`
-- `deleteBillingCycle()`
-- `getBillingCycle()`
-- `listBillingCycles()`
-- `processRenewals()`
+- `createBillingCycle(dto)` - Create new billing cycle
+- `updateBillingCycle(productKey, planKey, key, dto)` - Update existing billing cycle
+- `getBillingCycle(productKey, planKey, key)` - Get billing cycle
+- `getBillingCyclesByPlan(productKey, planKey)` - Get billing cycles for plan
+- `listBillingCycles(filters?)` - List billing cycles with optional filters
+- `deleteBillingCycle(productKey, planKey, key)` - Delete billing cycle
+- `getBillingCyclesByDurationUnit(durationUnit)` - Get billing cycles by duration
+- `getDefaultBillingCycles()` - Get default billing cycles
 
 ### FeatureCheckerService (`subscrio.featureChecker`) - **CRITICAL**
-- `isEnabled(customerKey, featureKey)`
-- `getValue(customerKey, featureKey)`
-- `getAllFeatures(customerKey)`
+- `isEnabled(customerExternalId, featureKey)` - Check if feature is enabled
+- `getAllFeatures(customerExternalId)` - Get all feature values for customer
+- `getFeaturesForSubscription(subscriptionKey)` - Get features for specific subscription
+- `hasPlanAccess(customerExternalId, planKey)` - Check if customer has plan access
+- `getActivePlans(customerExternalId)` - Get active plans for customer
+- `getFeatureUsageSummary(customerExternalId)` - Get feature usage summary
 
 ### StripeIntegrationService (`subscrio.stripe`)
-- `processStripeEvent(event)`
-- `syncSubscriptionFromStripe()`
+- `processStripeEvent(event)` - Process verified Stripe webhook event
+- `createStripeSubscription(customerExternalId, planKey, billingCycleKey)` - Create Stripe subscription
 
 ## Example Test: Feature Resolution Hierarchy
 
@@ -385,6 +369,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    globalSetup: ['./tests/setup/vitest-global-setup.ts'],
     setupFiles: ['./tests/setup/vitest-setup.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
@@ -410,6 +395,12 @@ export default defineConfig({
   }
 });
 ```
+
+**Available Test Scripts:**
+- `pnpm test` - Run all tests once
+- `pnpm test:watch` - Run tests in watch mode
+- `pnpm test:coverage` - Run tests with coverage report
+- `pnpm test:debug` - Run tests with `KEEP_TEST_DB=true` for debugging
 
 ## CI/CD Integration
 
@@ -471,13 +462,26 @@ export TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres
 
 ### Tests hang or timeout
 - Check for unclosed database connections
-- Ensure `afterAll` cleanup is running
-- Try running tests sequentially (already configured via `singleThread`)
+- Global setup handles database creation/cleanup automatically
+- Tests run sequentially (configured via `singleThread: true`)
+- Use `pnpm test:debug` to preserve test database for investigation
 
 ### "Too many connections"
 - PostgreSQL may have connection limit reached
 - Check active connections: `SELECT count(*) FROM pg_stat_activity;`
+- Global setup includes cleanup of dangling test databases
 - Terminate zombie connections from failed test runs
+
+### Test Database Issues
+- **Keep test database for debugging**: `KEEP_TEST_DB=true pnpm test`
+- **Manual cleanup**: Connect to postgres and run `DROP DATABASE IF EXISTS subscrio_test;`
+- **Check for orphaned databases**: Look for databases matching `subscrio_test_*` pattern
+- **Global setup logs**: Check console output for database setup/teardown messages
+
+### Environment Variables
+- `TEST_DATABASE_URL` - Override default test database connection
+- `KEEP_TEST_DB` - Set to `true` to preserve test database after tests
+- `LOG_LEVEL` - Set to `error` during tests to reduce noise
 
 ## Best Practices
 
@@ -547,20 +551,17 @@ When adding a new feature:
 
 **Example template:**
 ```typescript
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { Subscrio } from '@subscrio/core';
-import { setupTestDatabase, teardownTestDatabase } from '../setup/database';
+import { describe, test, expect, beforeAll } from 'vitest';
+import { Subscrio } from '../../src/index.js';
+import { getTestConnectionString } from '../setup/get-connection.js';
 
 describe('NewFeature E2E Tests', () => {
   let subscrio: Subscrio;
-  let dbName: string;
   
-  beforeAll(async () => {
-    ({ subscrio, dbName } = await setupTestDatabase());
-  });
-  
-  afterAll(async () => {
-    await teardownTestDatabase(dbName);
+  beforeAll(() => {
+    subscrio = new Subscrio({
+      database: { connectionString: getTestConnectionString() }
+    });
   });
 
   test('creates new thing successfully', async () => {

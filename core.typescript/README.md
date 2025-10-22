@@ -1,34 +1,6 @@
 # @subscrio/core
 
-Core library for Subscrio - a TypeScript/Node.js library for managing SaaS subscriptions, features, and plans.
-
-## Documentation
-
-📚 **[How to Use Guide](./HOW_TO_USE.md)** - Start here for integration examples and usage patterns  
-📖 **[API Reference](./API_REFERENCE.md)** - Complete API documentation with all data structures and methods  
-🔧 **This README** - Development status and contribution guide
-
----
-
-## Architecture
-
-This library follows Domain-Driven Design (DDD) principles with three main layers:
-
-### Domain Layer (`src/domain/`)
-- **Entities**: Product, Feature, Plan, Customer, APIKey, Subscription, RenewalCycle, SystemConfig
-- **Value Objects**: Enums for statuses and types
-- **Domain Services**: FeatureValueResolver, SubscriptionRenewalService
-
-### Application Layer (`src/application/`)
-- **DTOs**: Input/output data transfer objects with Zod validation
-- **Mappers**: Transform between database records, domain entities, and DTOs
-- **Repository Interfaces**: Define contracts for data access
-- **Services**: Business logic orchestration
-
-### Infrastructure Layer (`src/infrastructure/`)
-- **Database**: Drizzle ORM with PostgreSQL
-- **Repository Implementations**: Concrete implementations of repository interfaces
-- **Utilities**: UUID generation, configuration
+TypeScript library for managing SaaS subscriptions, features, and plans.
 
 ## Installation
 
@@ -43,131 +15,138 @@ import { Subscrio } from '@subscrio/core';
 
 const subscrio = new Subscrio({
   database: {
-    connectionString: process.env.DATABASE_URL
-  },
-  adminPassphrase: process.env.ADMIN_PASSPHRASE
+    connectionString: 'postgresql://user:password@localhost:5432/mydb'
+  }
 });
 
 // Install schema (first time only)
 await subscrio.installSchema();
+```
 
-// Use the API
+## Entity Hierarchy
+
+```
+Features (standalone)
+├── key: string
+├── valueType: 'toggle' | 'numeric' | 'text'
+└── defaultValue: string
+
+Product
+├── ProductFeatures (many-to-many via ProductFeature)
+│   └── Feature (subset of all features)
+└── Plans (one-to-many)
+    └── Plan
+        ├── key: string
+        ├── displayName: string
+        ├── onExpireTransitionToPlanId (self-reference)
+        └── BillingCycles (one-to-many)
+            └── BillingCycle
+                ├── key: string
+                ├── durationValue: number
+                ├── durationUnit: 'days' | 'months' | 'years'
+                └── externalProductId: string
+
+Customer
+├── externalId: string (your app's user ID)
+├── displayName: string
+├── email: string
+└── Subscriptions (one-to-many)
+    └── Subscription
+        ├── status: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
+        ├── currentPeriodStart: Date
+        ├── currentPeriodEnd: Date
+        ├── trialEndDate?: Date
+        ├── autoRenew: boolean
+        └── FeatureOverrides (one-to-many)
+            ├── value: string
+            └── type: 'permanent' | 'temporary'
+
+Feature Value Resolution (how we determine access/value):
+1. Subscription Override (highest priority)
+2. Plan Value
+3. Feature Default (fallback)
+```
+
+## Basic Usage
+
+### 1. Setup Product Structure (Minimum)
+
+```typescript
+// Create your first product
 const product = await subscrio.products.createProduct({
   key: 'my-product',
   displayName: 'My Product'
 });
+
+// Create one feature
+const maxProjects = await subscrio.features.createFeature({
+  key: 'max-projects',
+  displayName: 'Max Projects',
+  valueType: 'numeric',
+  defaultValue: '3'
+});
+
+// Associate feature with product
+await subscrio.products.associateFeature(product.key, maxProjects.key);
+
+// Create one plan
+const freePlan = await subscrio.plans.createPlan({
+  productKey: product.key,
+  key: 'free',
+  displayName: 'Free Plan'
+});
+
+// Create one billing cycle
+const monthlyCycle = await subscrio.billingCycles.createBillingCycle({
+  productKey: product.key,
+  planKey: freePlan.key,
+  key: 'monthly',
+  displayName: 'Monthly',
+  durationValue: 1,
+  durationUnit: 'months'
+});
+
+// Set feature value for plan
+await subscrio.plans.setFeatureValue(product.key, freePlan.key, maxProjects.key, '3');
 ```
 
-📖 **For complete usage examples, startup patterns, and integration guides, see [HOW_TO_USE.md](./HOW_TO_USE.md)**
+### 2. Create Customer and Subscription
 
-## Development Status
+```typescript
+// Create customer
+const customer = await subscrio.customers.createCustomer({
+  externalId: 'user-123'
+});
 
-### Completed Components
-
-✅ **Domain Layer**:
-- Base Entity class
-- All 10 value objects (enums)
-- All 8 domain entities with business logic
-- 2 domain services (FeatureValueResolver, SubscriptionRenewalService)
-
-✅ **Application Layer - DTOs & Mappers**:
-- 8 complete DTO sets with Zod schemas (Product, Feature, Plan, Customer, APIKey, Subscription, RenewalCycle)
-- 8 complete mappers for all entities
-- All 7 repository interfaces
-- Custom error classes
-
-✅ **Application Layer - Services**:
-- ProductManagementService (complete)
-
-✅ **Infrastructure**:
-- Complete Drizzle schema with all 11 tables
-- Database connection and schema installer
-- UUID generator
-- Configuration loader
-- DrizzleProductRepository (complete implementation)
-
-✅ **Main Library**:
-- Subscrio main class (with Product service integrated)
-- Public API exports
-
-✅ **Testing**:
-- Vitest configuration
-- Test database setup/teardown utilities
-- Complete E2E test suite for Products
-
-### Remaining Work
-
-The following components need to be implemented following the established patterns:
-
-🔲 **Application Services** (8 remaining):
-- FeatureManagementService
-- PlanManagementService
-- CustomerManagementService
-- APIKeyManagementService
-- SubscriptionManagementService
-- RenewalCycleManagementService
-- StripeIntegrationService
-- FeatureCheckerService
-
-🔲 **Repository Implementations** (6 remaining):
-- DrizzleFeatureRepository
-- DrizzlePlanRepository
-- DrizzleCustomerRepository
-- DrizzleAPIKeyRepository
-- DrizzleSubscriptionRepository
-- DrizzleRenewalCycleRepository
-
-🔲 **E2E Tests** (8 remaining):
-- features.test.ts
-- plans.test.ts
-- customers.test.ts
-- api-keys.test.ts
-- subscriptions.test.ts
-- renewal-cycles.test.ts
-- feature-checker.test.ts (critical)
-- stripe-integration.test.ts
-
-## Testing
-
-### Prerequisites
-
-**PostgreSQL must be running** on localhost:5432 with credentials `postgres/postgres`.
-
-### Run Tests
-
-```bash
-# Just run tests
-pnpm test
-
-# Watch mode
-pnpm test:watch
-
-# Coverage
-pnpm test:coverage
+// Create subscription
+const subscription = await subscrio.subscriptions.createSubscription({
+  key: 'sub-123',
+  customerKey: 'user-123',
+  productKey: product.key,
+  planKey: freePlan.key,
+  billingCycleKey: monthlyCycle.key
+});
 ```
 
-### Default Connection String
+### 3. Check Feature Availability
 
-Tests use: `postgresql://postgres:postgres@localhost:5432/postgres`
+```typescript
+// Get features for specific subscription (recommended)
+const subscriptionFeatures = await subscrio.featureChecker.getFeaturesForSubscription(subscription.id);
+console.log(subscriptionFeatures.get('max-projects')); // "3"
 
-If your PostgreSQL uses different credentials, set:
-```bash
-$env:TEST_DATABASE_URL = "postgresql://your_user:your_password@localhost:5432/postgres"
+// Check if feature is enabled (for toggle features)
+const hasTeamAccess = await subscrio.featureChecker.isEnabled('user-123', 'team-collaboration');
+console.log(hasTeamAccess); // true/false
+
+// Get single feature value for customer (across all products)
+const maxProjects = await subscrio.featureChecker.getValue('user-123', 'max-projects');
+console.log(maxProjects); // "3"
+
+// Enforce limits in your app
+const maxProjects = parseInt(await subscrio.featureChecker.getValue('user-123', 'max-projects') || '0');
+if (currentProjectCount >= maxProjects) {
+  throw new Error('Project limit reached');
+}
 ```
-
-📖 **See [TESTING.md](./TESTING.md) for troubleshooting**
-
-## Building
-
-```bash
-# Build library
-pnpm build
-
-# Type check
-pnpm typecheck
-```
-
-## License
-
-MIT
 
