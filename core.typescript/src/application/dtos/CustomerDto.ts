@@ -12,7 +12,13 @@ export const CreateCustomerDtoSchema = z.object({
 
 export type CreateCustomerDto = z.infer<typeof CreateCustomerDtoSchema>;
 
-export const UpdateCustomerDtoSchema = CreateCustomerDtoSchema.partial();
+export const UpdateCustomerDtoSchema = z.object({
+  // Only updateable fields - excluding immutable field: key
+  displayName: z.string().max(255).optional(),
+  email: z.string().email().optional(),
+  externalBillingId: z.string().max(255).optional(),
+  metadata: z.record(z.unknown()).optional()
+});
 export type UpdateCustomerDto = z.infer<typeof UpdateCustomerDtoSchema>;
 
 export interface CustomerDto {

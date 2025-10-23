@@ -223,7 +223,7 @@ const subscrio = new Subscrio({
   productKey: string;             // Product key
   planKey: string;                // Plan key
   billingCycleKey: string;        // Billing cycle key
-  status: string;                 // 'pending' | 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
+  status: string;                 // 'pending' | 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended' (calculated dynamically)
   activationDate?: string;        // ISO 8601
   expirationDate?: string;        // ISO 8601
   cancellationDate?: string;      // ISO 8601
@@ -237,6 +237,19 @@ const subscrio = new Subscrio({
   updatedAt: string;              // ISO 8601
 }
 ```
+
+---
+
+## Subscription Status Calculation
+
+Subscription status is calculated dynamically based on the current state of the subscription:
+
+1. **'cancelled'** - If `cancellationDate` is set and has passed
+2. **'expired'** - If `expirationDate` is set and has passed  
+3. **'trial'** - If `trialEndDate` is set and is in the future
+4. **'active'** - Default status if none of the above conditions apply
+
+The status is recalculated every time the subscription is accessed, ensuring it always reflects the current state based on dates and other properties.
 
 ---
 
@@ -361,16 +374,14 @@ createSubscription(dto: CreateSubscriptionDto): Promise<SubscriptionDto>
 
 // Read
 getSubscription(subscriptionKey: string): Promise<SubscriptionDto | null>
-getSubscriptionByStripeId(stripeId: string): Promise<SubscriptionDto | null>
 listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]>
+findSubscriptions(filters: DetailedSubscriptionFilterDto): Promise<SubscriptionDto[]>
 getSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]>
-getActiveSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]>
 
 // Update
 updateSubscription(subscriptionKey: string, dto: UpdateSubscriptionDto): Promise<SubscriptionDto>
-cancelSubscription(subscriptionKey: string): Promise<void>
-expireSubscription(subscriptionKey: string): Promise<void>
-renewSubscription(subscriptionKey: string): Promise<void>
+archiveSubscription(subscriptionKey: string): Promise<void>
+unarchiveSubscription(subscriptionKey: string): Promise<void>
 
 // Delete
 deleteSubscription(subscriptionKey: string): Promise<void>

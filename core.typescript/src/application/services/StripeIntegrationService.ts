@@ -3,7 +3,6 @@ import { ICustomerRepository } from '../repositories/ICustomerRepository.js';
 import { IPlanRepository } from '../repositories/IPlanRepository.js';
 import { IBillingCycleRepository } from '../repositories/IBillingCycleRepository.js';
 import { Subscription } from '../../domain/entities/Subscription.js';
-import { SubscriptionStatus } from '../../domain/value-objects/index.js';
 import { generateId, generateKey } from '../../infrastructure/utils/uuid.js';
 import Stripe from 'stripe';
 import { NotFoundError, ValidationError } from '../errors/index.js';
@@ -110,7 +109,6 @@ export class StripeIntegrationService {
     }
 
     // Update subscription properties
-    subscription.props.status = this.mapStripeStatus(stripeSubscription.status);
     subscription.props.currentPeriodStart = new Date(
       stripeSubscription.current_period_start * 1000
     );
@@ -158,12 +156,7 @@ export class StripeIntegrationService {
       return; // Subscription not found
     }
 
-    // Update subscription status if needed
-    if (subscription.props.status === SubscriptionStatus.Suspended) {
-      subscription.props.status = SubscriptionStatus.Active;
-      subscription.props.updatedAt = new Date();
-      await this.subscriptionRepository.save(subscription);
-    }
+    // Status is now calculated dynamically, no need to update it
   }
 
   private async handlePaymentFailed(
@@ -180,8 +173,7 @@ export class StripeIntegrationService {
       return; // Subscription not found
     }
 
-    // Suspend subscription for failed payment
-    subscription.props.status = SubscriptionStatus.Suspended;
+    // Suspend subscription for failed payment - status is calculated dynamically
     subscription.props.updatedAt = new Date();
     await this.subscriptionRepository.save(subscription);
   }
@@ -194,26 +186,6 @@ export class StripeIntegrationService {
     console.log(`Trial ending for subscription: ${stripeSubscription.id}`);
   }
 
-  private mapStripeStatus(
-    stripeStatus: Stripe.Subscription.Status
-  ): SubscriptionStatus {
-    switch (stripeStatus) {
-      case 'active':
-        return SubscriptionStatus.Active;
-      case 'trialing':
-        return SubscriptionStatus.Trial;
-      case 'canceled':
-      case 'unpaid':
-        return SubscriptionStatus.Cancelled;
-      case 'past_due':
-        return SubscriptionStatus.Suspended;
-      case 'incomplete':
-      case 'incomplete_expired':
-        return SubscriptionStatus.Expired;
-      default:
-        return SubscriptionStatus.Suspended;
-    }
-  }
 
   /**
    * Find billing cycle by Stripe price ID (stored in externalProductId)
@@ -262,7 +234,7 @@ export class StripeIntegrationService {
       customerId: customer.id,
       planId: plan.id,
       billingCycleId: billingCycle.id,
-      status: SubscriptionStatus.Active,
+      status: 'active' as any,  // Default status
       activationDate: new Date(),
       currentPeriodStart: new Date(),
       currentPeriodEnd: billingCycle.calculateNextPeriodEnd(new Date()),

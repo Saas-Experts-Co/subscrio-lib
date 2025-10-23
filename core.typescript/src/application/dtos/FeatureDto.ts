@@ -34,7 +34,19 @@ export const CreateFeatureDtoSchema = BaseFeatureDtoSchema.refine((data) => {
 
 export type CreateFeatureDto = z.infer<typeof CreateFeatureDtoSchema>;
 
-export const UpdateFeatureDtoSchema = BaseFeatureDtoSchema.partial().refine((data) => {
+export const UpdateFeatureDtoSchema = z.object({
+  // Only updateable fields - excluding immutable field: key
+  displayName: z.string()
+    .min(1, 'Display name is required')
+    .max(255, 'Display name too long')
+    .optional(),
+  description: z.string().max(1000).optional(),
+  valueType: z.enum(['toggle', 'numeric', 'text']).optional(),
+  defaultValue: z.string().min(1, 'Default value is required').optional(),
+  groupName: z.string().max(255).optional(),
+  validator: z.record(z.unknown()).optional(),
+  metadata: z.record(z.unknown()).optional()
+}).refine((data) => {
   // Only validate if both valueType and defaultValue are provided
   if (!data.valueType || !data.defaultValue) {
     return true;

@@ -11,6 +11,8 @@ import {
   UpdateSubscriptionDtoSchema,
   SubscriptionFilterDto,
   SubscriptionFilterDtoSchema,
+  DetailedSubscriptionFilterDto,
+  DetailedSubscriptionFilterDtoSchema,
   SubscriptionDto 
 } from '../dtos/SubscriptionDto.js';
 import { SubscriptionMapper } from '../mappers/SubscriptionMapper.js';
@@ -117,19 +119,14 @@ export class SubscriptionManagementService {
     }
 
     const id = generateId();
-    
-    // Determine initial status
     const trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
-    const initialStatus = (trialEndDate && new Date() < trialEndDate) 
-      ? SubscriptionStatus.Trial 
-      : SubscriptionStatus.Active;
-
+    
     const subscription = new Subscription({
       key: validatedDto.key,  // User-supplied key
       customerId: customer.id,
       planId: plan.id,
       billingCycleId,
-      status: initialStatus,
+      status: SubscriptionStatus.Active,  // Default status, will be calculated dynamically
       activationDate: validatedDto.activationDate ? new Date(validatedDto.activationDate) : new Date(),
       expirationDate: validatedDto.expirationDate ? new Date(validatedDto.expirationDate) : undefined,
       cancellationDate: validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined,
@@ -157,6 +154,8 @@ export class SubscriptionManagementService {
   }
 
   async updateSubscription(subscriptionKey: string, dto: UpdateSubscriptionDto): Promise<SubscriptionDto> {
+    console.log('DEBUG: updateSubscription method called with:', { subscriptionKey, dto });
+    
     const validationResult = UpdateSubscriptionDtoSchema.safeParse(dto);
     if (!validationResult.success) {
       throw new ValidationError(
@@ -165,24 +164,34 @@ export class SubscriptionManagementService {
       );
     }
     const validatedDto = validationResult.data;
+    
+    // Check if trialEndDate was explicitly set to null/undefined in original input
+    const wasTrialEndDateCleared = dto.trialEndDate === null || dto.trialEndDate === undefined;
 
     const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
     if (!subscription) {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
-    // Update properties
-    if (validatedDto.activationDate !== undefined) {
-      subscription.props.activationDate = validatedDto.activationDate ? new Date(validatedDto.activationDate) : undefined;
-    }
+    // Update properties (activationDate is immutable)
     if (validatedDto.expirationDate !== undefined) {
       subscription.props.expirationDate = validatedDto.expirationDate ? new Date(validatedDto.expirationDate) : undefined;
     }
     if (validatedDto.cancellationDate !== undefined) {
       subscription.props.cancellationDate = validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined;
     }
-    if (validatedDto.trialEndDate !== undefined) {
-      subscription.props.trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
+    // Handle trialEndDate updates
+    console.log('DEBUG: trialEndDate update check:', {
+      validatedDtoTrialEndDate: validatedDto.trialEndDate,
+      wasTrialEndDateCleared,
+      shouldUpdate: validatedDto.trialEndDate !== undefined || wasTrialEndDateCleared,
+      currentTrialEndDate: subscription.props.trialEndDate
+    });
+    
+    if (validatedDto.trialEndDate !== undefined || wasTrialEndDateCleared) {
+      const newTrialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
+      console.log('DEBUG: Setting trialEndDate to:', newTrialEndDate);
+      subscription.props.trialEndDate = newTrialEndDate;
     }
     if (validatedDto.currentPeriodStart !== undefined) {
       subscription.props.currentPeriodStart = validatedDto.currentPeriodStart ? new Date(validatedDto.currentPeriodStart) : undefined;
@@ -195,6 +204,15 @@ export class SubscriptionManagementService {
     }
     if (validatedDto.metadata !== undefined) {
       subscription.props.metadata = validatedDto.metadata;
+    }
+    if (validatedDto.billingCycleKey !== undefined) {
+      // Find the new billing cycle
+      const billingCycle = await this.billingCycleRepository.findByKey(validatedDto.billingCycleKey);
+      if (!billingCycle) {
+        throw new NotFoundError(`Billing cycle with key '${validatedDto.billingCycleKey}' not found`);
+      }
+      subscription.props.billingCycleId = billingCycle.id;
+      subscription.props.planId = billingCycle.props.planId; // Update plan ID to match new billing cycle
     }
 
     subscription.props.updatedAt = new Date();
@@ -212,13 +230,6 @@ export class SubscriptionManagementService {
     return SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey);
   }
 
-  async getSubscriptionByStripeId(stripeId: string): Promise<SubscriptionDto | null> {
-    const subscription = await this.subscriptionRepository.findByStripeId(stripeId);
-    if (!subscription) return null;
-    
-    const keys = await this.resolveSubscriptionKeys(subscription);
-    return SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey);
-  }
 
   async listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]> {
     const validationResult = SubscriptionFilterDtoSchema.safeParse(filters || {});
@@ -279,6 +290,90 @@ export class SubscriptionManagementService {
     return dtos;
   }
 
+  async findSubscriptions(filters: DetailedSubscriptionFilterDto): Promise<SubscriptionDto[]> {
+    const validationResult = DetailedSubscriptionFilterDtoSchema.safeParse(filters);
+    if (!validationResult.success) {
+      throw new ValidationError(
+        'Invalid filter parameters',
+        validationResult.error.errors
+      );
+    }
+
+    // For now, use the basic listSubscriptions with the basic filters
+    // TODO: Implement advanced filtering in repository layer
+    const basicFilters: SubscriptionFilterDto = {
+      customerKey: filters.customerKey,
+      productKey: filters.productKey,
+      planKey: filters.planKey,
+      status: filters.status,
+      sortBy: filters.sortBy,
+      sortOrder: filters.sortOrder,
+      limit: filters.limit,
+      offset: filters.offset
+    };
+
+    let subscriptions = await this.subscriptionRepository.findAll(basicFilters);
+    
+    // Apply additional filters post-fetch (basic implementation)
+    if (filters.autoRenew !== undefined) {
+      subscriptions = subscriptions.filter(s => s.props.autoRenew === filters.autoRenew);
+    }
+    
+    if (filters.hasStripeId !== undefined) {
+      const hasStripe = filters.hasStripeId;
+      subscriptions = subscriptions.filter(s => hasStripe ? !!s.props.stripeSubscriptionId : !s.props.stripeSubscriptionId);
+    }
+    
+    if (filters.hasTrial !== undefined) {
+      const hasTrial = filters.hasTrial;
+      subscriptions = subscriptions.filter(s => hasTrial ? !!s.props.trialEndDate : !s.props.trialEndDate);
+    }
+    
+    if (filters.hasFeatureOverrides !== undefined) {
+      const hasOverrides = filters.hasFeatureOverrides;
+      subscriptions = subscriptions.filter(s => hasOverrides ? s.props.featureOverrides.length > 0 : s.props.featureOverrides.length === 0);
+    }
+    
+    // Apply date range filters
+    if (filters.activationDateFrom) {
+      subscriptions = subscriptions.filter(s => s.props.activationDate && s.props.activationDate >= filters.activationDateFrom!);
+    }
+    if (filters.activationDateTo) {
+      subscriptions = subscriptions.filter(s => s.props.activationDate && s.props.activationDate <= filters.activationDateTo!);
+    }
+    if (filters.expirationDateFrom) {
+      subscriptions = subscriptions.filter(s => s.props.expirationDate && s.props.expirationDate >= filters.expirationDateFrom!);
+    }
+    if (filters.expirationDateTo) {
+      subscriptions = subscriptions.filter(s => s.props.expirationDate && s.props.expirationDate <= filters.expirationDateTo!);
+    }
+    if (filters.trialEndDateFrom) {
+      subscriptions = subscriptions.filter(s => s.props.trialEndDate && s.props.trialEndDate >= filters.trialEndDateFrom!);
+    }
+    if (filters.trialEndDateTo) {
+      subscriptions = subscriptions.filter(s => s.props.trialEndDate && s.props.trialEndDate <= filters.trialEndDateTo!);
+    }
+    if (filters.currentPeriodStartFrom) {
+      subscriptions = subscriptions.filter(s => s.props.currentPeriodStart && s.props.currentPeriodStart >= filters.currentPeriodStartFrom!);
+    }
+    if (filters.currentPeriodStartTo) {
+      subscriptions = subscriptions.filter(s => s.props.currentPeriodStart && s.props.currentPeriodStart <= filters.currentPeriodStartTo!);
+    }
+    if (filters.currentPeriodEndFrom) {
+      subscriptions = subscriptions.filter(s => s.props.currentPeriodEnd && s.props.currentPeriodEnd >= filters.currentPeriodEndFrom!);
+    }
+    if (filters.currentPeriodEndTo) {
+      subscriptions = subscriptions.filter(s => s.props.currentPeriodEnd && s.props.currentPeriodEnd <= filters.currentPeriodEndTo!);
+    }
+    
+    const dtos: SubscriptionDto[] = [];
+    for (const subscription of subscriptions) {
+      const keys = await this.resolveSubscriptionKeys(subscription);
+      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
+    }
+    return dtos;
+  }
+
   async getSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]> {
     const customer = await this.customerRepository.findByKey(customerKey);
     if (!customer) {
@@ -293,56 +388,6 @@ export class SubscriptionManagementService {
       dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
     }
     return dtos;
-  }
-
-  async getActiveSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]> {
-    const customer = await this.customerRepository.findByKey(customerKey);
-    if (!customer) {
-      throw new NotFoundError(`Customer with key '${customerKey}' not found`);
-    }
-
-    const subscriptions = await this.subscriptionRepository.findByCustomerId(customer.id, {
-      status: SubscriptionStatus.Active,
-      limit: 100,
-      offset: 0
-    });
-    
-    const dtos: SubscriptionDto[] = [];
-    for (const subscription of subscriptions) {
-      const keys = await this.resolveSubscriptionKeys(subscription);
-      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
-    }
-    return dtos;
-  }
-
-  async cancelSubscription(subscriptionKey: string): Promise<void> {
-    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
-    if (!subscription) {
-      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
-    }
-
-    subscription.cancel();
-    await this.subscriptionRepository.save(subscription);
-  }
-
-  async expireSubscription(subscriptionKey: string): Promise<void> {
-    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
-    if (!subscription) {
-      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
-    }
-
-    subscription.expire();
-    await this.subscriptionRepository.save(subscription);
-  }
-
-  async renewSubscription(subscriptionKey: string): Promise<void> {
-    const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
-    if (!subscription) {
-      throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
-    }
-
-    subscription.renew();
-    await this.subscriptionRepository.save(subscription);
   }
 
   async archiveSubscription(subscriptionKey: string): Promise<void> {

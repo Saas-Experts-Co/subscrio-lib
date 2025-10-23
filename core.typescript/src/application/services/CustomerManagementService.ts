@@ -78,13 +78,7 @@ export class CustomerManagementService {
       throw new NotFoundError(`Customer with key '${key}' not found`);
     }
 
-    // Check for conflicts if updating key
-    if (validatedDto.key && validatedDto.key !== customer.key) {
-      const existing = await this.customerRepository.findByKey(validatedDto.key);
-      if (existing && existing.id !== customer.id) {
-        throw new ConflictError(`Customer with key '${validatedDto.key}' already exists`);
-      }
-    }
+    // Key is immutable - no validation needed
 
     if (validatedDto.externalBillingId && validatedDto.externalBillingId !== customer.props.externalBillingId) {
       const existing = await this.customerRepository.findByExternalBillingId(validatedDto.externalBillingId);
@@ -93,10 +87,7 @@ export class CustomerManagementService {
       }
     }
 
-    // Update properties
-    if (validatedDto.key !== undefined) {
-      customer.props.key = validatedDto.key;
-    }
+    // Update properties (key is immutable)
     if (validatedDto.displayName !== undefined) {
       customer.props.displayName = validatedDto.displayName;
     }

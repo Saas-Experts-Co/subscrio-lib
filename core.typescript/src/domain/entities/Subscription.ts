@@ -43,20 +43,42 @@ export class Subscription extends Entity<SubscriptionProps> {
   }
 
   get status(): SubscriptionStatus {
-    return this.props.status;
+    const now = new Date();
+    
+    // If cancelled, return cancelled
+    if (this.props.cancellationDate && this.props.cancellationDate <= now) {
+      return SubscriptionStatus.Cancelled;
+    }
+    
+    // If expired, return expired
+    if (this.props.expirationDate && this.props.expirationDate <= now) {
+      return SubscriptionStatus.Expired;
+    }
+    
+    // If in trial period, return trial
+    if (this.props.trialEndDate && this.props.trialEndDate > now) {
+      return SubscriptionStatus.Trial;
+    }
+    
+    // If trial ended but not yet active, return active
+    if (this.props.trialEndDate && this.props.trialEndDate <= now) {
+      return SubscriptionStatus.Active;
+    }
+    
+    // Default to active if no trial period
+    return SubscriptionStatus.Active;
   }
 
   activate(): void {
-    this.props.status = SubscriptionStatus.Active;
     this.props.activationDate = this.props.activationDate || new Date();
+    this.props.trialEndDate = undefined; // Clear trial end date when activating
     this.props.updatedAt = new Date();
   }
 
   cancel(): void {
-    if (this.props.status === SubscriptionStatus.Cancelled) {
+    if (this.status === SubscriptionStatus.Cancelled) {
       throw new Error('Subscription is already cancelled');
     }
-    this.props.status = SubscriptionStatus.Cancelled;
     this.props.cancellationDate = new Date();
     this.props.updatedAt = new Date();
   }
@@ -68,19 +90,17 @@ export class Subscription extends Entity<SubscriptionProps> {
   }
 
   expire(): void {
-    this.props.status = SubscriptionStatus.Expired;
     this.props.expirationDate = new Date();
     this.props.updatedAt = new Date();
   }
 
   archive(): void {
-    this.props.status = SubscriptionStatus.Expired;
     this.props.expirationDate = new Date();
     this.props.updatedAt = new Date();
   }
 
   unarchive(): void {
-    this.props.status = SubscriptionStatus.Active;
+    this.props.expirationDate = undefined;
     this.props.updatedAt = new Date();
   }
 

@@ -19,7 +19,17 @@ export const CreatePlanDtoSchema = z.object({
 
 export type CreatePlanDto = z.infer<typeof CreatePlanDtoSchema>;
 
-export const UpdatePlanDtoSchema = CreatePlanDtoSchema.partial();
+export const UpdatePlanDtoSchema = z.object({
+  // Only updateable fields - excluding immutable fields: key, productKey
+  displayName: z.string()
+    .min(1, 'Display name is required')
+    .max(255, 'Display name too long')
+    .optional(),
+  description: z.string().max(1000).optional(),
+  defaultRenewalCycleKey: z.string().optional(),
+  onExpireTransitionToPlanKey: z.string().optional(),
+  metadata: z.record(z.unknown()).optional()
+});
 export type UpdatePlanDto = z.infer<typeof UpdatePlanDtoSchema>;
 
 export interface PlanDto {

@@ -67,7 +67,7 @@ export class SubscriptionMapper {
       activation_date: subscription.props.activationDate,
       expiration_date: subscription.props.expirationDate,
       cancellation_date: subscription.props.cancellationDate,
-      trial_end_date: subscription.props.trialEndDate,
+      trial_end_date: subscription.props.trialEndDate ?? null,
       current_period_start: subscription.props.currentPeriodStart,
       current_period_end: subscription.props.currentPeriodEnd,
       auto_renew: subscription.props.autoRenew,

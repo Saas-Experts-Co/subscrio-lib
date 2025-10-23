@@ -14,7 +14,15 @@ export const CreateProductDtoSchema = z.object({
 
 export type CreateProductDto = z.infer<typeof CreateProductDtoSchema>;
 
-export const UpdateProductDtoSchema = CreateProductDtoSchema.partial();
+export const UpdateProductDtoSchema = z.object({
+  // Only updateable fields - excluding immutable field: key
+  displayName: z.string()
+    .min(1, 'Display name is required')
+    .max(255, 'Display name too long')
+    .optional(),
+  description: z.string().max(1000).optional(),
+  metadata: z.record(z.unknown()).optional()
+});
 export type UpdateProductDto = z.infer<typeof UpdateProductDtoSchema>;
 
 export interface ProductDto {

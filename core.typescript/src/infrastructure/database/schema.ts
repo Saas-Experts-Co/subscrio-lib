@@ -109,7 +109,7 @@ export const subscriptions = pgTable('subscriptions', {
   metadata: jsonb('metadata'),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow(),
-  status: text('status').notNull()
+  status: text('status').notNull().default('active')
 });
 
 export const subscription_feature_overrides = pgTable('subscription_feature_overrides', {

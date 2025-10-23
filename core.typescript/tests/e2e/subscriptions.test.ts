@@ -393,7 +393,9 @@ describe('Subscriptions E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      await subscrio.subscriptions.cancelSubscription(subscription.key);
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: new Date().toISOString()
+      });
 
       const retrieved = await subscrio.subscriptions.getSubscription(subscription.key);
       expect(retrieved?.status).toBe('cancelled');
@@ -431,13 +433,15 @@ describe('Subscriptions E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      await subscrio.subscriptions.expireSubscription(subscription.key);
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        expirationDate: new Date().toISOString()
+      });
 
       const retrieved = await subscrio.subscriptions.getSubscription(subscription.key);
       expect(retrieved?.status).toBe('expired');
     });
 
-    test('throws error when cancelling already cancelled subscription', async () => {
+    test('updates cancellation date multiple times', async () => {
       const customer = await subscrio.customers.createCustomer({
         key: 'double-cancel-customer',
         displayName: 'Double Cancel Customer'
@@ -468,11 +472,19 @@ describe('Subscriptions E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      await subscrio.subscriptions.cancelSubscription(subscription.key);
+      const firstCancelDate = new Date(Date.now() - 1000).toISOString(); // Past date
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: firstCancelDate
+      });
 
-      await expect(
-        subscrio.subscriptions.cancelSubscription(subscription.key)
-      ).rejects.toThrow();
+      const secondCancelDate = new Date(Date.now() - 500).toISOString(); // More recent past date
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: secondCancelDate
+      });
+
+      const retrieved = await subscrio.subscriptions.getSubscription(subscription.key);
+      expect(retrieved?.cancellationDate).toBe(secondCancelDate);
+      expect(retrieved?.status).toBe('cancelled');
     });
   });
 
@@ -691,7 +703,9 @@ describe('Subscriptions E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      await subscrio.subscriptions.cancelSubscription(subscription.key);
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: new Date().toISOString()
+      });
 
       const subscriptions = await subscrio.subscriptions.listSubscriptions({ 
         status: 'cancelled' 
@@ -765,13 +779,61 @@ describe('Subscriptions E2E Tests', () => {
         billingCycleKey: billingCycle.key
       });
 
-      const subscriptions = await subscrio.subscriptions.getActiveSubscriptionsByCustomer(customer.key);
+      const subscriptions = await subscrio.subscriptions.findSubscriptions({
+        customerKey: customer.key,
+        status: 'active'
+      });
       expect(subscriptions.every(s => s.status === 'active')).toBe(true);
     });
 
     test('paginates subscription list', async () => {
       const subscriptions = await subscrio.subscriptions.listSubscriptions({ limit: 5 });
       expect(subscriptions.length).toBeLessThanOrEqual(5);
+    });
+
+    test('finds subscriptions with detailed filters', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: 'detailed-filter-customer',
+        displayName: 'Detailed Filter Customer'
+      });
+
+      const product = await subscrio.products.createProduct({
+        key: 'detailed-filter-product',
+        displayName: 'Detailed Filter Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: 'detailed-filter-plan',
+        displayName: 'Detailed Filter Plan'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const subscription = await subscrio.subscriptions.createSubscription({
+        key: 'detailed-filter-subscription',
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key,
+        autoRenew: true,
+        metadata: { source: 'test' }
+      });
+
+      // Test detailed filtering
+      const results = await subscrio.subscriptions.findSubscriptions({
+        customerKey: customer.key,
+        autoRenew: true,
+        hasTrial: false,
+        limit: 10
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some(s => s.key === subscription.key)).toBe(true);
     });
   });
 
@@ -1181,7 +1243,9 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       // Must expire before deletion
-      await subscrio.subscriptions.expireSubscription(subscription.key);
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        expirationDate: new Date().toISOString()
+      });
       await subscrio.subscriptions.deleteSubscription(subscription.key);
 
       const retrieved = await subscrio.subscriptions.getSubscription(subscription.key);

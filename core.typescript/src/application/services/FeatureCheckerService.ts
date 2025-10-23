@@ -128,14 +128,15 @@ export class FeatureCheckerService {
     // Get active subscriptions for this customer and product
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+      { limit: 100, offset: 0 }
     );
 
     // Filter subscriptions for this product
     const productSubscriptions = [];
     for (const subscription of subscriptions) {
       const plan = await this.planRepository.findById(subscription.planId);
-      if (plan && plan.productKey === productKey) {
+      if (plan && plan.productKey === productKey && 
+          (subscription.status === SubscriptionStatus.Active || subscription.status === SubscriptionStatus.Trial)) {
         productSubscriptions.push(subscription);
       }
     }
@@ -208,14 +209,15 @@ export class FeatureCheckerService {
     // Get active subscriptions for this customer and product
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+      { limit: 100, offset: 0 }
     );
 
     // Filter subscriptions for this product
     const productSubscriptions = [];
     for (const subscription of subscriptions) {
       const plan = await this.planRepository.findById(subscription.planId);
-      if (plan && plan.productKey === productKey) {
+      if (plan && plan.productKey === productKey && 
+          (subscription.status === SubscriptionStatus.Active || subscription.status === SubscriptionStatus.Trial)) {
         productSubscriptions.push(subscription);
       }
     }
@@ -264,10 +266,13 @@ export class FeatureCheckerService {
 
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+      { limit: 100, offset: 0 }
     );
 
-    return subscriptions.some(s => s.planId === plan.id);
+    return subscriptions.some(s => 
+      s.planId === plan.id && 
+      (s.status === SubscriptionStatus.Active || s.status === SubscriptionStatus.Trial)
+    );
   }
 
   /**
@@ -281,7 +286,7 @@ export class FeatureCheckerService {
 
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { status: SubscriptionStatus.Active, limit: 100, offset: 0 }
+      { limit: 100, offset: 0 }
     );
 
     // Load plan keys for each subscription
@@ -310,7 +315,7 @@ export class FeatureCheckerService {
   }> {
     const customer = await this.customerRepository.findByKey(customerKey);
     const activeSubscriptions = customer 
-      ? (await this.subscriptionRepository.findByCustomerId(customer.id, { status: SubscriptionStatus.Active, limit: 100, offset: 0 })).length
+      ? (await this.subscriptionRepository.findByCustomerId(customer.id, { limit: 100, offset: 0 })).length
       : 0;
 
     const allFeatures = await this.getAllFeaturesForCustomer(customerKey, productKey);

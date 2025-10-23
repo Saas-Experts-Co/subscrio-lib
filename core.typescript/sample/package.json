@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx index.ts",
+    "start:auto": "tsx index.ts --automated",
     "dev": "tsx watch index.ts"
   },
   "dependencies": {

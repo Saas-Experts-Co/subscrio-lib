@@ -1,6 +1,122 @@
 # @subscrio/core
 
-TypeScript library for managing SaaS subscriptions, features, and plans.
+**The missing layer in your SaaS stack: The entitlement engine that translates subscriptions into feature access.**
+
+Every time a user clicks a button, creates a resource, or calls an API endpoint, your application asks: "Is this customer allowed to do this?" Subscrio is the definitive answer.
+
+## The Problem You're Solving
+
+**Right now, you have two disconnected systems:**
+
+1. **Billing Platform** (Stripe, Paddle) - Handles payments and invoices
+2. **Your Application** - Enforces what users can actually do
+
+**The gap:** Who translates "Pro Plan" into actionable permissions throughout your app?
+
+```typescript
+// This is what you're doing now (scattered across dozens of files):
+if (customer.plan === 'pro') {
+  maxProjects = 50;
+} else if (customer.plan === 'enterprise') {
+  maxProjects = 999;
+}
+```
+
+**This creates massive problems:**
+- Change a plan? Requires code deployment
+- Custom deals? Engineers build one-off override logic  
+- Multiple products? Conditional statements become unmaintainable
+- Sales flexibility? Product team can't experiment without engineering
+- Vendor lock-in? You're forced to parse your billing system's data structures
+
+## The Solution
+
+**Subscrio is the entitlement layer your SaaS application is missing.**
+
+It's not feature flags for gradual rollouts. It's not a billing system for processing payments. It's the authoritative system between them that knows exactly what each customer is entitled to access.
+
+### How It Works
+
+**1. Define Your Business Model (Once)**
+```typescript
+// Configure products, features, and plans
+const product = await subscrio.products.createProduct({
+  key: 'project-management',
+  displayName: 'Project Management'
+});
+
+const maxProjects = await subscrio.features.createFeature({
+  key: 'max-projects',
+  displayName: 'Max Projects',
+  valueType: 'numeric',
+  defaultValue: '3'
+});
+
+const proPlan = await subscrio.plans.createPlan({
+  productKey: 'project-management',
+  key: 'pro',
+  displayName: 'Pro Plan'
+});
+
+// Set feature values per plan
+await subscrio.plans.setFeatureValue('pro', 'max-projects', '50');
+```
+
+**2. Enforce Entitlements Throughout Your App**
+```typescript
+// In your project creation endpoint:
+const maxProjects = await subscrio.featureChecker.getValueForCustomer(
+  customerId, 
+  'project-management', 
+  'max-projects'
+);
+
+if (currentProjects >= parseInt(maxProjects)) {
+  throw new Error('Upgrade to create more projects');
+}
+```
+
+**3. Business Teams Control Configuration**
+```typescript
+// Sales needs to close a deal with custom terms:
+await subscrio.subscriptions.addFeatureOverride(
+  subscriptionId,
+  'max-projects', 
+  '75', 
+  'temporary', // expires in 12 months
+  new Date('2025-12-31')
+);
+// Customer immediately gets access—no deployment needed
+```
+
+## Why Subscrio Wins
+
+**vs. Building In-House:**
+- ✅ Saves 120+ hours of development
+- ✅ Production-tested with audit trails  
+- ✅ No technical debt as your business model evolves
+
+**vs. Feature Flags (LaunchDarkly, Split):**
+- ✅ Feature flags roll out new code gradually
+- ✅ Subscrio manages what customers paid for and can access
+- ✅ Different problems, different solutions
+
+**vs. Billing Systems (Stripe, Paddle):**
+- ✅ Billing handles payments and invoices
+- ✅ Subscrio translates subscriptions into feature entitlements
+- ✅ Tightly integrated, not competing
+
+## Key Benefits
+
+✅ **Zero Configuration**: Works out of the box with sensible defaults  
+✅ **Feature Resolution**: Automatic hierarchy (subscription → plan → default)  
+✅ **Multiple Subscriptions**: Customers can have multiple active subscriptions  
+✅ **Trial Management**: Built-in trial period handling  
+✅ **Override System**: Temporary and permanent feature overrides  
+✅ **Status Calculation**: Dynamic subscription status based on dates  
+✅ **Production Ready**: Battle-tested with comprehensive error handling  
+✅ **Type Safety**: Full TypeScript support with compile-time validation  
+✅ **Business Flexibility**: Change plans and grant exceptions without deployments  
 
 ## Installation
 
@@ -58,7 +174,7 @@ Customer
 └── → Subscriptions (one-to-many)
     └── Subscription
         ├── key: string
-        ├── status: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
+        ├── status: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended' (calculated dynamically)
         ├── currentPeriodStart: Date
         ├── currentPeriodEnd: Date
         ├── trialEndDate?: Date
@@ -73,6 +189,12 @@ Feature Value Resolution (how we determine access/value):
 1. Subscription Override (highest priority)
 2. Plan Value
 3. Feature Default (fallback)
+
+Subscription Status Calculation (calculated dynamically):
+1. If cancelled and cancellation date has passed → 'cancelled'
+2. If expired and expiration date has passed → 'expired'
+3. If trial end date is in the future → 'trial'
+4. If trial end date has passed or no trial → 'active'
 ```
 
 ## Basic Usage
@@ -133,7 +255,36 @@ const subscription = await subscrio.subscriptions.createSubscription({
 });
 ```
 
-### 3. Check Feature Availability
+### 3. Manage Subscription Lifecycle
+
+```typescript
+// Update subscription properties (status calculated automatically)
+await subscrio.subscriptions.updateSubscription('sub-123', {
+  cancellationDate: new Date().toISOString(),  // Cancel subscription
+  expirationDate: new Date().toISOString(),   // Expire subscription
+  trialEndDate: undefined,                     // Convert trial to active
+  autoRenew: false,                           // Disable auto-renewal
+  metadata: { source: 'webhook' }            // Add metadata
+});
+
+// Archive/unarchive subscriptions (standard entity operations)
+await subscrio.subscriptions.archiveSubscription('sub-123');
+await subscrio.subscriptions.unarchiveSubscription('sub-123');
+
+// Advanced subscription search
+const activeSubscriptions = await subscrio.subscriptions.findSubscriptions({
+  status: 'active',
+  autoRenew: true,
+  hasTrial: false,
+  activationDateFrom: new Date('2024-01-01'),
+  limit: 50
+});
+
+// Get customer's subscriptions
+const customerSubscriptions = await subscrio.subscriptions.getSubscriptionsByCustomer('user-123');
+```
+
+### 4. Check Feature Availability
 
 ```typescript
 // Option 1: Get features for specific subscription (most reliable)

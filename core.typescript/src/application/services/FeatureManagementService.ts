@@ -79,14 +79,7 @@ export class FeatureManagementService {
       throw new NotFoundError(`Feature with key '${key}' not found`);
     }
 
-    // Check key uniqueness if changing
-    if (validatedDto.key && validatedDto.key !== feature.key) {
-      const existing = await this.featureRepository.findByKey(validatedDto.key);
-      if (existing) {
-        throw new ConflictError(`Feature with key '${validatedDto.key}' already exists`);
-      }
-      feature.props.key = validatedDto.key;
-    }
+    // Key is immutable - no validation needed
 
     // Update properties
     if (validatedDto.displayName !== undefined) {

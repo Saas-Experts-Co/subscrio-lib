@@ -1036,7 +1036,9 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       // Cancel subscription
-      await subscrio.subscriptions.cancelSubscription(subscription.key);
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: new Date().toISOString()
+      });
 
       const hasAccess = await subscrio.featureChecker.hasPlanAccess(
         customer.key,

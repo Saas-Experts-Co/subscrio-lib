@@ -67,14 +67,7 @@ export class ProductManagementService {
       throw new NotFoundError(`Product with key '${key}' not found`);
     }
 
-    // Check key uniqueness if changing
-    if (validatedDto.key && validatedDto.key !== product.key) {
-      const existing = await this.productRepository.findByKey(validatedDto.key);
-      if (existing) {
-        throw new ConflictError(`Product with key '${validatedDto.key}' already exists`);
-      }
-      product.props.key = validatedDto.key;
-    }
+    // Key is immutable - no validation needed
 
     // Update properties
     if (validatedDto.displayName !== undefined) {
