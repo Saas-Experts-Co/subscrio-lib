@@ -82,23 +82,24 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Customer with key '${validatedDto.customerKey}' not found`);
     }
 
-    // Verify product exists
-    const product = await this.productRepository.findByKey(validatedDto.productKey);
-    if (!product) {
-      throw new NotFoundError(`Product with key '${validatedDto.productKey}' not found`);
-    }
-
-    // Verify plan exists
-    const plan = await this.planRepository.findByKey(validatedDto.planKey);
-    if (!plan) {
-      throw new NotFoundError(`Plan with key '${validatedDto.planKey}' not found`);
-    }
-
-    // Verify billing cycle exists (required)
+    // Get billing cycle and derive plan/product from it
     const billingCycle = await this.billingCycleRepository.findByKey(validatedDto.billingCycleKey);
     if (!billingCycle) {
-      throw new NotFoundError(`Billing cycle with key '${validatedDto.billingCycleKey}' not found for plan '${validatedDto.planKey}'`);
+      throw new NotFoundError(`Billing cycle with key '${validatedDto.billingCycleKey}' not found`);
     }
+
+    // Get plan from billing cycle
+    const plan = await this.planRepository.findById(billingCycle.props.planId);
+    if (!plan) {
+      throw new NotFoundError(`Plan not found for billing cycle '${validatedDto.billingCycleKey}'`);
+    }
+
+    // Get product from plan
+    const product = await this.productRepository.findByKey(plan.productKey);
+    if (!product) {
+      throw new NotFoundError(`Product not found for plan '${plan.key}'`);
+    }
+
     const billingCycleId = billingCycle.id;
 
     // Check for duplicate subscription key

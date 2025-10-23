@@ -108,9 +108,8 @@ describe('Stripe Integration E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-stripe',
+        key: `test-monthly-stripe-${Date.now()}`,
         displayName: 'Test Monthly Stripe',
         durationValue: 1,
         durationUnit: 'months'
@@ -119,8 +118,6 @@ describe('Stripe Integration E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'stripe-update-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         stripeSubscriptionId: 'sub_update123'
       });
@@ -175,9 +172,8 @@ describe('Stripe Integration E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-stripe',
+        key: `test-monthly-stripe-${Date.now()}`,
         displayName: 'Test Monthly Stripe',
         durationValue: 1,
         durationUnit: 'months'
@@ -186,8 +182,6 @@ describe('Stripe Integration E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'stripe-delete-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         stripeSubscriptionId: 'sub_delete123'
       });
@@ -244,9 +238,8 @@ describe('Stripe Integration E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-stripe',
+        key: `test-monthly-stripe-${Date.now()}`,
         displayName: 'Test Monthly Stripe',
         durationValue: 1,
         durationUnit: 'months'
@@ -255,8 +248,6 @@ describe('Stripe Integration E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'status-active-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         stripeSubscriptionId: 'sub_active'
       });
@@ -301,9 +292,8 @@ describe('Stripe Integration E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-stripe',
+        key: `test-monthly-stripe-${Date.now()}`,
         displayName: 'Test Monthly Stripe',
         durationValue: 1,
         durationUnit: 'months'
@@ -312,8 +302,6 @@ describe('Stripe Integration E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'status-cancelled-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         stripeSubscriptionId: 'sub_cancelled'
       });
@@ -395,9 +383,8 @@ describe('Stripe Integration E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-stripe',
+        key: `test-monthly-stripe-${Date.now()}`,
         displayName: 'Test Monthly Stripe',
         durationValue: 1,
         durationUnit: 'months'
@@ -406,8 +393,6 @@ describe('Stripe Integration E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'idempotent-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         stripeSubscriptionId: 'sub_idempotent'
       });

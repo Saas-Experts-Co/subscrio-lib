@@ -194,8 +194,8 @@ describe('Plans E2E Tests', () => {
         displayName: 'Activate Plan'
       });
 
-      await subscrio.plans.deactivatePlan(plan.key);
-      await subscrio.plans.activatePlan(plan.key);
+      await subscrio.plans.archivePlan(plan.key);
+      await subscrio.plans.unarchivePlan(plan.key);
 
       const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved?.status).toBe('active');
@@ -213,10 +213,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Deactivate Plan'
       });
 
-      await subscrio.plans.deactivatePlan(plan.key);
+      await subscrio.plans.archivePlan(plan.key);
 
       const retrieved = await subscrio.plans.getPlan(plan.key);
-      expect(retrieved?.status).toBe('inactive');
+      expect(retrieved?.status).toBe('archived');
     });
 
     test('archives a plan', async () => {
@@ -273,23 +273,24 @@ describe('Plans E2E Tests', () => {
       ).rejects.toThrow('archived');
     });
 
-    test('throws error when deleting inactive plan', async () => {
+    test('deletes archived plan successfully', async () => {
       const product = await subscrio.products.createProduct({
-        key: 'delete-inactive-plan-product',
-        displayName: 'Delete Inactive Plan Product'
+        key: 'delete-archived-plan-product',
+        displayName: 'Delete Archived Plan Product'
       });
 
       const plan = await subscrio.plans.createPlan({
         productKey: product.key,
-        key: 'delete-inactive-plan',
-        displayName: 'Delete Inactive Plan'
+        key: 'delete-archived-plan',
+        displayName: 'Delete Archived Plan'
       });
 
-      await subscrio.plans.deactivatePlan(plan.key);
+      await subscrio.plans.archivePlan(plan.key);
 
-      await expect(
-        subscrio.plans.deletePlan(plan.key)
-      ).rejects.toThrow('archived');
+      await subscrio.plans.deletePlan(plan.key);
+
+      const retrieved = await subscrio.plans.getPlan(plan.key);
+      expect(retrieved).toBeNull();
     });
   });
 
@@ -347,7 +348,7 @@ describe('Plans E2E Tests', () => {
       expect(activePlans.every(p => p.status === 'active')).toBe(true);
     });
 
-    test('filters plans by status (inactive)', async () => {
+    test('filters plans by status (archived)', async () => {
       const product = await subscrio.products.createProduct({
         key: 'filter-inactive-product',
         displayName: 'Filter Inactive Product'
@@ -359,10 +360,10 @@ describe('Plans E2E Tests', () => {
         displayName: 'Filter Inactive Plan'
       });
 
-      await subscrio.plans.deactivatePlan(product.key, plan.key);
+      await subscrio.plans.archivePlan(plan.key);
 
-      const inactivePlans = await subscrio.plans.listPlans({ status: 'inactive' });
-      expect(inactivePlans.some(p => p.key === plan.key)).toBe(true);
+      const archivedPlans = await subscrio.plans.listPlans({ status: 'archived' });
+      expect(archivedPlans.some(p => p.key === plan.key)).toBe(true);
     });
 
     test('filters plans by status (archived)', async () => {
@@ -377,7 +378,7 @@ describe('Plans E2E Tests', () => {
         displayName: 'Filter Archived Plan'
       });
 
-      await subscrio.plans.archivePlan(product.key, plan.key);
+      await subscrio.plans.archivePlan(plan.key);
 
       const archivedPlans = await subscrio.plans.listPlans({ status: 'archived' });
       expect(archivedPlans.some(p => p.key === plan.key)).toBe(true);

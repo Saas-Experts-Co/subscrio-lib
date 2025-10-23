@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { Subscrio } from '../../src/index.js';
 import { getTestConnectionString } from '../setup/get-connection.js';
+import { OverrideType } from '../../src/domain/value-objects/OverrideType.js';
 
 describe('Feature Checker E2E Tests', () => {
   let subscrio: Subscrio;
@@ -27,7 +28,6 @@ describe('Feature Checker E2E Tests', () => {
     
     // Create a shared billing cycle for all tests
     sharedBillingCycle = await subscrio.billingCycles.createBillingCycle({
-      productKey: sharedTestProduct.key,
       planKey: sharedTestPlan.key,
       key: 'test-monthly-fc',
       displayName: 'Test Monthly FC',
@@ -86,16 +86,15 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
       // Set plan value
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '50');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '50');
 
       const customer = await subscrio.customers.createCustomer({
         key: 'plan-customer',
@@ -105,9 +104,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-plan',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Should return plan value
@@ -137,15 +135,14 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '1000');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '1000');
 
       const customer = await subscrio.customers.createCustomer({
         key: `override-customer-${Date.now()}`,
@@ -155,9 +152,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-override',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Add subscription override
@@ -165,7 +161,7 @@ describe('Feature Checker E2E Tests', () => {
         subscription.key,
         feature.key,
         '5000',
-        'permanent'
+        OverrideType.Permanent
       );
 
       // Should return subscription override
@@ -224,15 +220,14 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '10');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '10');
 
       const customer = await subscrio.customers.createCustomer({
         key: 'hierarchy-customer-1',
@@ -242,9 +237,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-hierarchy-1',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Add override
@@ -252,7 +246,7 @@ describe('Feature Checker E2E Tests', () => {
         subscription.key,
         feature.key,
         '25',
-        'permanent'
+        OverrideType.Permanent
       );
 
       // Should return override (25), not plan (10) or default (3)
@@ -282,9 +276,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -300,9 +293,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-hierarchy-2',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Add override
@@ -310,7 +302,7 @@ describe('Feature Checker E2E Tests', () => {
         subscription.key,
         feature.key,
         '15',
-        'permanent'
+        OverrideType.Permanent
       );
 
       // Should return override (15), not default (5)
@@ -340,15 +332,14 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, '100');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, '100');
 
       const customer = await subscrio.customers.createCustomer({
         key: 'hierarchy-customer-3',
@@ -358,9 +349,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-hierarchy-3',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Should return plan value (100), not default (10)
@@ -390,9 +380,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -406,9 +395,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-fallback',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Should return default (1)
@@ -468,15 +456,14 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature.key, 'true');
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, 'true');
 
       const customer = await subscrio.customers.createCustomer({
         key: 'toggle-customer-1',
@@ -486,9 +473,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-toggle-1',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       const isEnabled = await subscrio.featureChecker.isEnabledForCustomer(customer.key, product.key, feature.key);
@@ -592,9 +578,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -608,16 +593,15 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-permanent',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
         subscription.key,
         feature.key,
         '50',
-        'permanent'
+        OverrideType.Permanent
       );
 
       const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
@@ -646,9 +630,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -662,16 +645,15 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-temporary',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
         subscription.key,
         feature.key,
         '75',
-        'temporary'
+        OverrideType.Temporary
       );
 
       const value = await subscrio.featureChecker.getValueForCustomer(customer.key, product.key, feature.key);
@@ -695,14 +677,13 @@ describe('Feature Checker E2E Tests', () => {
 
       const plan = await subscrio.plans.createPlan({
         productKey: product.key,
-        key: 'clear-temp-plan',
+        key: `clear-temp-plan-${Date.now()}`,
         displayName: 'Clear Temp Plan'
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -716,16 +697,15 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-clear-temp',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
         subscription.key,
         feature.key,
         '100',
-        'temporary'
+        OverrideType.Temporary
       );
 
       // Clear temporary overrides
@@ -765,9 +745,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -781,9 +760,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-keep-perm',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Add permanent override
@@ -791,7 +769,7 @@ describe('Feature Checker E2E Tests', () => {
         subscription.key,
         feature1.key,
         '50',
-        'permanent'
+        OverrideType.Permanent
       );
 
       // Add temporary override
@@ -799,7 +777,7 @@ describe('Feature Checker E2E Tests', () => {
         subscription.key,
         feature2.key,
         '100',
-        'temporary'
+        OverrideType.Temporary
       );
 
       // Clear temporary overrides
@@ -844,16 +822,15 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
       });
 
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature1.key, '25');
-      await subscrio.plans.setFeatureValue(product.key, plan.key, feature2.key, 'true');
+      await subscrio.plans.setFeatureValue(plan.key, feature1.key, '25');
+      await subscrio.plans.setFeatureValue(plan.key, feature2.key, 'true');
 
       const customer = await subscrio.customers.createCustomer({
         key: 'bulk-customer',
@@ -863,9 +840,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-bulk',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       const allFeatures = await subscrio.featureChecker.getAllFeaturesForCustomer(customer.key, product.key);
@@ -896,9 +872,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -912,9 +887,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-summary',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       const summary = await subscrio.featureChecker.getFeatureUsageSummary(customer.key, product.key);
@@ -936,9 +910,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -952,9 +925,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-active-plans',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       const activePlans = await subscrio.featureChecker.getActivePlans(customer.key);
@@ -977,9 +949,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -993,9 +964,8 @@ describe('Feature Checker E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'sub-access',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       const hasAccess = await subscrio.featureChecker.hasPlanAccess(
@@ -1046,9 +1016,8 @@ describe('Feature Checker E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly-fc',
+        key: `test-monthly-fc-${Date.now()}`,
         displayName: 'Test Monthly FC',
         durationValue: 1,
         durationUnit: 'months'
@@ -1062,9 +1031,8 @@ describe('Feature Checker E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'sub-cancelled',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: billingCycle.key,
+        autoRenew: true
       });
 
       // Cancel subscription

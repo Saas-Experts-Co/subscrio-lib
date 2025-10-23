@@ -151,6 +151,32 @@ The demo produces structured, educational output:
 
 ## Key Concepts Demonstrated
 
+### Optimized Subscription API
+
+This demo showcases the **optimized subscription creation API** that simplifies the process:
+
+```typescript
+// ✅ NEW: Optimized API (only 2 required parameters)
+await subscrio.subscriptions.createSubscription({
+  customerKey: 'acme-corp',
+  billingCycleKey: 'monthly'  // Plan and product derived automatically
+});
+
+// ❌ OLD: Verbose API (4 required parameters)
+await subscrio.subscriptions.createSubscription({
+  customerKey: 'acme-corp',
+  productKey: 'projecthub',    // Redundant - derived from billing cycle
+  planKey: 'starter',          // Redundant - derived from billing cycle  
+  billingCycleKey: 'monthly'
+});
+```
+
+**Benefits:**
+- **50% fewer parameters** required
+- **Automatic derivation** of plan and product from billing cycle
+- **Reduced errors** from mismatched product/plan combinations
+- **Better performance** with fewer database lookups
+
 ### Feature Resolution Hierarchy
 
 The demo clearly shows how Subscrio resolves feature values:
@@ -177,7 +203,7 @@ Customers can have multiple active subscriptions. The demo shows:
 - `plans.createPlan()`
 - `plans.setFeatureValue()`
 - `customers.createCustomer()`
-- `subscriptions.createSubscription()`
+- `subscriptions.createSubscription()` (optimized API - only requires customerKey and billingCycleKey)
 - `subscriptions.addFeatureOverride()`
 - `featureChecker.getValueForCustomer()`
 - `featureChecker.getAllFeaturesForCustomer()`

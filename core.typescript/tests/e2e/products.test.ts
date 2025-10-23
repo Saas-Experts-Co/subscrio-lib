@@ -108,7 +108,7 @@ describe('Products E2E Tests', () => {
       expect(archived.status).toBe('archived');
 
       // Activate
-      const activated = await subscrio.products.activateProduct(product.key);
+      const activated = await subscrio.products.unarchiveProduct(product.key);
       expect(activated.status).toBe('active');
     });
 

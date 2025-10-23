@@ -117,13 +117,11 @@ const customer = await subscrio.customers.createCustomer({
   key: 'user-123'
 });
 
-// Create subscription
+// Create subscription (optimized API - only 2 required parameters)
 const subscription = await subscrio.subscriptions.createSubscription({
   key: 'sub-123',
   customerKey: 'user-123',
-  productKey: product.key,
-  planKey: freePlan.key,
-  billingCycleKey: monthlyCycle.key
+  billingCycleKey: monthlyCycle.key  // Plan and product derived automatically
 });
 ```
 
@@ -152,4 +150,79 @@ if (currentProjectCount >= maxProjects) {
   throw new Error('Project limit reached');
 }
 ```
+
+## Configuration
+
+```typescript
+const subscrio = new Subscrio({
+  database: {
+    connectionString: process.env.DATABASE_URL
+  },
+  logging: {
+    level: process.env.LOG_LEVEL || 'info'
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY  // Optional
+  }
+});
+```
+
+## Advanced Features
+
+### Feature Overrides
+```typescript
+// Add temporary override (cleared on renewal)
+await subscrio.subscriptions.addFeatureOverride(
+  subscription.key, 
+  'max-projects', 
+  '10', 
+  'temporary'
+);
+
+// Add permanent override (persists through renewals)
+await subscrio.subscriptions.addFeatureOverride(
+  subscription.key, 
+  'max-projects', 
+  'unlimited', 
+  'permanent'
+);
+```
+
+### Multiple Subscriptions
+```typescript
+// Customer can have multiple active subscriptions
+const teamSubscription = await subscrio.subscriptions.createSubscription({
+  key: 'team-sub',
+  customerKey: 'user-123',
+  billingCycleKey: 'team-monthly'
+});
+
+// Features resolve from all active subscriptions
+const allFeatures = await subscrio.featureChecker.getAllFeaturesForCustomer('user-123', 'my-product');
+```
+
+## Environment Variables
+
+```bash
+# Required
+DATABASE_URL=postgresql://user:password@localhost:5432/mydb
+
+# Optional
+LOG_LEVEL=info
+STRIPE_SECRET_KEY=sk_test_...
+ADMIN_PASSPHRASE=your-secure-passphrase
+```
+
+## Production Deployment
+
+1. **Database**: PostgreSQL 12+ required
+2. **Schema**: Run `await subscrio.installSchema()` once
+3. **Environment**: Set `DATABASE_URL` and other config
+4. **Monitoring**: Enable logging for production debugging
+
+## API Reference
+
+- [Complete API Documentation](./docs/API_REFERENCE.md)
+- [Sample Application](./sample/)
+- [Test Examples](./tests/e2e/)
 

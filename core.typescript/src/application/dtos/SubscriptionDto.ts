@@ -13,12 +13,6 @@ export const CreateSubscriptionDtoSchema = z.object({
     .max(255, 'Subscription key too long')
     .regex(/^[a-zA-Z0-9-_]+$/, 'Subscription key must be alphanumeric with hyphens/underscores'),
   customerKey: z.string().min(1, 'Customer key is required'),
-  productKey: z.string()
-    .min(1, 'Product key is required')
-    .regex(/^[a-z0-9-]+$/, 'Product key must be lowercase alphanumeric with hyphens'),
-  planKey: z.string()
-    .min(1, 'Plan key is required')
-    .regex(/^[a-z0-9-]+$/, 'Plan key must be lowercase alphanumeric with hyphens'),
   billingCycleKey: z.string()
     .min(1, 'Billing cycle key is required')
     .regex(/^[a-z0-9-]+$/, 'Billing cycle key must be lowercase alphanumeric with hyphens'),

@@ -171,7 +171,7 @@ describe('API Keys E2E Tests', () => {
         scope: 'admin'
       });
 
-      await subscrio.apiKeys.revokeAPIKey(apiKey.key);
+      await subscrio.apiKeys.archiveAPIKey(apiKey.key);
 
       await expect(
         subscrio.apiKeys.validateAPIKey(apiKey.plaintextKey, 'admin')
@@ -218,7 +218,7 @@ describe('API Keys E2E Tests', () => {
 
       expect(apiKey.status).toBe('active');
 
-      await subscrio.apiKeys.revokeAPIKey(apiKey.key);
+      await subscrio.apiKeys.archiveAPIKey(apiKey.key);
 
       const retrieved = await subscrio.apiKeys.getAPIKeyByPlaintext(apiKey.plaintextKey);
       expect(retrieved?.status).toBe('revoked');
@@ -230,7 +230,7 @@ describe('API Keys E2E Tests', () => {
         scope: 'admin'
       });
 
-      await subscrio.apiKeys.revokeAPIKey(apiKey.key);
+      await subscrio.apiKeys.archiveAPIKey(apiKey.key);
       await subscrio.apiKeys.deleteAPIKey(apiKey.key);
 
       const retrieved = await subscrio.apiKeys.getAPIKeyByPlaintext(apiKey.plaintextKey);

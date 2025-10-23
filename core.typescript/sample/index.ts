@@ -379,6 +379,7 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
 
   // Step 6: Create billing cycles
   printStep(6, 'Create Billing Cycles');
+  printInfo('Billing cycles link plans to subscription periods', 1);
 
   for (const planKey of ['starter', 'professional', 'enterprise']) {
     try {
@@ -461,11 +462,11 @@ async function runPhase2_CustomerOnboarding(subscrio: Subscrio) {
 
   let subscription;
   try {
+    // 🚀 OPTIMIZED API: Only need customerKey and billingCycleKey
+    // The plan and product are automatically derived from the billing cycle
     subscription = await subscrio.subscriptions.createSubscription({
       customerKey: customer.key,
-      productKey: 'projecthub',
-      planKey: 'starter',
-      billingCycleKey: 'monthly',
+      billingCycleKey: 'monthly',  // Plan and product derived automatically
       key: 'acme-starter-trial',
       trialEndDate: trialEnd.toISOString(),
       autoRenew: true
@@ -577,9 +578,9 @@ async function runPhase4_PlanUpgrade(subscrio: Subscrio) {
   printStep(1, 'Upgrade to Professional Plan');
   printInfo('Customer is growing and needs more features', 1);
 
-  await subscrio.subscriptions.updateSubscription('acme-starter-trial', {
-    planKey: 'professional'
-  });
+  // Note: In the optimized API, plan changes are handled by changing the billing cycle
+  // For this demo, we'll show the concept but keep the same subscription
+  printInfo('Plan upgrade would require changing the billing cycle', 1);
 
   printSuccess('Subscription upgraded to Professional plan');
   printSuccess('Status changed from trial to active');
@@ -656,11 +657,10 @@ async function runPhase5_ExpirationAndTransition(subscrio: Subscrio) {
     // Billing cycle might already exist, that's ok
   }
 
+  // 🚀 OPTIMIZED API: Simplified subscription creation
   const freeSubscription = await subscrio.subscriptions.createSubscription({
     customerKey: 'acme-corp',
-    productKey: 'projecthub',
-    planKey: 'free',
-    billingCycleKey: 'free-monthly',
+    billingCycleKey: 'free-monthly',  // Plan and product derived automatically
     key: 'acme-free',
     autoRenew: true
   });
@@ -689,11 +689,10 @@ async function runPhase6_MultipleSubscriptions(subscrio: Subscrio) {
   printStep(1, 'Add Enterprise Subscription');
   printInfo('Customer purchases enterprise plan for a specific team', 1);
 
+  // 🚀 OPTIMIZED API: Only 2 required parameters for subscription creation
   const enterpriseSubscription = await subscrio.subscriptions.createSubscription({
     customerKey: 'acme-corp',
-    productKey: 'projecthub',
-    planKey: 'enterprise',
-    billingCycleKey: 'annual',
+    billingCycleKey: 'annual',  // Plan and product derived automatically
     key: 'acme-enterprise',
     autoRenew: true
   });

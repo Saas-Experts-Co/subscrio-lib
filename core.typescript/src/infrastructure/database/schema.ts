@@ -97,7 +97,7 @@ export const subscriptions = pgTable('subscriptions', {
   key: text('key').notNull().unique(),  // External reference key
   customer_id: uuid('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
   plan_id: uuid('plan_id').notNull().references(() => plans.id, { onDelete: 'cascade' }),
-  billing_cycle_id: uuid('billing_cycle_id').notNull(),
+  billing_cycle_id: uuid('billing_cycle_id').notNull().references(() => billing_cycles.id, { onDelete: 'cascade' }),
   activation_date: timestamp('activation_date'),
   expiration_date: timestamp('expiration_date'),
   cancellation_date: timestamp('cancellation_date'),

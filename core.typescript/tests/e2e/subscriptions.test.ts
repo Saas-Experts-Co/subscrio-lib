@@ -27,9 +27,8 @@ describe('Subscriptions E2E Tests', () => {
     
     // Create a shared billing cycle for all tests
     sharedBillingCycle = await subscrio.billingCycles.createBillingCycle({
-      productKey: sharedTestProduct.key,
       planKey: sharedTestPlan.key,
-      key: 'test-monthly',
+      key: `test-monthly-${Date.now()}`,
       displayName: 'Test Monthly',
       durationValue: 1,
       durationUnit: 'months'
@@ -54,29 +53,17 @@ describe('Subscriptions E2E Tests', () => {
         displayName: 'Sub Plan 1'
       });
 
-      // Create billing cycle for this specific plan
-      const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
-        planKey: plan.key,
-        key: 'test-monthly',
-        displayName: 'Test Monthly',
-        durationValue: 1,
-        durationUnit: 'months'
-      });
-
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'subscription-1',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
-        billingCycleKey: billingCycle.key
+        billingCycleKey: sharedBillingCycle.key
       });
 
       expect(subscription).toBeDefined();
       expect(subscription.key).toBe('subscription-1');
       expect(subscription.customerKey).toBe(customer.key);
-      expect(subscription.productKey).toBe(product.key);
-      expect(subscription.planKey).toBe(plan.key);
+      expect(subscription.productKey).toBe(sharedTestProduct.key);
+      expect(subscription.planKey).toBe(sharedTestPlan.key);
       expect(subscription.billingCycleKey).toBe(sharedBillingCycle.key);
       expect(subscription.status).toBe('active');
       expect(subscription.autoRenew).toBe(true);
@@ -100,9 +87,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -114,8 +100,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'trial-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key,
         trialEndDate: trialEnd.toISOString()
       });
@@ -141,9 +125,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -152,8 +135,6 @@ describe('Subscriptions E2E Tests', () => {
       const created = await subscrio.subscriptions.createSubscription({
         key: 'retrieve-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -180,9 +161,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -191,8 +171,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'update-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -230,9 +208,7 @@ describe('Subscriptions E2E Tests', () => {
       await expect(
         subscrio.subscriptions.createSubscription({
           key: 'no-billing-subscription',
-          customerKey: customer.key,
-          productKey: product.key,
-          planKey: plan.key
+          customerKey: customer.key
           // Missing billingCycleKey - should fail
         } as any)
       ).rejects.toThrow();
@@ -259,8 +235,6 @@ describe('Subscriptions E2E Tests', () => {
         subscrio.subscriptions.createSubscription({
           key: 'invalid-billing-subscription',
           customerKey: customer.key,
-          productKey: product.key,
-          planKey: plan.key,
           billingCycleKey: 'non-existent-billing-cycle'
         })
       ).rejects.toThrow('not found');
@@ -282,47 +256,31 @@ describe('Subscriptions E2E Tests', () => {
         subscrio.subscriptions.createSubscription({
           key: 'error-customer-sub',
           customerKey: 'non-existent-customer',
-          productKey: product.key,
-          planKey: plan.key,
           billingCycleKey: sharedBillingCycle.key
         })
       ).rejects.toThrow('not found');
     });
 
-    test('throws error for non-existent product', async () => {
+    test('throws error for non-existent billing cycle', async () => {
       const customer = await subscrio.customers.createCustomer({
-        key: 'error-product-customer',
-        displayName: 'Error Product Customer'
+        key: 'error-billing-customer',
+        displayName: 'Error Billing Customer'
       });
 
       await expect(
         subscrio.subscriptions.createSubscription({
-          key: 'error-product-sub',
+          key: 'error-billing-sub',
           customerKey: customer.key,
-          productKey: 'non-existent-product',
-          planKey: 'any-plan',
-          billingCycleKey: sharedBillingCycle.key
+          billingCycleKey: 'non-existent-billing-cycle'
         })
       ).rejects.toThrow('not found');
     });
 
-    test('throws error for non-existent plan', async () => {
-      const customer = await subscrio.customers.createCustomer({
-        key: 'error-plan-customer',
-        displayName: 'Error Plan Customer'
-      });
-
-      const product = await subscrio.products.createProduct({
-        key: 'error-plan-product',
-        displayName: 'Error Plan Product'
-      });
-
+    test('throws error for non-existent customer', async () => {
       await expect(
         subscrio.subscriptions.createSubscription({
-          key: 'error-plan-sub',
-          customerKey: customer.key,
-          productKey: product.key,
-          planKey: 'non-existent-plan',
+          key: 'error-customer-sub',
+          customerKey: 'non-existent-customer',
           billingCycleKey: sharedBillingCycle.key
         })
       ).rejects.toThrow('not found');
@@ -346,9 +304,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -357,8 +314,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'duplicate-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -366,8 +321,6 @@ describe('Subscriptions E2E Tests', () => {
         subscrio.subscriptions.createSubscription({
           key: 'duplicate-subscription',
           customerKey: customer.key,
-          productKey: product.key,
-          planKey: plan.key,
           billingCycleKey: billingCycle.key
         })
       ).rejects.toThrow('already exists');
@@ -390,12 +343,19 @@ describe('Subscriptions E2E Tests', () => {
         displayName: 'Invalid Key Plan'
       });
 
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
       await expect(
         subscrio.subscriptions.createSubscription({
           key: 'Invalid Key!',
           customerKey: customer.key,
-          productKey: product.key,
-          planKey: plan.key
+          billingCycleKey: billingCycle.key
         })
       ).rejects.toThrow();
     });
@@ -420,9 +380,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -431,8 +390,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'cancel-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -461,9 +418,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -472,8 +428,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'expire-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -501,9 +455,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -512,8 +465,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'double-cancel-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -544,9 +495,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -555,8 +505,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'list-subscription-1',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -582,9 +530,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -593,8 +540,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'filter-by-customer-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -622,9 +567,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -633,8 +577,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'filter-by-product-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -662,9 +604,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -673,8 +614,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'filter-by-plan-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -702,9 +641,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -713,8 +651,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'filter-active-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -742,9 +678,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -753,8 +688,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'filter-cancelled-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -784,9 +717,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -795,8 +727,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'get-by-customer-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -822,9 +752,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -833,8 +762,6 @@ describe('Subscriptions E2E Tests', () => {
       await subscrio.subscriptions.createSubscription({
         key: 'active-by-customer-sub',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -876,9 +803,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -887,8 +813,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'override-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -930,9 +854,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -941,8 +864,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'perm-override-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -984,9 +905,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -995,8 +915,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'temp-override-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -1038,9 +956,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -1049,8 +966,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'remove-override-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -1094,9 +1009,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -1105,8 +1019,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'clear-temp-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -1158,9 +1070,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -1169,8 +1080,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'preserve-perm-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -1215,9 +1124,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -1226,8 +1134,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'error-override-subscription',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 
@@ -1261,9 +1167,8 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const billingCycle = await subscrio.billingCycles.createBillingCycle({
-        productKey: product.key,
         planKey: plan.key,
-        key: 'test-monthly',
+        key: `test-monthly-${Date.now()}`,
         displayName: 'Test Monthly',
         durationValue: 1,
         durationUnit: 'months'
@@ -1272,8 +1177,6 @@ describe('Subscriptions E2E Tests', () => {
       const subscription = await subscrio.subscriptions.createSubscription({
         key: 'delete-subscription-test',
         customerKey: customer.key,
-        productKey: product.key,
-        planKey: plan.key,
         billingCycleKey: billingCycle.key
       });
 

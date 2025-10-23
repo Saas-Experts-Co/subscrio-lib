@@ -172,7 +172,7 @@ export class SchemaInstaller {
         key TEXT NOT NULL UNIQUE,
         customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
         plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-        billing_cycle_id UUID NOT NULL,
+        billing_cycle_id UUID NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
         status TEXT NOT NULL,
         activation_date TIMESTAMP,
         expiration_date TIMESTAMP,
