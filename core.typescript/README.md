@@ -32,14 +32,19 @@ Features (standalone)
 └── defaultValue: string
 
 Product
-├── ProductFeatures (many-to-many via ProductFeature)
-│   └── Feature (subset of all features)
-└── Plans (one-to-many)
+├── key: string
+├── displayName: string
+├── → Features (many-to-many)  # Products can have multiple features
+└── → Plans (one-to-many)     # Products can have multiple plans
     └── Plan
         ├── key: string
         ├── displayName: string
-        ├── onExpireTransitionToPlanId (self-reference)
-        └── BillingCycles (one-to-many)
+        ├── featureValues: PlanFeatureValue[]  # Embedded feature value overrides
+        │   ├── featureId: string
+        │   ├── value: string
+        │   ├── createdAt: Date
+        │   └── updatedAt: Date
+        └── → BillingCycles (one-to-many)
             └── BillingCycle
                 ├── key: string
                 ├── durationValue: number
@@ -50,16 +55,19 @@ Customer
 ├── key: string (your app's user ID)
 ├── displayName: string
 ├── email: string
-└── Subscriptions (one-to-many)
+└── → Subscriptions (one-to-many)
     └── Subscription
+        ├── key: string
         ├── status: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended'
         ├── currentPeriodStart: Date
         ├── currentPeriodEnd: Date
         ├── trialEndDate?: Date
         ├── autoRenew: boolean
-        └── FeatureOverrides (one-to-many)
+        └── featureOverrides: FeatureOverride[]  # Embedded feature overrides
+            ├── featureId: string
             ├── value: string
-            └── type: 'permanent' | 'temporary'
+            ├── type: 'permanent' | 'temporary'
+            └── createdAt: Date
 
 Feature Value Resolution (how we determine access/value):
 1. Subscription Override (highest priority)
