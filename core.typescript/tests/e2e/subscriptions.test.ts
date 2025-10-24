@@ -66,7 +66,6 @@ describe('Subscriptions E2E Tests', () => {
       expect(subscription.planKey).toBe(sharedTestPlan.key);
       expect(subscription.billingCycleKey).toBe(sharedBillingCycle.key);
       expect(subscription.status).toBe('active');
-      expect(subscription.autoRenew).toBe(true);
     });
 
     test('creates subscription with trial period', async () => {
@@ -175,15 +174,48 @@ describe('Subscriptions E2E Tests', () => {
       });
 
       const updated = await subscrio.subscriptions.updateSubscription(subscription.key, {
-        autoRenew: false
+        metadata: { updated: true }
       });
 
-      expect(updated.autoRenew).toBe(false);
+      expect(updated.metadata).toEqual({ updated: true });
     });
 
     test('returns null for non-existent subscription', async () => {
       const result = await subscrio.subscriptions.getSubscription('non-existent-subscription');
       expect(result).toBeNull();
+    });
+
+    test('shows cancellation_pending status for future cancellation', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: 'cancellation-pending-customer',
+        displayName: 'Cancellation Pending Customer'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: sharedTestPlan.key,
+        key: 'cancellation-pending-monthly',
+        displayName: 'Cancellation Pending Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const subscription = await subscrio.subscriptions.createSubscription({
+        key: 'cancellation-pending-subscription',
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+
+      // Set cancellation date in the future
+      const futureCancellation = new Date();
+      futureCancellation.setDate(futureCancellation.getDate() + 7);
+
+      await subscrio.subscriptions.updateSubscription(subscription.key, {
+        cancellationDate: futureCancellation.toISOString()
+      });
+
+      const updated = await subscrio.subscriptions.getSubscription(subscription.key);
+      expect(updated?.status).toBe('cancellation_pending');
+      expect(updated?.cancellationDate).toBeDefined();
     });
   });
 
@@ -820,14 +852,12 @@ describe('Subscriptions E2E Tests', () => {
         key: 'detailed-filter-subscription',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true,
         metadata: { source: 'test' }
       });
 
       // Test detailed filtering
       const results = await subscrio.subscriptions.findSubscriptions({
         customerKey: customer.key,
-        autoRenew: true,
         hasTrial: false,
         limit: 10
       });

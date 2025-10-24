@@ -53,9 +53,20 @@ export class BillingCycleManagementService {
       throw new ValidationError(`Invalid duration unit: ${validatedDto.durationUnit}`);
     }
 
-    // Validate duration value
-    if (validatedDto.durationValue <= 0) {
-      throw new ValidationError('Duration value must be greater than 0');
+    // Validate duration value based on duration unit
+    if (validatedDto.durationUnit === 'forever') {
+      // For forever billing cycles, durationValue must be undefined
+      if (validatedDto.durationValue !== undefined) {
+        throw new ValidationError('Duration value must not be provided for forever billing cycles');
+      }
+    } else {
+      // For all other duration units, durationValue is required and must be positive
+      if (validatedDto.durationValue === undefined) {
+        throw new ValidationError('Duration value is required for non-forever billing cycles');
+      }
+      if (validatedDto.durationValue <= 0) {
+        throw new ValidationError('Duration value must be greater than 0');
+      }
     }
 
     const id = generateId();
@@ -220,7 +231,7 @@ export class BillingCycleManagementService {
   calculateNextPeriodEnd(
     billingCycleId: string, 
     currentPeriodEnd: Date
-  ): Promise<Date> {
+  ): Promise<Date | null> {
     return this.billingCycleRepository.findById(billingCycleId)
       .then(billingCycle => {
         if (!billingCycle) {

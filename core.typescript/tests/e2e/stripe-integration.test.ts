@@ -149,7 +149,6 @@ describe('Stripe Integration E2E Tests', () => {
       await subscrio.stripe.processStripeEvent(mockEvent);
 
       const updated = await subscrio.subscriptions.getSubscription(subscription.key);
-      expect(updated?.autoRenew).toBe(false);
       expect(updated?.cancellationDate).toBeDefined();
     });
 

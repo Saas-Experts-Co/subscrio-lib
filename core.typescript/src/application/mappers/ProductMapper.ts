@@ -7,9 +7,9 @@ export class ProductMapper {
     return {
       key: product.key,
       displayName: product.displayName,
-      description: product.props.description,
+      description: product.props.description ?? null,
       status: product.status,
-      metadata: product.props.metadata,
+      metadata: product.props.metadata ?? null,
       createdAt: product.props.createdAt.toISOString(),
       updatedAt: product.props.updatedAt.toISOString()
     };

@@ -2,7 +2,7 @@ import { IPlanRepository } from '../../application/repositories/IPlanRepository.
 import { Plan, PlanFeatureValue } from '../../domain/entities/Plan.js';
 import { PlanMapper } from '../../application/mappers/PlanMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
-import { plans, plan_features } from '../database/schema.js';
+import { plans, plan_features, billing_cycles } from '../database/schema.js';
 import { eq, and, like, or, desc, asc } from 'drizzle-orm';
 import { PlanFilterDto } from '../../application/dtos/PlanDto.js';
 import { generateId } from '../utils/uuid.js';
@@ -167,6 +167,21 @@ export class DrizzlePlanRepository implements IPlanRepository {
       plansWithValues.push(PlanMapper.toDomain(record, featureValues));
     }
     return plansWithValues;
+  }
+
+  async findByBillingCycleId(billingCycleId: string): Promise<Plan | null> {
+    // Find plan by billing cycle ID - need to join with billing_cycles table
+    const [record] = await this.db
+      .select()
+      .from(plans)
+      .innerJoin(billing_cycles, eq(plans.id, billing_cycles.plan_id))
+      .where(eq(billing_cycles.id, billingCycleId))
+      .limit(1);
+    
+    if (!record) return null;
+    
+    const featureValues = await this.loadFeatureValues(record.plans.id);
+    return PlanMapper.toDomain(record.plans, featureValues);
   }
 
   async delete(id: string): Promise<void> {

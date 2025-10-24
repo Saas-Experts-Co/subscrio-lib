@@ -22,7 +22,6 @@ export const CreateSubscriptionDtoSchema = z.object({
   trialEndDate: optionalDateField(),
   currentPeriodStart: optionalDateField(),
   currentPeriodEnd: optionalDateField(),
-  autoRenew: z.boolean().default(true),
   stripeSubscriptionId: z.preprocess(
     (val) => (val === '' ? undefined : val),
     z.string().optional()
@@ -43,7 +42,6 @@ export const UpdateSubscriptionDtoSchema = z.object({
   trialEndDate: optionalDateField(),
   currentPeriodStart: optionalDateField(),
   currentPeriodEnd: optionalDateField(),
-  autoRenew: z.boolean().optional(),
   stripeSubscriptionId: z.preprocess(
     (val) => (val === '' ? undefined : val),
     z.string().optional()
@@ -59,15 +57,14 @@ export interface SubscriptionDto {
   planKey: string;
   billingCycleKey: string;
   status: string;
-  activationDate?: string;
-  expirationDate?: string;
-  cancellationDate?: string;
-  trialEndDate?: string;
-  currentPeriodStart?: string;
-  currentPeriodEnd?: string;
-  autoRenew: boolean;
-  stripeSubscriptionId?: string;
-  metadata?: Record<string, unknown>;
+  activationDate?: string | null;
+  expirationDate?: string | null;
+  cancellationDate?: string | null;
+  trialEndDate?: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  stripeSubscriptionId?: string | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,7 +73,7 @@ export const SubscriptionFilterDtoSchema = z.object({
   customerKey: z.string().optional(),
   productKey: z.string().optional(),
   planKey: z.string().optional(),
-  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'expired', 'suspended']).optional(),
+  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired', 'suspended']).optional(),
   sortBy: z.enum(['activationDate', 'expirationDate', 'createdAt', 'updatedAt', 'currentPeriodStart', 'currentPeriodEnd']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
@@ -91,7 +88,7 @@ export const DetailedSubscriptionFilterDtoSchema = z.object({
   productKey: z.string().optional(),
   planKey: z.string().optional(),
   billingCycleKey: z.string().optional(),
-  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'expired', 'suspended']).optional(),
+  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired', 'suspended']).optional(),
   
   // Date range filters
   activationDateFrom: z.date().optional(),
@@ -108,7 +105,6 @@ export const DetailedSubscriptionFilterDtoSchema = z.object({
   currentPeriodEndTo: z.date().optional(),
   
   // Boolean filters
-  autoRenew: z.boolean().optional(),
   hasStripeId: z.boolean().optional(),
   hasTrial: z.boolean().optional(),
   

@@ -1,7 +1,6 @@
 import { IPlanRepository } from '../repositories/IPlanRepository.js';
 import { IProductRepository } from '../repositories/IProductRepository.js';
 import { IFeatureRepository } from '../repositories/IFeatureRepository.js';
-import { IBillingCycleRepository } from '../repositories/IBillingCycleRepository.js';
 import { 
   CreatePlanDto, 
   CreatePlanDtoSchema, 
@@ -26,38 +25,24 @@ export class PlanManagementService {
   constructor(
     private readonly planRepository: IPlanRepository,
     private readonly productRepository: IProductRepository,
-    private readonly featureRepository: IFeatureRepository,
-    private readonly billingCycleRepository: IBillingCycleRepository
+    private readonly featureRepository: IFeatureRepository
   ) {}
 
   private async resolvePlanKeys(plan: Plan): Promise<{
     productKey: string;
-    defaultRenewalCycleKey?: string;
-    onExpireTransitionToPlanKey?: string;
+    onExpireTransitionToBillingCycleKey?: string;
   }> {
     // Plan now stores productKey directly
     const productKey = plan.productKey;
 
-    let defaultRenewalCycleKey: string | undefined;
-    if (plan.props.defaultRenewalCycleId) {
-      const cycle = await this.billingCycleRepository.findById(plan.props.defaultRenewalCycleId);
-      if (cycle) {
-        defaultRenewalCycleKey = cycle.key;
-      }
-    }
-
-    let onExpireTransitionToPlanKey: string | undefined;
-    if (plan.props.onExpireTransitionToPlanId) {
-      const transitionPlan = await this.planRepository.findById(plan.props.onExpireTransitionToPlanId);
-      if (transitionPlan) {
-        onExpireTransitionToPlanKey = transitionPlan.key;
-      }
+    let onExpireTransitionToBillingCycleKey: string | undefined;
+    if (plan.props.onExpireTransitionToBillingCycleKey) {
+      onExpireTransitionToBillingCycleKey = plan.props.onExpireTransitionToBillingCycleKey;
     }
 
     return {
       productKey,
-      defaultRenewalCycleKey,
-      onExpireTransitionToPlanKey
+      onExpireTransitionToBillingCycleKey
     };
   }
 
@@ -85,29 +70,6 @@ export class PlanManagementService {
       );
     }
 
-    // Verify default renewal cycle if provided
-    let defaultRenewalCycleId: string | undefined;
-    if (validatedDto.defaultRenewalCycleKey) {
-      const cycle = await this.billingCycleRepository.findByKey(validatedDto.defaultRenewalCycleKey);
-      if (!cycle) {
-        throw new NotFoundError(
-          `Renewal cycle with key '${validatedDto.defaultRenewalCycleKey}' not found`
-        );
-      }
-      defaultRenewalCycleId = cycle.id;
-    }
-
-    // Verify transition plan if provided
-    let onExpireTransitionToPlanId: string | undefined;
-    if (validatedDto.onExpireTransitionToPlanKey) {
-      const transitionPlan = await this.planRepository.findByKey(validatedDto.onExpireTransitionToPlanKey);
-      if (!transitionPlan) {
-        throw new NotFoundError(
-          `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found`
-        );
-      }
-      onExpireTransitionToPlanId = transitionPlan.id;
-    }
 
     const id = generateId();
     const plan = new Plan({
@@ -116,8 +78,7 @@ export class PlanManagementService {
       displayName: validatedDto.displayName,
       description: validatedDto.description,
       status: PlanStatus.Active,
-      defaultRenewalCycleId,
-      onExpireTransitionToPlanId,
+      onExpireTransitionToBillingCycleKey: validatedDto.onExpireTransitionToBillingCycleKey,
       featureValues: [],
       metadata: validatedDto.metadata,
       createdAt: new Date(),
@@ -129,8 +90,7 @@ export class PlanManagementService {
     return PlanMapper.toDto(
       plan, 
       product.key,
-      validatedDto.defaultRenewalCycleKey,
-      validatedDto.onExpireTransitionToPlanKey
+      validatedDto.onExpireTransitionToBillingCycleKey
     );
   }
 
@@ -156,31 +116,8 @@ export class PlanManagementService {
     if (validatedDto.description !== undefined) {
       plan.props.description = validatedDto.description;
     }
-    if (validatedDto.defaultRenewalCycleKey !== undefined) {
-      if (validatedDto.defaultRenewalCycleKey) {
-        const cycle = await this.billingCycleRepository.findByKey(validatedDto.defaultRenewalCycleKey);
-        if (!cycle) {
-          throw new NotFoundError(
-            `Renewal cycle with key '${validatedDto.defaultRenewalCycleKey}' not found`
-          );
-        }
-        plan.props.defaultRenewalCycleId = cycle.id;
-      } else {
-        plan.props.defaultRenewalCycleId = undefined;
-      }
-    }
-    if (validatedDto.onExpireTransitionToPlanKey !== undefined) {
-      if (validatedDto.onExpireTransitionToPlanKey) {
-        const transitionPlan = await this.planRepository.findByKey(validatedDto.onExpireTransitionToPlanKey);
-        if (!transitionPlan) {
-          throw new NotFoundError(
-            `Transition plan with key '${validatedDto.onExpireTransitionToPlanKey}' not found`
-          );
-        }
-        plan.props.onExpireTransitionToPlanId = transitionPlan.id;
-      } else {
-        plan.props.onExpireTransitionToPlanId = undefined;
-      }
+    if (validatedDto.onExpireTransitionToBillingCycleKey !== undefined) {
+      plan.props.onExpireTransitionToBillingCycleKey = validatedDto.onExpireTransitionToBillingCycleKey;
     }
     if (validatedDto.metadata !== undefined) {
       plan.props.metadata = validatedDto.metadata;
@@ -190,7 +127,7 @@ export class PlanManagementService {
     await this.planRepository.save(plan);
     
     const keys = await this.resolvePlanKeys(plan);
-    return PlanMapper.toDto(plan, keys.productKey, keys.defaultRenewalCycleKey, keys.onExpireTransitionToPlanKey);
+    return PlanMapper.toDto(plan, keys.productKey, keys.onExpireTransitionToBillingCycleKey);
   }
 
   async getPlan(planKey: string): Promise<PlanDto | null> {
@@ -200,7 +137,7 @@ export class PlanManagementService {
     }
 
     const keys = await this.resolvePlanKeys(plan);
-    return PlanMapper.toDto(plan, keys.productKey, keys.defaultRenewalCycleKey, keys.onExpireTransitionToPlanKey);
+    return PlanMapper.toDto(plan, keys.productKey, keys.onExpireTransitionToBillingCycleKey);
   }
 
   async listPlans(filters: PlanFilterDto = { limit: 50, offset: 0 }): Promise<PlanDto[]> {
@@ -221,7 +158,7 @@ export class PlanManagementService {
     const planDtos: PlanDto[] = [];
     for (const plan of plans) {
       const keys = await this.resolvePlanKeys(plan);
-      planDtos.push(PlanMapper.toDto(plan, keys.productKey, keys.defaultRenewalCycleKey, keys.onExpireTransitionToPlanKey));
+      planDtos.push(PlanMapper.toDto(plan, keys.productKey, keys.onExpireTransitionToBillingCycleKey));
     }
     return planDtos;
   }
@@ -239,7 +176,7 @@ export class PlanManagementService {
     const planDtos: PlanDto[] = [];
     for (const plan of plans) {
       const keys = await this.resolvePlanKeys(plan);
-      planDtos.push(PlanMapper.toDto(plan, keys.productKey, keys.defaultRenewalCycleKey, keys.onExpireTransitionToPlanKey));
+      planDtos.push(PlanMapper.toDto(plan, keys.productKey, keys.onExpireTransitionToBillingCycleKey));
     }
     return planDtos;
   }

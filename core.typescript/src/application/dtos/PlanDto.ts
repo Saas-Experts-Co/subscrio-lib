@@ -12,8 +12,7 @@ export const CreatePlanDtoSchema = z.object({
     .min(1, 'Display name is required')
     .max(255, 'Display name too long'),
   description: z.string().max(1000).optional(),
-  defaultRenewalCycleKey: z.string().optional(),
-  onExpireTransitionToPlanKey: z.string().optional(),
+  onExpireTransitionToBillingCycleKey: z.string().optional(),
   metadata: z.record(z.unknown()).optional()
 });
 
@@ -26,8 +25,7 @@ export const UpdatePlanDtoSchema = z.object({
     .max(255, 'Display name too long')
     .optional(),
   description: z.string().max(1000).optional(),
-  defaultRenewalCycleKey: z.string().optional(),
-  onExpireTransitionToPlanKey: z.string().optional(),
+  onExpireTransitionToBillingCycleKey: z.string().optional(),
   metadata: z.record(z.unknown()).optional()
 });
 export type UpdatePlanDto = z.infer<typeof UpdatePlanDtoSchema>;
@@ -36,11 +34,10 @@ export interface PlanDto {
   productKey: string;
   key: string;
   displayName: string;
-  description?: string;
+  description?: string | null;
   status: string;
-  defaultRenewalCycleKey?: string;
-  onExpireTransitionToPlanKey?: string;
-  metadata?: Record<string, unknown>;
+  onExpireTransitionToBillingCycleKey?: string | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }

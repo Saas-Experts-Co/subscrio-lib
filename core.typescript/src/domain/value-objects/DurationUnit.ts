@@ -2,6 +2,7 @@ export enum DurationUnit {
   Days = 'days',
   Weeks = 'weeks',
   Months = 'months',
-  Years = 'years'
+  Years = 'years',
+  Forever = 'forever'
 }
 

@@ -146,9 +146,9 @@ describe('Customers E2E Tests', () => {
         key: 'minimal-customer'
       });
 
-      expect(customer.displayName).toBeUndefined();
-      expect(customer.email).toBeUndefined();
-      expect(customer.externalBillingId).toBeUndefined();
+      expect(customer.displayName).toBeNull();
+      expect(customer.email).toBeNull();
+      expect(customer.externalBillingId).toBeNull();
     });
   });
 

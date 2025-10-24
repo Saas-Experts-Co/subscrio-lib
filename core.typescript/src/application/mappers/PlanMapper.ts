@@ -6,18 +6,16 @@ export class PlanMapper {
   static toDto(
     plan: Plan, 
     productKey: string,
-    defaultRenewalCycleKey?: string,
-    onExpireTransitionToPlanKey?: string
+    onExpireTransitionToBillingCycleKey?: string
   ): PlanDto {
     return {
       productKey,
       key: plan.key,
       displayName: plan.displayName,
-      description: plan.props.description,
+      description: plan.props.description ?? null,
       status: plan.status,
-      defaultRenewalCycleKey,
-      onExpireTransitionToPlanKey,
-      metadata: plan.props.metadata,
+      onExpireTransitionToBillingCycleKey: onExpireTransitionToBillingCycleKey ?? null,
+      metadata: plan.props.metadata ?? null,
       createdAt: plan.props.createdAt.toISOString(),
       updatedAt: plan.props.updatedAt.toISOString()
     };
@@ -31,8 +29,7 @@ export class PlanMapper {
         displayName: raw.display_name,
         description: raw.description,
         status: raw.status as PlanStatus,
-        defaultRenewalCycleId: raw.default_renewal_cycle_id,
-        onExpireTransitionToPlanId: raw.on_expire_transition_to_plan_id,
+        onExpireTransitionToBillingCycleKey: raw.on_expire_transition_to_billing_cycle_key,
         featureValues,
         metadata: raw.metadata,
         createdAt: new Date(raw.created_at),
@@ -50,8 +47,7 @@ export class PlanMapper {
       display_name: plan.displayName,
       description: plan.props.description,
       status: plan.status,
-      default_renewal_cycle_id: plan.props.defaultRenewalCycleId,
-      on_expire_transition_to_plan_id: plan.props.onExpireTransitionToPlanId,
+      on_expire_transition_to_billing_cycle_key: plan.props.onExpireTransitionToBillingCycleKey,
       metadata: plan.props.metadata,
       created_at: plan.props.createdAt,
       updated_at: plan.props.updatedAt

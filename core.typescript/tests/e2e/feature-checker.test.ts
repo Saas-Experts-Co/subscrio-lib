@@ -105,7 +105,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-plan',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Should return plan value
@@ -153,7 +152,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-override',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Add subscription override
@@ -238,7 +236,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-hierarchy-1',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Add override
@@ -294,7 +291,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-hierarchy-2',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Add override
@@ -350,7 +346,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-hierarchy-3',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Should return plan value (100), not default (10)
@@ -396,7 +391,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-fallback',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Should return default (1)
@@ -474,7 +468,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-toggle-1',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       const isEnabled = await subscrio.featureChecker.isEnabledForCustomer(customer.key, product.key, feature.key);
@@ -594,7 +587,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-permanent',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
@@ -646,7 +638,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-temporary',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
@@ -698,7 +689,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-clear-temp',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       await subscrio.subscriptions.addFeatureOverride(
@@ -761,7 +751,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-keep-perm',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Add permanent override
@@ -841,7 +830,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-bulk',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       const allFeatures = await subscrio.featureChecker.getAllFeaturesForCustomer(customer.key, product.key);
@@ -888,7 +876,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-summary',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       const summary = await subscrio.featureChecker.getFeatureUsageSummary(customer.key, product.key);
@@ -926,7 +913,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-active-plans',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       const activePlans = await subscrio.featureChecker.getActivePlans(customer.key);
@@ -965,7 +951,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-access',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       const hasAccess = await subscrio.featureChecker.hasPlanAccess(
@@ -1032,7 +1017,6 @@ describe('Feature Checker E2E Tests', () => {
         key: 'sub-cancelled',
         customerKey: customer.key,
         billingCycleKey: billingCycle.key,
-        autoRenew: true
       });
 
       // Cancel subscription

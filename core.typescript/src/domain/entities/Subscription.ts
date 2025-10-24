@@ -20,8 +20,7 @@ export interface SubscriptionProps {
   cancellationDate?: Date;
   trialEndDate?: Date;
   currentPeriodStart?: Date;
-  currentPeriodEnd?: Date;
-  autoRenew: boolean;
+  currentPeriodEnd?: Date | null;
   stripeSubscriptionId?: string;
   featureOverrides: FeatureOverride[];
   metadata?: Record<string, unknown>;
@@ -45,9 +44,18 @@ export class Subscription extends Entity<SubscriptionProps> {
   get status(): SubscriptionStatus {
     const now = new Date();
     
-    // If cancelled, return cancelled
-    if (this.props.cancellationDate && this.props.cancellationDate <= now) {
-      return SubscriptionStatus.Cancelled;
+    // If cancellation is set, check if the relevant period has ended
+    if (this.props.cancellationDate) {
+      // If in trial and trial has ended, subscription is cancelled
+      if (this.props.trialEndDate && this.props.trialEndDate <= now) {
+        return SubscriptionStatus.Cancelled;
+      }
+      // If not in trial and current period has ended, subscription is cancelled
+      if (!this.props.trialEndDate && this.props.currentPeriodEnd && this.props.currentPeriodEnd <= now) {
+        return SubscriptionStatus.Cancelled;
+      }
+      // If neither trial nor current period has ended, cancellation is pending
+      return SubscriptionStatus.CancellationPending;
     }
     
     // If expired, return expired

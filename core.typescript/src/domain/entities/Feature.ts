@@ -60,17 +60,5 @@ export class Feature extends Entity<FeatureProps> {
     this.props.updatedAt = new Date();
   }
 
-  validateValue(value: string): boolean {
-    switch (this.props.valueType) {
-      case FeatureValueType.Toggle:
-        return value === 'true' || value === 'false';
-      case FeatureValueType.Numeric:
-        return !isNaN(Number(value));
-      case FeatureValueType.Text:
-        return typeof value === 'string';
-      default:
-        return false;
-    }
-  }
 }
 

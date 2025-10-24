@@ -12,28 +12,60 @@ export const CreateBillingCycleDtoSchema = z.object({
     .min(1, 'Display name is required')
     .max(255, 'Display name too long'),
   description: z.string().max(1000).optional(),
-  durationValue: z.number().int().min(1, 'Duration value must be positive'),
-  durationUnit: z.enum(['days', 'weeks', 'months', 'years']),
+  durationValue: z.number().int().min(1, 'Duration value must be positive').optional(),
+  durationUnit: z.enum(['days', 'weeks', 'months', 'years', 'forever']),
   externalProductId: z.string().max(255).optional()
-});
+}).refine(
+  (data) => {
+    // If durationUnit is 'forever', durationValue should be undefined
+    // If durationUnit is not 'forever', durationValue should be provided
+    if (data.durationUnit === 'forever') {
+      return data.durationValue === undefined;
+    }
+    return data.durationValue !== undefined;
+  },
+  {
+    message: "Duration value is required for non-forever durations, and must be undefined for forever duration",
+    path: ["durationValue"]
+  }
+);
 
 export type CreateBillingCycleDto = z.infer<typeof CreateBillingCycleDtoSchema>;
 
-export const UpdateBillingCycleDtoSchema = CreateBillingCycleDtoSchema.omit({ 
-  planKey: true, 
-  key: true 
-}).partial();
+export const UpdateBillingCycleDtoSchema = z.object({
+  displayName: z.string()
+    .min(1, 'Display name is required')
+    .max(255, 'Display name too long')
+    .optional(),
+  description: z.string().max(1000).optional(),
+  durationValue: z.number().int().min(1, 'Duration value must be positive').optional(),
+  durationUnit: z.enum(['days', 'weeks', 'months', 'years', 'forever']).optional(),
+  externalProductId: z.string().max(255).optional()
+}).refine(
+  (data) => {
+    // If durationUnit is 'forever', durationValue should be undefined
+    // If durationUnit is not 'forever', durationValue should be provided
+    if (data.durationUnit === 'forever') {
+      return data.durationValue === undefined;
+    }
+    return data.durationValue !== undefined;
+  },
+  {
+    message: "Duration value is required for non-forever durations, and must be undefined for forever duration",
+    path: ["durationValue"]
+  }
+);
 export type UpdateBillingCycleDto = z.infer<typeof UpdateBillingCycleDtoSchema>;
 
 export interface BillingCycleDto {
-  productKey: string;
-  planKey: string;
+  productKey: string | null;
+  planKey: string | null;
   key: string;
   displayName: string;
-  description?: string;
-  durationValue: number;
+  description?: string | null;
+  durationValue?: number | null;
   durationUnit: string;
-  externalProductId?: string;
+  externalProductId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,7 +74,7 @@ export const BillingCycleFilterDtoSchema = z.object({
   planKey: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
-  durationUnit: z.enum(['days', 'weeks', 'months', 'years']).optional(),
+  durationUnit: z.enum(['days', 'weeks', 'months', 'years', 'forever']).optional(),
   search: z.string().optional(),
   sortBy: z.enum(['displayName', 'createdAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional()

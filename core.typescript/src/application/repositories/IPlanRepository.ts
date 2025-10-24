@@ -6,6 +6,7 @@ export interface IPlanRepository {
   findById(id: string): Promise<Plan | null>;
   findByKey(key: string): Promise<Plan | null>;
   findByProduct(productKey: string): Promise<Plan[]>; // Uses productKey directly from database
+  findByBillingCycleId(billingCycleId: string): Promise<Plan | null>;
   findAll(filters?: PlanFilterDto): Promise<Plan[]>;
   findByIds(ids: string[]): Promise<Plan[]>;
   delete(id: string): Promise<void>;

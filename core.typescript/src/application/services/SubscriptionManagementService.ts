@@ -121,6 +121,13 @@ export class SubscriptionManagementService {
     const id = generateId();
     const trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
     
+    // Calculate currentPeriodEnd based on billing cycle duration
+    const currentPeriodStart = validatedDto.currentPeriodStart ? new Date(validatedDto.currentPeriodStart) : new Date();
+    const currentPeriodEnd = validatedDto.currentPeriodEnd 
+      ? new Date(validatedDto.currentPeriodEnd) 
+      : this.calculatePeriodEnd(currentPeriodStart, billingCycle);
+    
+    
     const subscription = new Subscription({
       key: validatedDto.key,  // User-supplied key
       customerId: customer.id,
@@ -131,9 +138,8 @@ export class SubscriptionManagementService {
       expirationDate: validatedDto.expirationDate ? new Date(validatedDto.expirationDate) : undefined,
       cancellationDate: validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined,
       trialEndDate,
-      currentPeriodStart: validatedDto.currentPeriodStart ? new Date(validatedDto.currentPeriodStart) : new Date(),
-      currentPeriodEnd: validatedDto.currentPeriodEnd ? new Date(validatedDto.currentPeriodEnd) : undefined,
-      autoRenew: validatedDto.autoRenew ?? true,
+      currentPeriodStart,
+      currentPeriodEnd,
       stripeSubscriptionId: validatedDto.stripeSubscriptionId,
       featureOverrides: [],
       metadata: validatedDto.metadata,
@@ -154,8 +160,6 @@ export class SubscriptionManagementService {
   }
 
   async updateSubscription(subscriptionKey: string, dto: UpdateSubscriptionDto): Promise<SubscriptionDto> {
-    console.log('DEBUG: updateSubscription method called with:', { subscriptionKey, dto });
-    
     const validationResult = UpdateSubscriptionDtoSchema.safeParse(dto);
     if (!validationResult.success) {
       throw new ValidationError(
@@ -181,16 +185,8 @@ export class SubscriptionManagementService {
       subscription.props.cancellationDate = validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined;
     }
     // Handle trialEndDate updates
-    console.log('DEBUG: trialEndDate update check:', {
-      validatedDtoTrialEndDate: validatedDto.trialEndDate,
-      wasTrialEndDateCleared,
-      shouldUpdate: validatedDto.trialEndDate !== undefined || wasTrialEndDateCleared,
-      currentTrialEndDate: subscription.props.trialEndDate
-    });
-    
     if (validatedDto.trialEndDate !== undefined || wasTrialEndDateCleared) {
       const newTrialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
-      console.log('DEBUG: Setting trialEndDate to:', newTrialEndDate);
       subscription.props.trialEndDate = newTrialEndDate;
     }
     if (validatedDto.currentPeriodStart !== undefined) {
@@ -198,9 +194,6 @@ export class SubscriptionManagementService {
     }
     if (validatedDto.currentPeriodEnd !== undefined) {
       subscription.props.currentPeriodEnd = validatedDto.currentPeriodEnd ? new Date(validatedDto.currentPeriodEnd) : undefined;
-    }
-    if (validatedDto.autoRenew !== undefined) {
-      subscription.props.autoRenew = validatedDto.autoRenew;
     }
     if (validatedDto.metadata !== undefined) {
       subscription.props.metadata = validatedDto.metadata;
@@ -315,9 +308,6 @@ export class SubscriptionManagementService {
     let subscriptions = await this.subscriptionRepository.findAll(basicFilters);
     
     // Apply additional filters post-fetch (basic implementation)
-    if (filters.autoRenew !== undefined) {
-      subscriptions = subscriptions.filter(s => s.props.autoRenew === filters.autoRenew);
-    }
     
     if (filters.hasStripeId !== undefined) {
       const hasStripe = filters.hasStripeId;
@@ -493,5 +483,132 @@ export class SubscriptionManagementService {
       default:
         throw new ValidationError(`Unknown feature value type: ${valueType}`);
     }
+  }
+
+  private calculatePeriodEnd(startDate: Date, billingCycle: any): Date | null {
+    // For forever billing cycles, return null (never expires)
+    if (billingCycle.props.durationUnit === 'forever') {
+      return null;
+    }
+    
+    const endDate = new Date(startDate);
+    
+    switch (billingCycle.props.durationUnit) {
+      case 'days':
+        endDate.setDate(endDate.getDate() + billingCycle.props.durationValue);
+        break;
+      case 'weeks':
+        endDate.setDate(endDate.getDate() + (billingCycle.props.durationValue * 7));
+        break;
+      case 'months':
+        endDate.setMonth(endDate.getMonth() + billingCycle.props.durationValue);
+        break;
+      case 'years':
+        endDate.setFullYear(endDate.getFullYear() + billingCycle.props.durationValue);
+        break;
+      default:
+        throw new ValidationError(`Unknown duration unit: ${billingCycle.props.durationUnit}`);
+    }
+    
+    return endDate;
+  }
+
+  /**
+   * Process automatic transitions for subscriptions that have expired or been cancelled
+   * This method should be called periodically by the implementor
+   */
+  async processAutomaticTransitions(): Promise<number> {
+    const now = new Date();
+    let transitionsProcessed = 0;
+
+    // Find all subscriptions that need automatic transition
+    const subscriptionsToTransition = await this.findSubscriptionsForTransition(now);
+    
+    for (const subscription of subscriptionsToTransition) {
+      await this.processSubscriptionTransition(subscription);
+      transitionsProcessed++;
+    }
+
+    return transitionsProcessed;
+  }
+
+  /**
+   * Find subscriptions that need automatic transition
+   */
+  private async findSubscriptionsForTransition(now: Date) {
+    // Find subscriptions where:
+    // 1. currentPeriodEnd has passed (currentPeriodEnd < now)
+    // 2. The plan has onExpireTransitionToBillingCycleKey configured
+    // 3. Don't check status - handle both cancelled and expired subscriptions
+    
+    // Get all subscriptions (don't filter by status - handle both cancelled and expired)
+    const subscriptions = await this.subscriptionRepository.findAll({
+      limit: 100,
+      offset: 0
+    });
+
+    const subscriptionsToTransition = [];
+
+    for (const subscription of subscriptions) {
+      // Check if period has ended (currentPeriodEnd < now)
+      if (!subscription.props.currentPeriodEnd || subscription.props.currentPeriodEnd >= now) {
+        continue; // Period hasn't ended yet
+      }
+
+      // Get the plan to check for transition configuration
+      const plan = await this.planRepository.findById(subscription.planId);
+      if (!plan || !plan.props.onExpireTransitionToBillingCycleKey) {
+        continue; // No automatic transition configured
+      }
+
+      subscriptionsToTransition.push(subscription);
+    }
+    return subscriptionsToTransition;
+  }
+
+  /**
+   * Process a single subscription transition
+   */
+  private async processSubscriptionTransition(subscription: any): Promise<void> {
+    // Get the plan to check for transition configuration
+    const plan = await this.planRepository.findById(subscription.planId);
+    if (!plan) {
+      throw new NotFoundError(`Plan ${subscription.planId} not found`);
+    }
+
+    // Find the target billing cycle
+    if (!plan.props.onExpireTransitionToBillingCycleKey) {
+      throw new DomainError('Plan does not have transition configuration');
+    }
+    
+    const targetBillingCycle = await this.billingCycleRepository.findByKey(
+      plan.props.onExpireTransitionToBillingCycleKey
+    );
+    if (!targetBillingCycle) {
+      throw new NotFoundError(
+        `Target billing cycle ${plan.props.onExpireTransitionToBillingCycleKey} not found`
+      );
+    }
+
+    // Find the target plan (should be the same product)
+    const targetPlan = await this.planRepository.findByBillingCycleId(targetBillingCycle.id);
+    if (!targetPlan) {
+      throw new NotFoundError(
+        `Target plan for billing cycle ${plan.props.onExpireTransitionToBillingCycleKey} not found`
+      );
+    }
+
+    // Update the existing subscription to the target plan
+    subscription.props.planId = targetPlan.id;
+    subscription.props.billingCycleId = targetBillingCycle.id;
+    subscription.props.status = SubscriptionStatus.Active;
+    subscription.props.activationDate = new Date();
+    subscription.props.currentPeriodStart = new Date();
+    subscription.props.currentPeriodEnd = targetBillingCycle.calculateNextPeriodEnd(new Date());
+    subscription.props.featureOverrides = []; // Clear all overrides for the new plan
+    subscription.props.updatedAt = new Date();
+
+    // Save the updated subscription
+    await this.subscriptionRepository.save(subscription);
   }
 }

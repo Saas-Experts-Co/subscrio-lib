@@ -6,7 +6,7 @@ export interface BillingCycleProps {
   key: string;
   displayName: string;
   description?: string;
-  durationValue: number;
+  durationValue?: number; // Optional for forever duration
   durationUnit: DurationUnit;
   externalProductId?: string;
   createdAt: Date;
@@ -26,21 +26,27 @@ export class BillingCycle extends Entity<BillingCycleProps> {
     return this.props.displayName;
   }
 
-  calculateNextPeriodEnd(startDate: Date): Date {
+  calculateNextPeriodEnd(startDate: Date): Date | null {
+    // For forever duration, return null (never expires)
+    if (this.props.durationUnit === DurationUnit.Forever) {
+      return null;
+    }
+    
     const nextDate = new Date(startDate);
+    const durationValue = this.props.durationValue ?? 1; // Default to 1 if not specified
     
     switch (this.props.durationUnit) {
       case DurationUnit.Days:
-        nextDate.setDate(nextDate.getDate() + this.props.durationValue);
+        nextDate.setDate(nextDate.getDate() + durationValue);
         break;
       case DurationUnit.Weeks:
-        nextDate.setDate(nextDate.getDate() + (this.props.durationValue * 7));
+        nextDate.setDate(nextDate.getDate() + (durationValue * 7));
         break;
       case DurationUnit.Months:
-        nextDate.setMonth(nextDate.getMonth() + this.props.durationValue);
+        nextDate.setMonth(nextDate.getMonth() + durationValue);
         break;
       case DurationUnit.Years:
-        nextDate.setFullYear(nextDate.getFullYear() + this.props.durationValue);
+        nextDate.setFullYear(nextDate.getFullYear() + durationValue);
         break;
     }
     

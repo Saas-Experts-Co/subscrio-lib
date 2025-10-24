@@ -20,14 +20,14 @@ export type UpdateAPIKeyDto = z.infer<typeof UpdateAPIKeyDtoSchema>;
 export interface APIKeyDto {
   key: string;
   displayName: string;
-  description?: string;
+  description?: string | null;
   status: string;
   scope: string;
-  expiresAt?: string;
-  lastUsedAt?: string;
-  ipWhitelist?: string[];
-  createdBy?: string;
-  metadata?: Record<string, unknown>;
+  expiresAt?: string | null;
+  lastUsedAt?: string | null;
+  ipWhitelist?: string[] | null;
+  createdBy?: string | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -5,14 +5,14 @@ import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
 export class BillingCycleMapper {
   static toDto(billingCycle: BillingCycle, productKey?: string, planKey?: string): BillingCycleDto {
     return {
-      productKey: productKey || '',
-      planKey: planKey || '',
+      productKey: productKey ?? null,
+      planKey: planKey ?? null,
       key: billingCycle.key,
       displayName: billingCycle.displayName,
-      description: billingCycle.props.description,
-      durationValue: billingCycle.props.durationValue,
+      description: billingCycle.props.description ?? null,
+      durationValue: billingCycle.props.durationValue ?? null,
       durationUnit: billingCycle.props.durationUnit,
-      externalProductId: billingCycle.props.externalProductId,
+      externalProductId: billingCycle.props.externalProductId ?? null,
       createdAt: billingCycle.props.createdAt.toISOString(),
       updatedAt: billingCycle.props.updatedAt.toISOString()
     };

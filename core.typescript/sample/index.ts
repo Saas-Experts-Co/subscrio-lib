@@ -40,7 +40,8 @@ async function main() {
     await runPhase4_PlanUpgrade(subscrio);
     await runPhase5_FeatureOverrides(subscrio);
     await runPhase6_SubscriptionRenewal(subscrio);
-    await runPhase7_Summary();
+    await runPhase7_DowngradeToFree(subscrio);
+    await runPhase8_Summary();
   } catch (error) {
     console.error('\n❌ Error during demo execution:');
     console.error(error);
@@ -79,6 +80,12 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   printStep(2, 'Create Product');
   printInfo('Creating the main product for our SaaS platform', 1);
   
+  console.log('📥 Input: subscrio.products.createProduct({');
+  console.log('  key: "projecthub",');
+  console.log('  displayName: "ProjectHub",');
+  console.log('  description: "A modern project management platform"');
+  console.log('})');
+  
   const product = await subscrio.products.createProduct({
     key: 'projecthub',
     displayName: 'ProjectHub',
@@ -87,8 +94,9 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   printSuccess(`Product created: ${product.displayName} (${product.key})`);
   
   // Verify creation by fetching the product
+  console.log('📥 Input: subscrio.products.getProduct("projecthub")');
   const fetchedProduct = await subscrio.products.getProduct(product.key);
-  console.log('📄 Product DTO:', JSON.stringify(fetchedProduct, null, 2));
+  console.log('📄 Output: Product DTO:', JSON.stringify(fetchedProduct, null, 2));
   printDivider();
   
   if (isInteractiveMode) {
@@ -139,13 +147,17 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   ];
 
   for (const featureData of features) {
+    console.log(`📥 Input: subscrio.features.createFeature(${JSON.stringify(featureData, null, 2)})`);
     const feature = await subscrio.features.createFeature(featureData);
+    
+    console.log(`📥 Input: subscrio.products.associateFeature("projecthub", "${feature.key}")`);
     await subscrio.products.associateFeature('projecthub', feature.key);
     printSuccess(`Created feature: ${feature.displayName} (${feature.key})`);
     
     // Verify creation by fetching the feature
+    console.log(`📥 Input: subscrio.features.getFeature("${feature.key}")`);
     const fetchedFeature = await subscrio.features.getFeature(feature.key);
-    console.log(`📄 Feature DTO (${feature.key}):`, JSON.stringify(fetchedFeature, null, 2));
+    console.log(`📄 Output: Feature DTO (${feature.key}):`, JSON.stringify(fetchedFeature, null, 2));
   }
   printDivider();
   
@@ -156,68 +168,245 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   await sleep(500);
 
   // Step 4: Create plans
-  printStep(4, 'Create Plans');
+  printStep(4, 'Create Plans with Billing Cycles and Transitions');
+  printInfo('Create each plan with its billing cycles and automatic transition configuration', 1);
 
-  const plans = [
-    {
-      key: 'starter',
-      displayName: 'Starter Plan',
-      description: 'For growing teams'
-    },
-    {
-      key: 'professional',
-      displayName: 'Professional Plan',
-      description: 'For established businesses'
-    },
-    {
-      key: 'enterprise',
-      displayName: 'Enterprise Plan',
-      description: 'For large organizations'
-    }
-  ];
+  // Free Plan (with forever billing cycle for transitions)
+  console.log('📥 Input: subscrio.plans.createPlan({');
+  console.log('  productKey: "projecthub",');
+  console.log('  key: "free",');
+  console.log('  displayName: "Free Plan",');
+  console.log('  description: "Perfect for individuals and small teams"');
+  console.log('})');
+  
+  const freePlan = await subscrio.plans.createPlan({
+    productKey: 'projecthub',
+    key: 'free',
+    displayName: 'Free Plan',
+    description: 'Perfect for individuals and small teams'
+  });
+  printSuccess(`Created plan: ${freePlan.displayName} (${freePlan.key})`);
+  
+  // Create only the forever billing cycle for free plan (for automatic transitions)
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "free",');
+  console.log('  key: "free-forever",');
+  console.log('  displayName: "Forever",');
+  console.log('  description: "Never-ending free access",');
+  console.log('  durationUnit: "forever"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'free',
+    key: 'free-forever',
+    displayName: 'Forever',
+    description: 'Never-ending free access',
+    durationUnit: 'forever'
+  });
+  
+  console.log('📥 Input: subscrio.plans.getPlan("free")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("free-forever")');
+  console.log(`📄 Output: Free Plan DTO:`, JSON.stringify(await subscrio.plans.getPlan('free'), null, 2));
+  console.log(`📄 Output: Free Forever Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('free-forever'), null, 2));
 
-  for (const planData of plans) {
-    const plan = await subscrio.plans.createPlan({
-      productKey: 'projecthub',
-      ...planData
-    });
-    printSuccess(`Created plan: ${plan.displayName} (${plan.key})`);
-    
-    // Verify creation by fetching the plan
-    const fetchedPlan = await subscrio.plans.getPlan(plan.key);
-    console.log(`📄 Plan DTO (${plan.key}):`, JSON.stringify(fetchedPlan, null, 2));
-  }
+  // Starter Plan (with transition to free-forever)
+  console.log('📥 Input: subscrio.plans.createPlan({');
+  console.log('  productKey: "projecthub",');
+  console.log('  key: "starter",');
+  console.log('  displayName: "Starter Plan",');
+  console.log('  description: "For growing teams",');
+  console.log('  onExpireTransitionToBillingCycleKey: "free-forever"');
+  console.log('})');
+  
+  const starterPlan = await subscrio.plans.createPlan({
+    productKey: 'projecthub',
+    key: 'starter',
+    displayName: 'Starter Plan',
+    description: 'For growing teams',
+    onExpireTransitionToBillingCycleKey: 'free-forever'
+  });
+  printSuccess(`Created plan: ${starterPlan.displayName} (${starterPlan.key}) with auto-transition to free plan`);
+  
+  // Create billing cycles for starter plan
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "starter",');
+  console.log('  key: "starter-monthly",');
+  console.log('  displayName: "Monthly",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "months"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'starter',
+    key: 'starter-monthly',
+    displayName: 'Monthly',
+    durationValue: 1,
+    durationUnit: 'months'
+  });
+  
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "starter",');
+  console.log('  key: "starter-annual",');
+  console.log('  displayName: "Annual",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "years"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'starter',
+    key: 'starter-annual',
+    displayName: 'Annual',
+    durationValue: 1,
+    durationUnit: 'years'
+  });
+  
+  console.log('📥 Input: subscrio.plans.getPlan("starter")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("starter-monthly")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("starter-annual")');
+  console.log(`📄 Output: Starter Plan DTO:`, JSON.stringify(await subscrio.plans.getPlan('starter'), null, 2));
+  console.log(`📄 Output: Starter Monthly Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('starter-monthly'), null, 2));
+  console.log(`📄 Output: Starter Annual Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('starter-annual'), null, 2));
+
+  // Professional Plan (with transition to free-forever)
+  console.log('📥 Input: subscrio.plans.createPlan({');
+  console.log('  productKey: "projecthub",');
+  console.log('  key: "professional",');
+  console.log('  displayName: "Professional Plan",');
+  console.log('  description: "For established businesses",');
+  console.log('  onExpireTransitionToBillingCycleKey: "free-forever"');
+  console.log('})');
+  
+  const professionalPlan = await subscrio.plans.createPlan({
+    productKey: 'projecthub',
+    key: 'professional',
+    displayName: 'Professional Plan',
+    description: 'For established businesses',
+    onExpireTransitionToBillingCycleKey: 'free-forever'
+  });
+  printSuccess(`Created plan: ${professionalPlan.displayName} (${professionalPlan.key}) with auto-transition to free plan`);
+  
+  // Create billing cycles for professional plan
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "professional",');
+  console.log('  key: "professional-monthly",');
+  console.log('  displayName: "Monthly",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "months"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'professional',
+    key: 'professional-monthly',
+    displayName: 'Monthly',
+    durationValue: 1,
+    durationUnit: 'months'
+  });
+  
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "professional",');
+  console.log('  key: "professional-annual",');
+  console.log('  displayName: "Annual",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "years"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'professional',
+    key: 'professional-annual',
+    displayName: 'Annual',
+    durationValue: 1,
+    durationUnit: 'years'
+  });
+  
+  console.log('📥 Input: subscrio.plans.getPlan("professional")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("professional-monthly")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("professional-annual")');
+  console.log(`📄 Output: Professional Plan DTO:`, JSON.stringify(await subscrio.plans.getPlan('professional'), null, 2));
+  console.log(`📄 Output: Professional Monthly Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('professional-monthly'), null, 2));
+  console.log(`📄 Output: Professional Annual Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('professional-annual'), null, 2));
+
+  // Enterprise Plan (with transition to free-forever)
+  console.log('📥 Input: subscrio.plans.createPlan({');
+  console.log('  productKey: "projecthub",');
+  console.log('  key: "enterprise",');
+  console.log('  displayName: "Enterprise Plan",');
+  console.log('  description: "For large organizations",');
+  console.log('  onExpireTransitionToBillingCycleKey: "free-forever"');
+  console.log('})');
+  
+  const enterprisePlan = await subscrio.plans.createPlan({
+    productKey: 'projecthub',
+    key: 'enterprise',
+    displayName: 'Enterprise Plan',
+    description: 'For large organizations',
+    onExpireTransitionToBillingCycleKey: 'free-forever'
+  });
+  printSuccess(`Created plan: ${enterprisePlan.displayName} (${enterprisePlan.key}) with auto-transition to free plan`);
+  
+  // Create billing cycles for enterprise plan
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "enterprise",');
+  console.log('  key: "enterprise-monthly",');
+  console.log('  displayName: "Monthly",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "months"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'enterprise',
+    key: 'enterprise-monthly',
+    displayName: 'Monthly',
+    durationValue: 1,
+    durationUnit: 'months'
+  });
+  
+  console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
+  console.log('  planKey: "enterprise",');
+  console.log('  key: "enterprise-annual",');
+  console.log('  displayName: "Annual",');
+  console.log('  durationValue: 1,');
+  console.log('  durationUnit: "years"');
+  console.log('})');
+  
+  await subscrio.billingCycles.createBillingCycle({
+    planKey: 'enterprise',
+    key: 'enterprise-annual',
+    displayName: 'Annual',
+    durationValue: 1,
+    durationUnit: 'years'
+  });
+  
+  console.log('📥 Input: subscrio.plans.getPlan("enterprise")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("enterprise-monthly")');
+  console.log('📥 Input: subscrio.billingCycles.getBillingCycle("enterprise-annual")');
+  console.log(`📄 Output: Enterprise Plan DTO:`, JSON.stringify(await subscrio.plans.getPlan('enterprise'), null, 2));
+  console.log(`📄 Output: Enterprise Monthly Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('enterprise-monthly'), null, 2));
+  console.log(`📄 Output: Enterprise Annual Billing Cycle DTO:`, JSON.stringify(await subscrio.billingCycles.getBillingCycle('enterprise-annual'), null, 2));
+  
   printDivider();
   
   if (isInteractiveMode) {
     await promptForDatabaseInspection('Phase 1: System Setup', 'Step 4: Plans Creation Complete');
   }
 
-  await sleep(500);
-
-  // Step 5: Set feature values for plans
-  printStep(5, 'Set Feature Values for Plans');
+  // Set feature values for all plans
   printInfo('Configure feature limits and capabilities for each plan', 1);
-
+  
+  // Free plan: basic limits
+  await subscrio.plans.setFeatureValue('free', 'max-projects', '1');
+  await subscrio.plans.setFeatureValue('free', 'max-users-per-project', '3');
+  printSuccess('Free plan: 1 project, 3 users per project');
 
   // Starter plan: moderate limits
   await subscrio.plans.setFeatureValue('starter', 'max-projects', '5');
   await subscrio.plans.setFeatureValue('starter', 'max-users-per-project', '10');
   printSuccess('Starter plan: 5 projects, 10 users per project');
-  
-  // Verify feature values by fetching the plan
-  const starterPlanWithFeatures = await subscrio.plans.getPlan('starter');
-  console.log('📄 Starter Plan DTO (with feature values):', JSON.stringify(starterPlanWithFeatures, null, 2));
 
   // Professional plan: higher limits + gantt charts
   await subscrio.plans.setFeatureValue('professional', 'max-projects', '25');
   await subscrio.plans.setFeatureValue('professional', 'max-users-per-project', '50');
   await subscrio.plans.setFeatureValue('professional', 'gantt-charts', 'true');
   printSuccess('Professional plan: 25 projects, 50 users per project, Gantt charts enabled');
-  
-  // Verify feature values by fetching the plan
-  const professionalPlanWithFeatures = await subscrio.plans.getPlan('professional');
-  console.log('📄 Professional Plan DTO (with feature values):', JSON.stringify(professionalPlanWithFeatures, null, 2));
 
   // Enterprise plan: unlimited + all features
   await subscrio.plans.setFeatureValue('enterprise', 'max-projects', '999999');
@@ -226,55 +415,11 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   await subscrio.plans.setFeatureValue('enterprise', 'custom-branding', 'true');
   await subscrio.plans.setFeatureValue('enterprise', 'api-access', 'true');
   printSuccess('Enterprise plan: 999,999 projects/users, all features enabled');
-  
-  // Verify feature values by fetching the plan
-  const enterprisePlanWithFeatures = await subscrio.plans.getPlan('enterprise');
-  console.log('📄 Enterprise Plan DTO (with feature values):', JSON.stringify(enterprisePlanWithFeatures, null, 2));
 
   printDivider();
   
   if (isInteractiveMode) {
-    await promptForDatabaseInspection('Phase 1: System Setup', 'Step 5: Feature Values Set');
-  }
-
-  await sleep(500);
-
-  // Step 6: Create billing cycles
-  printStep(6, 'Create Billing Cycles');
-  printInfo('Billing cycles link plans to subscription periods', 1);
-
-  for (const planKey of ['starter', 'professional', 'enterprise']) {
-    const monthlyCycle = await subscrio.billingCycles.createBillingCycle({
-      planKey,
-      key: `${planKey}-monthly`,
-      displayName: 'Monthly',
-      durationValue: 1,
-      durationUnit: 'months'
-    });
-    
-    // Verify creation by fetching the billing cycle
-    const fetchedMonthlyCycle = await subscrio.billingCycles.getBillingCycle(monthlyCycle.key);
-    console.log(`📄 Billing Cycle DTO (${monthlyCycle.key}):`, JSON.stringify(fetchedMonthlyCycle, null, 2));
-
-    // Create annual billing cycles for all plans
-    const annualCycle = await subscrio.billingCycles.createBillingCycle({
-        planKey,
-        key: `${planKey}-annual`,
-        displayName: 'Annual',
-        durationValue: 1,
-        durationUnit: 'years'
-      });
-      
-      // Verify creation by fetching the billing cycle
-      const fetchedAnnualCycle = await subscrio.billingCycles.getBillingCycle(annualCycle.key);
-      console.log(`📄 Billing Cycle DTO (${annualCycle.key}):`, JSON.stringify(fetchedAnnualCycle, null, 2));
-  }
-
-  printSuccess('Created billing cycles for all plans (monthly and annual for each plan)');
-  printDivider();
-  
-  if (isInteractiveMode) {
-    await promptForDatabaseInspection('Phase 1: System Setup', 'Step 6: Billing Cycles Creation Complete');
+    await promptForDatabaseInspection('Phase 1: System Setup', 'Step 4: Plans, Billing Cycles, and Transitions Complete');
   }
 }
 
@@ -285,6 +430,12 @@ async function runPhase2_TrialStart(subscrio: Subscrio) {
   printStep(1, 'Create Customer');
   printInfo('Customer signs up for the platform', 1);
   
+  console.log('📥 Input: subscrio.customers.createCustomer({');
+  console.log('  key: "acme-corp",');
+  console.log('  displayName: "Acme Corporation",');
+  console.log('  email: "admin@acme-corp.com"');
+  console.log('})');
+  
   const customer = await subscrio.customers.createCustomer({
     key: 'acme-corp',
     displayName: 'Acme Corporation',
@@ -293,8 +444,9 @@ async function runPhase2_TrialStart(subscrio: Subscrio) {
   printSuccess(`Customer created: ${customer.displayName} (${customer.key})`);
   
   // Verify creation by fetching the customer
+  console.log('📥 Input: subscrio.customers.getCustomer("acme-corp")');
   const fetchedCustomer = await subscrio.customers.getCustomer(customer.key);
-  console.log('📄 Customer DTO:', JSON.stringify(fetchedCustomer, null, 2));
+  console.log('📄 Output: Customer DTO:', JSON.stringify(fetchedCustomer, null, 2));
   printDivider();
   
   if (isInteractiveMode) {
@@ -312,18 +464,25 @@ async function runPhase2_TrialStart(subscrio: Subscrio) {
 
   // 🚀 OPTIMIZED API: Only need customerKey and billingCycleKey
   // The plan and product are automatically derived from the billing cycle
+  console.log('📥 Input: subscrio.subscriptions.createSubscription({');
+  console.log('  customerKey: "acme-corp",');
+  console.log('  billingCycleKey: "starter-monthly",');
+  console.log('  key: "acme-subscription",');
+  console.log('  trialEndDate: "' + trialEnd.toISOString() + '"');
+  console.log('})');
+  
   const subscription = await subscrio.subscriptions.createSubscription({
     customerKey: customer.key,
     billingCycleKey: 'starter-monthly',  // Plan and product derived automatically
-    key: 'acme-starter-trial',
-    trialEndDate: trialEnd.toISOString(),
-    autoRenew: true
+    key: 'acme-subscription',
+    trialEndDate: trialEnd.toISOString()
   });
   printSuccess(`Trial subscription created: ${subscription.key}`);
   
   // Verify creation by fetching the subscription
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
   const fetchedSubscription = await subscrio.subscriptions.getSubscription(subscription.key);
-  console.log('📄 Trial Subscription DTO:', JSON.stringify(fetchedSubscription, null, 2));
+  console.log('📄 Output: Trial Subscription DTO:', JSON.stringify(fetchedSubscription, null, 2));
 
   printInfo(`Plan: ${subscription.planKey}`, 1);
   printInfo(`Status: ${subscription.status}`, 1);
@@ -384,28 +543,21 @@ async function runPhase3_TrialToPurchase(subscrio: Subscrio) {
   printInfo('Customer decides to continue after trial period', 1);
 
   // Convert the trial subscription to active (trial conversion)
-  console.log('DEBUG: About to call updateSubscription with trialEndDate: null');
-  console.log('DEBUG: updateSubscription method exists:', typeof subscrio.subscriptions.updateSubscription);
-  console.log('DEBUG: Available methods:', Object.getOwnPropertyNames(subscrio.subscriptions));
+  console.log('📥 Input: subscrio.subscriptions.updateSubscription("acme-subscription", {');
+  console.log('  trialEndDate: undefined');
+  console.log('})');
   
-  try {
-    console.log('DEBUG: Calling updateSubscription...');
-    const updateResult = await subscrio.subscriptions.updateSubscription('acme-starter-trial', {
-      trialEndDate: null // Clear trial end date to convert to active
-    });
-    console.log('DEBUG: updateSubscription call completed');
-    console.log('DEBUG: updateResult:', JSON.stringify(updateResult, null, 2));
-  } catch (error) {
-    console.error('DEBUG: updateSubscription error:', error);
-    throw error;
-  }
+  await subscrio.subscriptions.updateSubscription('acme-subscription', {
+    trialEndDate: undefined // Clear trial end date to convert to active
+  });
 
   printSuccess('Trial subscription converted to active paid subscription');
   
   // Verify the conversion by fetching the updated subscription
-  const convertedSubscription = await subscrio.subscriptions.getSubscription('acme-starter-trial');
-  console.log('📄 Converted Subscription DTO:', JSON.stringify(convertedSubscription, null, 2));
-  
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
+  const convertedSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
+  console.log('📄 Output: Converted Subscription DTO:', JSON.stringify(convertedSubscription, null, 2));
+
   printDivider();
   
   if (isInteractiveMode) {
@@ -423,16 +575,21 @@ async function runPhase4_PlanUpgrade(subscrio: Subscrio) {
   printInfo('Customer upgrades from starter to professional plan', 1);
   
   // Update the existing subscription to professional plan
-  await subscrio.subscriptions.updateSubscription('acme-starter-trial', {
+  console.log('📥 Input: subscrio.subscriptions.updateSubscription("acme-subscription", {');
+  console.log('  billingCycleKey: "professional-monthly"');
+  console.log('})');
+  
+  await subscrio.subscriptions.updateSubscription('acme-subscription', {
     billingCycleKey: 'professional-monthly'  // This will automatically update the plan
   });
   
   printSuccess('Subscription upgraded to professional plan');
   
   // Verify the upgrade by fetching the updated subscription
-  const upgradedSubscription = await subscrio.subscriptions.getSubscription('acme-starter-trial');
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
+  const upgradedSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
   if (upgradedSubscription) {
-    console.log('📄 Upgraded Subscription DTO:', JSON.stringify(upgradedSubscription, null, 2));
+    console.log('📄 Output: Upgraded Subscription DTO:', JSON.stringify(upgradedSubscription, null, 2));
     printInfo(`Plan: ${upgradedSubscription.planKey}`, 1);
     printInfo(`Status: ${upgradedSubscription.status}`, 1);
   }
@@ -453,8 +610,15 @@ async function runPhase5_FeatureOverrides(subscrio: Subscrio) {
   printStep(1, 'Add Temporary Override');
   printInfo('Customer requests temporary increase in project limit', 1);
 
+  console.log('📥 Input: subscrio.subscriptions.addFeatureOverride(');
+  console.log('  "acme-subscription",');
+  console.log('  "max-projects",');
+  console.log('  "10",');
+  console.log('  OverrideType.Temporary');
+  console.log(')');
+  
   await subscrio.subscriptions.addFeatureOverride(
-    'acme-starter-trial',
+    'acme-subscription',
     'max-projects',
     '10',  // Increase from 5 to 10
     OverrideType.Temporary
@@ -463,8 +627,8 @@ async function runPhase5_FeatureOverrides(subscrio: Subscrio) {
   printSuccess('Added temporary override: max-projects = 10');
   
   // Show the feature override that was added
-  console.log('📄 Feature Override Added:', JSON.stringify({
-    subscriptionKey: 'acme-starter-trial',
+  console.log('📄 Output: Feature Override Added:', JSON.stringify({
+    subscriptionKey: 'acme-subscription',
     featureKey: 'max-projects',
     value: '10',
     type: 'temporary',
@@ -487,8 +651,15 @@ async function runPhase5_FeatureOverrides(subscrio: Subscrio) {
   printStep(2, 'Add Permanent Override');
   printInfo('Customer purchases add-on for Gantt charts', 1);
   
+  console.log('📥 Input: subscrio.subscriptions.addFeatureOverride(');
+  console.log('  "acme-subscription",');
+  console.log('  "gantt-charts",');
+  console.log('  "true",');
+  console.log('  OverrideType.Permanent');
+  console.log(')');
+  
   await subscrio.subscriptions.addFeatureOverride(
-    'acme-starter-trial',
+    'acme-subscription',
     'gantt-charts',
     'true',
     OverrideType.Permanent
@@ -497,8 +668,8 @@ async function runPhase5_FeatureOverrides(subscrio: Subscrio) {
   printSuccess('Added permanent override: gantt-charts = true');
   
   // Show the feature override that was added
-  console.log('📄 Feature Override Added:', JSON.stringify({
-    subscriptionKey: 'acme-starter-trial',
+  console.log('📄 Output: Feature Override Added:', JSON.stringify({
+    subscriptionKey: 'acme-subscription',
     featureKey: 'gantt-charts',
     value: 'true',
     type: 'permanent',
@@ -526,12 +697,14 @@ async function runPhase6_SubscriptionRenewal(subscrio: Subscrio) {
   printInfo('Subscription renews - temporary overrides are cleared, permanent ones remain', 1);
   
   // Clear temporary overrides (simulating renewal)
-  await subscrio.subscriptions.clearTemporaryOverrides('acme-starter-trial');
+  console.log('📥 Input: subscrio.subscriptions.clearTemporaryOverrides("acme-subscription")');
+  await subscrio.subscriptions.clearTemporaryOverrides('acme-subscription');
   printSuccess('Temporary overrides cleared during renewal');
   
   // Get the renewed subscription
-  const renewedSubscription = await subscrio.subscriptions.getSubscription('acme-starter-trial');
-  console.log('📄 Renewed Subscription DTO:', JSON.stringify(renewedSubscription, null, 2));
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
+  const renewedSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
+  console.log('📄 Output: Renewed Subscription DTO:', JSON.stringify(renewedSubscription, null, 2));
   
   // Check feature resolution after renewal
   const maxProjects = await subscrio.featureChecker.getValueForCustomer('acme-corp', 'projecthub', 'max-projects');
@@ -549,8 +722,127 @@ async function runPhase6_SubscriptionRenewal(subscrio: Subscrio) {
   await sleep(500);
 }
 
+async function runPhase7_DowngradeToFree(subscrio: Subscrio) {
+  printPhase(7, 'Customer Cancellation and Auto-Transition');
+  
+  // Step 1: Customer cancels subscription
+  printStep(1, 'Customer Cancels Subscription');
+  printInfo('Customer cancels professional subscription - status changes to cancellation_pending but remains active until period end', 1);
+  
+  // Cancel the subscription by setting cancellation date
+  const cancellationDate = new Date();
+  console.log('📥 Input: subscrio.subscriptions.updateSubscription("acme-subscription", {');
+  console.log('  cancellationDate: "' + cancellationDate.toISOString() + '"');
+  console.log('})');
+  
+  await subscrio.subscriptions.updateSubscription('acme-subscription', {
+    cancellationDate: cancellationDate.toISOString()
+  });
+  printSuccess('Professional subscription cancelled by customer');
+  
+  // Verify the cancelled subscription
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
+  const cancelledSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
+  if (cancelledSubscription) {
+    console.log('📄 Output: Cancelled Subscription DTO:', JSON.stringify(cancelledSubscription, null, 2));
+    printInfo(`Status: ${cancelledSubscription.status}`, 1);
+    printInfo(`Cancellation date: ${cancelledSubscription.cancellationDate ? new Date(cancelledSubscription.cancellationDate).toLocaleDateString() : 'N/A'}`, 1);
+    printInfo(`Current period end: ${cancelledSubscription.currentPeriodEnd ? new Date(cancelledSubscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}`, 1);
+    printInfo(`Note: Subscription remains active until period end date (cancellation_pending status)`, 1);
+  }
+  
+  printDivider();
+  
+  if (isInteractiveMode) {
+    await promptForDatabaseInspection('Phase 7: Customer Cancellation', 'Step 1: Subscription Cancelled');
+  }
 
-async function runPhase7_Summary() {
+  await sleep(500);
+
+  // Step 2: Simulate period end and automatic transition
+  printStep(2, 'Period End - Automatic Transition to Free Plan');
+  printInfo('Simulating period end date passing - library automatically transitions to free plan', 1);
+  printInfo('This simulates the automatic transition configured in the professional plan', 1);
+  
+  // Get the current subscription to access its cancellation date
+  const currentSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
+  
+  // Simulate the period end by setting currentPeriodEnd to 1 day ago
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
+  
+  console.log('📥 Input: subscrio.subscriptions.updateSubscription("acme-subscription", {');
+  console.log('  currentPeriodEnd: "' + oneDayAgo.toISOString() + '"');
+  console.log('})');
+  
+  await subscrio.subscriptions.updateSubscription('acme-subscription', {
+    currentPeriodEnd: oneDayAgo
+  });
+  
+  printSuccess('Period end simulated - currentPeriodEnd set to before cancellation date');
+  
+  // Process automatic transitions
+  console.log('📥 Input: subscrio.subscriptions.processAutomaticTransitions()');
+  const transitionsProcessed = await subscrio.subscriptions.processAutomaticTransitions();
+  console.log('📄 Output: Transitions processed:', transitionsProcessed);
+  
+  printSuccess(`Automatic transition completed - ${transitionsProcessed} subscription(s) transitioned`);
+  
+  // Get the new free subscription (it will have a new key with -transitioned suffix)
+  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
+  const newSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
+  console.log('📄 Output: New Free Subscription DTO:', JSON.stringify(newSubscription, null, 2));
+  
+  // If the old subscription is still there, it means the transition didn't work properly
+  if (newSubscription && newSubscription.planKey === 'professional') {
+    printError('❌ TRANSITION FAILED: Subscription is still on professional plan!');
+    printError('The automatic transition did not create a new subscription to the free plan.');
+    return;
+  }
+
+  printDivider();
+  
+  if (isInteractiveMode) {
+    await promptForDatabaseInspection('Phase 7: Auto-Transition', 'Step 2: Automatic Transition Complete');
+  }
+
+  await sleep(500);
+
+  // Step 3: Check free plan feature access
+  printStep(3, 'Check Free Plan Feature Access');
+  printInfo('Verify customer has access to free plan features after automatic transition', 1);
+
+  // Check actual feature values for the new free subscription
+  const maxProjects = await subscrio.featureChecker.getValueForCustomer('acme-corp', 'projecthub', 'max-projects');
+  const maxUsers = await subscrio.featureChecker.getValueForCustomer('acme-corp', 'projecthub', 'max-users-per-project');
+  const hasGanttCharts = await subscrio.featureChecker.isEnabledForCustomer('acme-corp', 'projecthub', 'gantt-charts');
+  const hasCustomBranding = await subscrio.featureChecker.isEnabledForCustomer('acme-corp', 'projecthub', 'custom-branding');
+  const hasApiAccess = await subscrio.featureChecker.isEnabledForCustomer('acme-corp', 'projecthub', 'api-access');
+
+  printSuccess(`Max projects: ${maxProjects} (free plan limit)`);
+  printSuccess(`Max users per project: ${maxUsers} (free plan limit)`);
+  printInfo(`Gantt charts: ${hasGanttCharts ? 'Enabled' : 'Disabled'} (not available on free plan)`, 1);
+  printInfo(`Custom branding: ${hasCustomBranding ? 'Enabled' : 'Disabled'} (not available on free plan)`, 1);
+  printInfo(`API access: ${hasApiAccess ? 'Enabled' : 'Disabled'} (not available on free plan)`, 1);
+  
+  // Show resolved feature values
+  console.log('📄 Output: Resolved Feature Values (Free Plan):', JSON.stringify({
+    maxProjects,
+    maxUsers,
+    hasGanttCharts,
+    hasCustomBranding,
+    hasApiAccess
+  }, null, 2));
+
+  printDivider();
+  
+  if (isInteractiveMode) {
+    await promptForDatabaseInspection('Phase 7: Auto-Transition', 'Step 3: Free Plan Features Verified');
+  }
+
+  await sleep(500);
+}
+
+async function runPhase8_Summary() {
   printPhase(7, 'Summary');
   
   console.log('🎉 Demo completed successfully!');
@@ -563,6 +855,7 @@ async function runPhase7_Summary() {
   console.log('• Plan upgrades within the same subscription');
   console.log('• Feature overrides (temporary and permanent)');
   console.log('• Subscription renewal and override lifecycle');
+  console.log('• Automatic subscription transition to free plan on cancellation');
   console.log('• Feature resolution hierarchy (override > plan > default)');
   console.log('• Billing cycle management');
   console.log('');
@@ -571,6 +864,7 @@ async function runPhase7_Summary() {
   console.log('• Feature overrides provide flexibility for custom needs');
   console.log('• Temporary overrides clear on renewal, permanent ones persist');
   console.log('• The API supports complete subscription lifecycle management');
+  console.log('• Plans can be configured for automatic transitions on cancellation');
   console.log('');
 }
 
@@ -648,10 +942,10 @@ async function promptDemoStart(automated: boolean = false) {
     console.log('');
     console.log('📦 PRODUCTS: projecthub');
     console.log('🔧 FEATURES: max-projects, max-users-per-project, gantt-charts, custom-branding, api-access');
-    console.log('📋 PLANS: starter, professional, enterprise');
-    console.log('💳 BILLING CYCLES: starter-monthly, starter-annual, professional-monthly, professional-annual, enterprise-monthly, enterprise-annual');
+    console.log('📋 PLANS: free, starter, professional, enterprise');
+    console.log('💳 BILLING CYCLES: free-monthly, starter-monthly, starter-annual, professional-monthly, professional-annual, enterprise-monthly, enterprise-annual');
     console.log('👤 CUSTOMERS: acme-corp');
-    console.log('🔄 SUBSCRIPTION LIFECYCLE: trial → purchase → upgrade → renewal');
+    console.log('🔄 SUBSCRIPTION LIFECYCLE: trial → purchase → upgrade → renewal → cancellation → downgrade');
     console.log('');
     console.log('⚠️  Please ensure you have a dedicated test database or');
     console.log('   are prepared to manually clean up these entities after the demo.');
@@ -698,10 +992,10 @@ async function cleanupDemoEntities(subscrio: Subscrio) {
 
     // Delete in reverse dependency order
     console.log('🗑️  Deleting demo entities...');
-    await db.execute(`DELETE FROM subscriptions WHERE key IN ('acme-starter-trial')`);
+    await db.execute(`DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-after-cancellation')`);
     await db.execute(`DELETE FROM customers WHERE key = 'acme-corp'`);
-    await db.execute(`DELETE FROM billing_cycles WHERE key IN ('starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`);
-    await db.execute(`DELETE FROM plans WHERE key IN ('starter', 'professional', 'enterprise')`);
+    await db.execute(`DELETE FROM billing_cycles WHERE key IN ('free-forever', 'starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`);
+    await db.execute(`DELETE FROM plans WHERE key IN ('free', 'starter', 'professional', 'enterprise')`);
     await db.execute(`DELETE FROM features WHERE key IN ('max-projects', 'max-users-per-project', 'gantt-charts', 'custom-branding', 'api-access')`);
     await db.execute(`DELETE FROM products WHERE key = 'projecthub'`);
 

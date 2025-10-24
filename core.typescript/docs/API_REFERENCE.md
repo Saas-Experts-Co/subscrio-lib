@@ -112,7 +112,6 @@ const subscrio = new Subscrio({
   key: string;                    // lowercase-with-hyphens, unique within product
   displayName: string;            // 1-255 chars
   description?: string;           // max 1000 chars
-  defaultRenewalCycleKey?: string; // Key of renewal cycle
   onExpireTransitionToPlanKey?: string; // Key of plan to transition to
   metadata?: Record<string, unknown>;
 }
@@ -126,7 +125,6 @@ const subscrio = new Subscrio({
   displayName: string;
   description?: string;
   status: string;                 // 'active' | 'inactive' | 'archived'
-  defaultRenewalCycleKey?: string; // Renewal cycle key
   onExpireTransitionToPlanKey?: string; // Plan key
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601

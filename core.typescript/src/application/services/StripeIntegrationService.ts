@@ -115,7 +115,6 @@ export class StripeIntegrationService {
     subscription.props.currentPeriodEnd = new Date(
       stripeSubscription.current_period_end * 1000
     );
-    subscription.props.autoRenew = !stripeSubscription.cancel_at_period_end;
 
     if (stripeSubscription.canceled_at) {
       subscription.props.cancellationDate = new Date(
@@ -237,8 +236,7 @@ export class StripeIntegrationService {
       status: 'active' as any,  // Default status
       activationDate: new Date(),
       currentPeriodStart: new Date(),
-      currentPeriodEnd: billingCycle.calculateNextPeriodEnd(new Date()),
-      autoRenew: true,
+      currentPeriodEnd: billingCycle.calculateNextPeriodEnd(new Date()) ?? undefined,
       stripeSubscriptionId: `sub_placeholder_${generateId()}`,
       featureOverrides: [],
       createdAt: new Date(),

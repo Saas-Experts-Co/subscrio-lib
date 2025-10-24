@@ -15,8 +15,7 @@ export interface PlanProps {
   displayName: string;
   description?: string;
   status: PlanStatus;
-  defaultRenewalCycleId?: string;
-  onExpireTransitionToPlanId?: string;
+  onExpireTransitionToBillingCycleKey?: string;
   featureValues: PlanFeatureValue[];
   metadata?: Record<string, unknown>;
   createdAt: Date;

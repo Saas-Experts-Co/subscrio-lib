@@ -7,15 +7,15 @@ export class APIKeyMapper {
   static toDto(apiKey: APIKey): APIKeyDto {
     return {
       key: apiKey.key,
-      displayName: apiKey.props.displayName,
-      description: apiKey.props.description,
+      displayName: apiKey.props.displayName ?? null,
+      description: apiKey.props.description ?? null,
       status: apiKey.status,
       scope: apiKey.scope,
-      expiresAt: apiKey.props.expiresAt?.toISOString(),
-      lastUsedAt: apiKey.props.lastUsedAt?.toISOString(),
-      ipWhitelist: apiKey.props.ipWhitelist,
-      createdBy: apiKey.props.createdBy,
-      metadata: apiKey.props.metadata,
+      expiresAt: apiKey.props.expiresAt?.toISOString() ?? null,
+      lastUsedAt: apiKey.props.lastUsedAt?.toISOString() ?? null,
+      ipWhitelist: apiKey.props.ipWhitelist ?? null,
+      createdBy: apiKey.props.createdBy ?? null,
+      metadata: apiKey.props.metadata ?? null,
       createdAt: apiKey.props.createdAt.toISOString(),
       updatedAt: apiKey.props.updatedAt.toISOString()
     };

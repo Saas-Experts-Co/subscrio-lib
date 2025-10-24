@@ -6,11 +6,11 @@ export class CustomerMapper {
   static toDto(customer: Customer): CustomerDto {
     return {
       key: customer.key,
-      displayName: customer.props.displayName,
-      email: customer.props.email,
-      externalBillingId: customer.externalBillingId,
+      displayName: customer.props.displayName ?? null,
+      email: customer.props.email ?? null,
+      externalBillingId: customer.externalBillingId ?? null,
       status: customer.status,
-      metadata: customer.props.metadata,
+      metadata: customer.props.metadata ?? null,
       createdAt: customer.props.createdAt.toISOString(),
       updatedAt: customer.props.updatedAt.toISOString()
     };

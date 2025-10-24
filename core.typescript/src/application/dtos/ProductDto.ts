@@ -28,9 +28,9 @@ export type UpdateProductDto = z.infer<typeof UpdateProductDtoSchema>;
 export interface ProductDto {
   key: string;
   displayName: string;
-  description?: string;
+  description?: string | null;
   status: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }

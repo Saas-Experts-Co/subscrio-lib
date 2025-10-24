@@ -174,11 +174,10 @@ Customer
 └── → Subscriptions (one-to-many)
     └── Subscription
         ├── key: string
-        ├── status: 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended' (calculated dynamically)
+        ├── status: 'active' | 'trial' | 'cancelled' | 'cancellation_pending' | 'expired' | 'suspended' (calculated dynamically)
         ├── currentPeriodStart: Date
         ├── currentPeriodEnd: Date
         ├── trialEndDate?: Date
-        ├── autoRenew: boolean
         └── featureOverrides: FeatureOverride[]  # Embedded feature overrides
             ├── featureId: string
             ├── value: string
@@ -192,9 +191,10 @@ Feature Value Resolution (how we determine access/value):
 
 Subscription Status Calculation (calculated dynamically):
 1. If cancelled and cancellation date has passed → 'cancelled'
-2. If expired and expiration date has passed → 'expired'
-3. If trial end date is in the future → 'trial'
-4. If trial end date has passed or no trial → 'active'
+2. If cancellation is scheduled for the future → 'cancellation_pending'
+3. If expired and expiration date has passed → 'expired'
+4. If trial end date is in the future → 'trial'
+5. If trial end date has passed or no trial → 'active'
 ```
 
 ## Basic Usage
@@ -263,7 +263,6 @@ await subscrio.subscriptions.updateSubscription('sub-123', {
   cancellationDate: new Date().toISOString(),  // Cancel subscription
   expirationDate: new Date().toISOString(),   // Expire subscription
   trialEndDate: undefined,                     // Convert trial to active
-  autoRenew: false,                           // Disable auto-renewal
   metadata: { source: 'webhook' }            // Add metadata
 });
 
@@ -274,7 +273,6 @@ await subscrio.subscriptions.unarchiveSubscription('sub-123');
 // Advanced subscription search
 const activeSubscriptions = await subscrio.subscriptions.findSubscriptions({
   status: 'active',
-  autoRenew: true,
   hasTrial: false,
   activationDateFrom: new Date('2024-01-01'),
   limit: 50

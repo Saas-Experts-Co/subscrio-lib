@@ -8,13 +8,13 @@ export class FeatureMapper {
     return {
       key: feature.key,
       displayName: feature.displayName,
-      description: feature.props.description,
+      description: feature.props.description ?? null,
       valueType: feature.valueType,
       defaultValue: feature.defaultValue,
-      groupName: feature.props.groupName,
+      groupName: feature.props.groupName ?? null,
       status: feature.status,
-      validator: feature.props.validator,
-      metadata: feature.props.metadata,
+      validator: feature.props.validator ?? null,
+      metadata: feature.props.metadata ?? null,
       createdAt: feature.props.createdAt.toISOString(),
       updatedAt: feature.props.updatedAt.toISOString()
     };

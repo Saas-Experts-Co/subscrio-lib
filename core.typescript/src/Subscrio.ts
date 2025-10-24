@@ -33,7 +33,6 @@ import { StripeIntegrationService } from './application/services/StripeIntegrati
 
 // Domain services
 import { FeatureValueResolver } from './domain/services/FeatureValueResolver.js';
-import { SubscriptionRenewalService } from './domain/services/SubscriptionRenewalService.js';
 
 /**
  * Main Subscrio class - entry point for the library
@@ -78,7 +77,6 @@ export class Subscrio {
 
     // Initialize domain services
     new FeatureValueResolver();
-    new SubscriptionRenewalService();
 
     // Initialize application services
     this.products = new ProductManagementService(this.productRepo, this.featureRepo);
@@ -86,8 +84,7 @@ export class Subscrio {
     this.plans = new PlanManagementService(
       this.planRepo,
       this.productRepo,
-      this.featureRepo,
-      this.billingCycleRepo
+      this.featureRepo
     );
     this.customers = new CustomerManagementService(this.customerRepo);
     this.apiKeys = new APIKeyManagementService(this.apiKeyRepo);

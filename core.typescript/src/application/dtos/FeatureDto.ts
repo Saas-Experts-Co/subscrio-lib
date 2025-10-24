@@ -69,13 +69,13 @@ export type UpdateFeatureDto = z.infer<typeof UpdateFeatureDtoSchema>;
 export interface FeatureDto {
   key: string;
   displayName: string;
-  description?: string;
+  description?: string | null;
   valueType: string;
   defaultValue: string;
-  groupName?: string;
+  groupName?: string | null;
   status: string;
-  validator?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  validator?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
