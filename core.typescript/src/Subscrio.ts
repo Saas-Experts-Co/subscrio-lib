@@ -32,7 +32,7 @@ import { FeatureCheckerService } from './application/services/FeatureCheckerServ
 import { StripeIntegrationService } from './application/services/StripeIntegrationService.js';
 
 // Domain services
-import { FeatureValueResolver } from './domain/services/FeatureValueResolver.js';
+// FeatureValueResolver is instantiated within FeatureCheckerService
 
 /**
  * Main Subscrio class - entry point for the library
@@ -76,7 +76,7 @@ export class Subscrio {
     this.billingCycleRepo = new DrizzleBillingCycleRepository(this.db);
 
     // Initialize domain services
-    new FeatureValueResolver();
+    // FeatureValueResolver is instantiated within FeatureCheckerService
 
     // Initialize application services
     this.products = new ProductManagementService(this.productRepo, this.featureRepo);

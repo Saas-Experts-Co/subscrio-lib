@@ -5,6 +5,7 @@ import {
 } from './schema.js';
 import { sql } from 'drizzle-orm';
 import { generateId } from '../utils/uuid.js';
+import { now } from '../utils/date.js';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -235,8 +236,8 @@ export class SchemaInstaller {
         config_key: 'admin_passphrase_hash',
         config_value: hash,
         encrypted: false,
-        created_at: new Date(),
-        updated_at: new Date()
+        created_at: now(),
+        updated_at: now()
       });
     }
   }

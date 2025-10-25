@@ -4,11 +4,13 @@ import { IFeatureRepository } from '../repositories/IFeatureRepository.js';
 import { ICustomerRepository } from '../repositories/ICustomerRepository.js';
 import { IProductRepository } from '../repositories/IProductRepository.js';
 import { FeatureValueResolver } from '../../domain/services/FeatureValueResolver.js';
-import { SubscriptionStatus } from '../../domain/value-objects/index.js';
+import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
 import { NotFoundError } from '../errors/index.js';
+import { MAX_SUBSCRIPTIONS_PER_CUSTOMER } from '../constants/index.js';
 
 export class FeatureCheckerService {
   private readonly resolver: FeatureValueResolver;
+  private readonly planCache = new Map<string, any>(); // Cache for plans to avoid memory leaks
 
   constructor(
     private readonly subscriptionRepository: ISubscriptionRepository,
@@ -21,7 +23,24 @@ export class FeatureCheckerService {
   }
 
   /**
+   * Get plans with caching to avoid memory leaks
+   */
+  private async getPlansCached(planIds: string[]): Promise<Map<string, any>> {
+    const missingIds = planIds.filter(id => !this.planCache.has(id));
+    if (missingIds.length > 0) {
+      const plans = await this.planRepository.findByIds(missingIds);
+      plans.forEach(plan => this.planCache.set(plan.id, plan));
+    }
+    return new Map(planIds.map(id => [id, this.planCache.get(id)!]));
+  }
+
+  /**
    * Get feature value for a specific subscription
+   * @param subscriptionKey - The subscription's external key
+   * @param featureKey - The feature's external key
+   * @param defaultValue - Default value if feature not found
+   * @returns The resolved feature value or default
+   * @throws {NotFoundError} When subscription or feature not found
    */
   async getValueForSubscription<T = string>(
     subscriptionKey: string,
@@ -52,6 +71,9 @@ export class FeatureCheckerService {
 
   /**
    * Check if a feature is enabled for a specific subscription
+   * @param subscriptionKey - The subscription's external key
+   * @param featureKey - The feature's external key
+   * @returns True if feature is enabled (value is 'true')
    */
   async isEnabledForSubscription(
     subscriptionKey: string,
@@ -100,6 +122,12 @@ export class FeatureCheckerService {
 
   /**
    * Get feature value for a customer in a specific product
+   * @param customerKey - The customer's external key
+   * @param productKey - The product's external key  
+   * @param featureKey - The feature's external key
+   * @param defaultValue - Default value if feature not found
+   * @returns The resolved feature value or default
+   * @throws {NotFoundError} When customer, product, or feature not found
    */
   async getValueForCustomer<T = string>(
     customerKey: string,
@@ -128,18 +156,20 @@ export class FeatureCheckerService {
     // Get active subscriptions for this customer and product
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { limit: 100, offset: 0 }
+      { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
-    // Filter subscriptions for this product
-    const productSubscriptions = [];
-    for (const subscription of subscriptions) {
-      const plan = await this.planRepository.findById(subscription.planId);
-      if (plan && plan.productKey === productKey && 
-          (subscription.status === SubscriptionStatus.Active || subscription.status === SubscriptionStatus.Trial)) {
-        productSubscriptions.push(subscription);
-      }
-    }
+    // Batch load all plans to avoid N+1 queries and memory leaks
+    const planIds = subscriptions.map(s => s.planId);
+    const planMap = await this.getPlansCached(planIds);
+
+    // Filter subscriptions for this product using in-memory map
+    const productSubscriptions = subscriptions.filter(subscription => {
+      const plan = planMap.get(subscription.planId);
+      const status = subscription.status; // This returns a string from the getter
+      return plan && plan.productKey === productKey && 
+             (status === 'active' || status === 'trial');
+    });
 
     if (productSubscriptions.length === 0) {
       // No active subscriptions for this product, return feature default
@@ -147,15 +177,15 @@ export class FeatureCheckerService {
     }
 
     // Get plans for subscriptions
-    const planIds = productSubscriptions.map(s => s.planId);
-    const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
+    const productPlanIds = productSubscriptions.map(s => s.planId);
+    const productPlans = await this.planRepository.findByIds(productPlanIds);
+    const productPlanMap = new Map(productPlans.map(p => [p.id, p]));
 
     // Resolve using hierarchy
     let resolvedValue: string | null = null;
 
     for (const subscription of productSubscriptions) {
-      const plan = planMap.get(subscription.planId);
+      const plan = productPlanMap.get(subscription.planId);
       const value = this.resolver.resolve(feature, plan ?? null, subscription);
       
       // If this subscription has an override, use it immediately
@@ -209,18 +239,20 @@ export class FeatureCheckerService {
     // Get active subscriptions for this customer and product
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
-      { limit: 100, offset: 0 }
+      { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
-    // Filter subscriptions for this product
-    const productSubscriptions = [];
-    for (const subscription of subscriptions) {
-      const plan = await this.planRepository.findById(subscription.planId);
-      if (plan && plan.productKey === productKey && 
-          (subscription.status === SubscriptionStatus.Active || subscription.status === SubscriptionStatus.Trial)) {
-        productSubscriptions.push(subscription);
-      }
-    }
+    // Batch load all plans to avoid N+1 queries and memory leaks
+    const planIds = subscriptions.map(s => s.planId);
+    const planMap = await this.getPlansCached(planIds);
+
+    // Filter subscriptions for this product using in-memory map
+    const productSubscriptions = subscriptions.filter(subscription => {
+      const plan = planMap.get(subscription.planId);
+      const status = subscription.status; // This returns a string from the getter
+      return plan && plan.productKey === productKey && 
+             (status === 'active' || status === 'trial');
+    });
 
     if (productSubscriptions.length === 0) {
       // No active subscriptions for this product, return feature defaults
@@ -232,12 +264,12 @@ export class FeatureCheckerService {
     }
 
     // Get plans for subscriptions
-    const planIds = productSubscriptions.map(s => s.planId);
-    const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
+    const allPlanIds = productSubscriptions.map(s => s.planId);
+    const allPlans = await this.planRepository.findByIds(allPlanIds);
+    const allPlanMap = new Map(allPlans.map(p => [p.id, p]));
 
     // Resolve all features
-    return this.resolver.resolveAll(features, planMap, productSubscriptions);
+    return this.resolver.resolveAll(features, allPlanMap, productSubscriptions);
   }
 
 
@@ -289,15 +321,11 @@ export class FeatureCheckerService {
       { limit: 100, offset: 0 }
     );
 
-    // Load plan keys for each subscription
-    const planKeys = [];
-    for (const subscription of subscriptions) {
-      const plan = await this.planRepository.findById(subscription.planId);
-      if (plan) {
-        planKeys.push(plan.key);
-      }
-    }
-    return planKeys;
+    // Batch load all plans to avoid N+1 queries
+    const planIds = subscriptions.map(s => s.planId);
+    const plans = await this.planRepository.findByIds(planIds);
+    
+    return plans.map(plan => plan.key);
   }
 
   /**

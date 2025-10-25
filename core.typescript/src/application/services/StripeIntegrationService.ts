@@ -6,6 +6,8 @@ import { Subscription } from '../../domain/entities/Subscription.js';
 import { generateId, generateKey } from '../../infrastructure/utils/uuid.js';
 import Stripe from 'stripe';
 import { NotFoundError, ValidationError } from '../errors/index.js';
+import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export class StripeIntegrationService {
   constructor(
@@ -60,7 +62,10 @@ export class StripeIntegrationService {
 
       default:
         // Ignore unhandled event types
-        console.log(`Unhandled Stripe event type: ${event.type}`);
+        // Log unhandled event types for debugging (remove in production)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Unhandled Stripe event type: ${event.type}`);
+        }
     }
   }
 
@@ -122,7 +127,7 @@ export class StripeIntegrationService {
       );
     }
 
-    subscription.props.updatedAt = new Date();
+    subscription.props.updatedAt = now();
 
     await this.subscriptionRepository.save(subscription);
   }
@@ -173,7 +178,7 @@ export class StripeIntegrationService {
     }
 
     // Suspend subscription for failed payment - status is calculated dynamically
-    subscription.props.updatedAt = new Date();
+    subscription.props.updatedAt = now();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -182,7 +187,10 @@ export class StripeIntegrationService {
   ): Promise<void> {
     // This is typically used for notifications
     // Could trigger email notifications or other business logic
-    console.log(`Trial ending for subscription: ${stripeSubscription.id}`);
+    // Log trial ending for debugging (remove in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Trial ending for subscription: ${stripeSubscription.id}`);
+    }
   }
 
 
@@ -202,7 +210,7 @@ export class StripeIntegrationService {
     customerKey: string,
     planId: string,
     billingCycleId: string,
-    stripePriceId: string
+    _stripePriceId: string
   ): Promise<Subscription> {
     // Find customer
     const customer = await this.customerRepository.findByKey(customerKey);
@@ -233,14 +241,14 @@ export class StripeIntegrationService {
       customerId: customer.id,
       planId: plan.id,
       billingCycleId: billingCycle.id,
-      status: 'active' as any,  // Default status
-      activationDate: new Date(),
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: billingCycle.calculateNextPeriodEnd(new Date()) ?? undefined,
+      status: SubscriptionStatus.Active,  // Default status
+      activationDate: now(),
+      currentPeriodStart: now(),
+      currentPeriodEnd: billingCycle.calculateNextPeriodEnd(now()) ?? undefined,
       stripeSubscriptionId: `sub_placeholder_${generateId()}`,
       featureOverrides: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, generateId());
 
     await this.subscriptionRepository.save(subscription);

@@ -10,8 +10,9 @@ import {
 } from '../dtos/CustomerDto.js';
 import { CustomerMapper } from '../mappers/CustomerMapper.js';
 import { Customer } from '../../domain/entities/Customer.js';
-import { CustomerStatus } from '../../domain/value-objects/index.js';
+import { CustomerStatus } from '../../domain/value-objects/CustomerStatus.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
   NotFoundError, 
@@ -36,7 +37,7 @@ export class CustomerManagementService {
     // Check if key already exists
     const existing = await this.customerRepository.findByKey(validatedDto.key);
     if (existing) {
-      throw new ConflictError(`Customer with key '${validatedDto.key}' already exists`);
+      throw new ConflictError(`Customer with key '${validatedDto.key}' already exists. Existing customer ID: ${existing.id}, Status: ${existing.status}`);
     }
 
     // Check if external billing ID already exists (if provided)
@@ -55,8 +56,8 @@ export class CustomerManagementService {
       externalBillingId: validatedDto.externalBillingId,
       status: CustomerStatus.Active,
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.customerRepository.save(customer);
@@ -75,7 +76,7 @@ export class CustomerManagementService {
 
     const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with key '${key}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found. Please check the customer key and try again.`);
     }
 
     // Key is immutable - no validation needed
@@ -101,7 +102,7 @@ export class CustomerManagementService {
       customer.props.metadata = validatedDto.metadata;
     }
 
-    customer.props.updatedAt = new Date();
+    customer.props.updatedAt = now();
     await this.customerRepository.save(customer);
     return CustomerMapper.toDto(customer);
   }
@@ -127,7 +128,7 @@ export class CustomerManagementService {
   async archiveCustomer(key: string): Promise<void> {
     const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with key '${key}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found. Please check the customer key and try again.`);
     }
 
     customer.archive();
@@ -137,7 +138,7 @@ export class CustomerManagementService {
   async unarchiveCustomer(key: string): Promise<void> {
     const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with key '${key}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found. Please check the customer key and try again.`);
     }
 
     customer.unarchive();
@@ -147,7 +148,7 @@ export class CustomerManagementService {
   async deleteCustomer(key: string): Promise<void> {
     const customer = await this.customerRepository.findByKey(key);
     if (!customer) {
-      throw new NotFoundError(`Customer with key '${key}' not found`);
+      throw new NotFoundError(`Customer with key '${key}' not found. Please check the customer key and try again.`);
     }
 
     if (!customer.canDelete()) {

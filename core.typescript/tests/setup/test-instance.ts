@@ -10,6 +10,10 @@ export function setTestInstance(subscrio: Subscrio, dbName: string) {
 }
 
 export function getTestInstance(): Subscrio {
+  console.log('🔍 Getting test instance...');
+  console.log('🔍 _subscrio is:', !!_subscrio);
+  console.log('🔍 _dbName is:', _dbName);
+  
   if (!_subscrio) {
     throw new Error('Test instance not initialized. Global setup may have failed.');
   }

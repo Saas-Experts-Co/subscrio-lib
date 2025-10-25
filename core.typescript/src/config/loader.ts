@@ -33,7 +33,7 @@ export function loadConfig(): SubscrioConfig {
       secretKey: process.env.STRIPE_SECRET_KEY
     } : undefined,
     logging: {
-      level: (process.env.LOG_LEVEL as any) || 'info'
+      level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug') || 'info'
     }
   };
 

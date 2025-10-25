@@ -14,6 +14,7 @@ import {
 import { ProductMapper } from '../mappers/ProductMapper.js';
 import { ValidationError, NotFoundError, ConflictError, DomainError } from '../errors/index.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export class ProductManagementService {
   constructor(
@@ -25,14 +26,19 @@ export class ProductManagementService {
     // Validate input
     const validation = CreateProductDtoSchema.safeParse(dto);
     if (!validation.success) {
-      throw new ValidationError('Invalid product data', validation.error.errors);
+      throw new ValidationError(
+        `Invalid product data for key '${dto.key}': ${validation.error.errors.map(e => e.message).join(', ')}`,
+        validation.error.errors
+      );
     }
     const validatedDto = validation.data;
 
     // Check for duplicate key
     const existing = await this.productRepository.findByKey(validatedDto.key);
     if (existing) {
-      throw new ConflictError(`Product with key '${validatedDto.key}' already exists`);
+      throw new ConflictError(
+        `Product with key '${validatedDto.key}' already exists. Existing product: ${existing.displayName} (ID: ${existing.id}, Status: ${existing.status})`
+      );
     }
 
     // Create domain entity
@@ -43,8 +49,8 @@ export class ProductManagementService {
       description: validatedDto.description,
       status: ProductStatus.Active,
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     // Save
@@ -64,7 +70,7 @@ export class ProductManagementService {
     // Find existing by key
     const product = await this.productRepository.findByKey(key);
     if (!product) {
-      throw new NotFoundError(`Product with key '${key}' not found`);
+      throw new NotFoundError(`Product with key '${key}' not found. Please check the product key and try again.`);
     }
 
     // Key is immutable - no validation needed
@@ -80,7 +86,7 @@ export class ProductManagementService {
       product.props.metadata = validatedDto.metadata;
     }
 
-    product.props.updatedAt = new Date();
+    product.props.updatedAt = now();
 
     // Save
     await this.productRepository.save(product);

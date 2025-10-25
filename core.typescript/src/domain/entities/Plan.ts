@@ -1,6 +1,7 @@
 import { Entity } from '../base/Entity.js';
 import { PlanStatus } from '../value-objects/PlanStatus.js';
 import { DomainError } from '../../application/errors/index.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface PlanFeatureValue {
   featureId: string;
@@ -41,35 +42,35 @@ export class Plan extends Entity<PlanProps> {
 
   archive(): void {
     this.props.status = PlanStatus.Archived;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     this.props.status = PlanStatus.Active;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   setFeatureValue(featureId: string, value: string): void {
     const existing = this.props.featureValues.find(fv => fv.featureId === featureId);
     if (existing) {
       existing.value = value;
-      existing.updatedAt = new Date();
+      existing.updatedAt = now();
     } else {
       this.props.featureValues.push({
         featureId,
         value,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now(),
+        updatedAt: now()
       });
     }
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   removeFeatureValue(featureId: string): void {
     this.props.featureValues = this.props.featureValues.filter(
       fv => fv.featureId !== featureId
     );
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   getFeatureValue(featureId: string): string | null {
@@ -86,7 +87,7 @@ export class Plan extends Entity<PlanProps> {
       throw new DomainError('Display name cannot be empty');
     }
     this.props.displayName = name;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 }
 

@@ -1,5 +1,6 @@
 import { Entity } from '../base/Entity.js';
 import { DurationUnit } from '../value-objects/DurationUnit.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface BillingCycleProps {
   planId: string;
@@ -56,13 +57,13 @@ export class BillingCycle extends Entity<BillingCycleProps> {
   archive(): void {
     // Billing cycles don't have status, so we'll use a different approach
     // This method is here for consistency but may not be used
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     // Billing cycles don't have status, so we'll use a different approach
     // This method is here for consistency but may not be used
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   canDelete(): boolean {

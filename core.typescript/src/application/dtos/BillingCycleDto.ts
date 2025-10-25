@@ -43,12 +43,15 @@ export const UpdateBillingCycleDtoSchema = z.object({
   externalProductId: z.string().max(255).optional()
 }).refine(
   (data) => {
-    // If durationUnit is 'forever', durationValue should be undefined
-    // If durationUnit is not 'forever', durationValue should be provided
-    if (data.durationUnit === 'forever') {
-      return data.durationValue === undefined;
+    // Only validate if durationUnit is provided
+    if (data.durationUnit !== undefined) {
+      if (data.durationUnit === 'forever') {
+        return data.durationValue === undefined; // Can't have durationValue with forever
+      }
+      return data.durationValue !== undefined; // Must have durationValue for non-forever
     }
-    return data.durationValue !== undefined;
+    // If durationUnit is not provided, durationValue can be provided or not
+    return true;
   },
   {
     message: "Duration value is required for non-forever durations, and must be undefined for forever duration",

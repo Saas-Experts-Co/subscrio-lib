@@ -11,8 +11,9 @@ import {
 } from '../dtos/BillingCycleDto.js';
 import { BillingCycleMapper } from '../mappers/BillingCycleMapper.js';
 import { BillingCycle } from '../../domain/entities/BillingCycle.js';
-import { DurationUnit } from '../../domain/value-objects/index.js';
+import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
   NotFoundError, 
@@ -78,8 +79,8 @@ export class BillingCycleManagementService {
       durationValue: validatedDto.durationValue,
       durationUnit: validatedDto.durationUnit as DurationUnit,
       externalProductId: validatedDto.externalProductId,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.billingCycleRepository.save(billingCycle);
@@ -124,7 +125,7 @@ export class BillingCycleManagementService {
       billingCycle.props.externalProductId = validatedDto.externalProductId;
     }
 
-    billingCycle.props.updatedAt = new Date();
+    billingCycle.props.updatedAt = now();
     await this.billingCycleRepository.save(billingCycle);
     
     // Get plan to resolve keys for DTO

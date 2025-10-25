@@ -1,4 +1,5 @@
 import { Entity } from '../base/Entity.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface SystemConfigProps {
   configKey: string;
@@ -23,7 +24,7 @@ export class SystemConfig extends Entity<SystemConfigProps> {
 
   updateValue(value: string): void {
     this.props.configValue = value;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 }
 

@@ -3,7 +3,7 @@ import { Feature } from '../../domain/entities/Feature.js';
 import { FeatureMapper } from '../../application/mappers/FeatureMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
 import { features, product_features } from '../database/schema.js';
-import { eq, and, like, or, desc, asc } from 'drizzle-orm';
+import { eq, and, like, or, desc, asc, inArray } from 'drizzle-orm';
 import { FeatureFilterDto } from '../../application/dtos/FeatureDto.js';
 
 export class DrizzleFeatureRepository implements IFeatureRepository {
@@ -59,11 +59,13 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
       }
 
       if (filters.search) {
+        // Sanitize search input to prevent SQL injection
+        const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
         conditions.push(
           or(
-            like(features.key, `%${filters.search}%`),
-            like(features.display_name, `%${filters.search}%`),
-            like(features.description, `%${filters.search}%`)
+            like(features.key, `%${sanitizedSearch}%`),
+            like(features.display_name, `%${sanitizedSearch}%`),
+            like(features.description, `%${sanitizedSearch}%`)
           )
         );
       }
@@ -103,7 +105,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     const records = await this.db
       .select()
       .from(features)
-      .where(eq(features.id, ids[0])); // This is simplified - would need proper IN clause
+      .where(inArray(features.id, ids));
 
     return records.map(FeatureMapper.toDomain);
   }

@@ -1,5 +1,6 @@
 import { Entity } from '../base/Entity.js';
 import { CustomerStatus } from '../value-objects/CustomerStatus.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface CustomerProps {
   key: string;
@@ -27,12 +28,12 @@ export class Customer extends Entity<CustomerProps> {
 
   archive(): void {
     this.props.status = CustomerStatus.Deleted;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     this.props.status = CustomerStatus.Active;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   canDelete(): boolean {

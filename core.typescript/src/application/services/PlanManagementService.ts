@@ -12,14 +12,16 @@ import {
 } from '../dtos/PlanDto.js';
 import { PlanMapper } from '../mappers/PlanMapper.js';
 import { Plan } from '../../domain/entities/Plan.js';
-import { PlanStatus } from '../../domain/value-objects/index.js';
+import { PlanStatus } from '../../domain/value-objects/PlanStatus.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
   NotFoundError, 
   ConflictError, 
   DomainError 
 } from '../errors/index.js';
+import { FeatureValueValidator } from '../utils/FeatureValueValidator.js';
 
 export class PlanManagementService {
   constructor(
@@ -81,8 +83,8 @@ export class PlanManagementService {
       onExpireTransitionToBillingCycleKey: validatedDto.onExpireTransitionToBillingCycleKey,
       featureValues: [],
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.planRepository.save(plan);
@@ -123,7 +125,7 @@ export class PlanManagementService {
       plan.props.metadata = validatedDto.metadata;
     }
 
-    plan.props.updatedAt = new Date();
+    plan.props.updatedAt = now();
     await this.planRepository.save(plan);
     
     const keys = await this.resolvePlanKeys(plan);
@@ -229,7 +231,7 @@ export class PlanManagementService {
     }
 
     // Validate value against feature type
-    this.validateFeatureValue(value, feature.props.valueType);
+    FeatureValueValidator.validate(value, feature.props.valueType);
 
     plan.setFeatureValue(feature.id, value);
     await this.planRepository.save(plan);
@@ -282,24 +284,4 @@ export class PlanManagementService {
     return features;
   }
 
-  private validateFeatureValue(value: string, valueType: string): void {
-    switch (valueType) {
-      case 'toggle':
-        if (!['true', 'false'].includes(value.toLowerCase())) {
-          throw new ValidationError('Toggle features must have value "true" or "false"');
-        }
-        break;
-      case 'numeric':
-        const num = Number(value);
-        if (isNaN(num) || !isFinite(num)) {
-          throw new ValidationError('Numeric features must have a valid number value');
-        }
-        break;
-      case 'text':
-        // Text features accept any string value
-        break;
-      default:
-        throw new ValidationError(`Unknown feature value type: ${valueType}`);
-    }
-  }
 }

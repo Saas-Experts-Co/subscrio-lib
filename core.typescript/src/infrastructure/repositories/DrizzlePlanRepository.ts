@@ -108,11 +108,13 @@ export class DrizzlePlanRepository implements IPlanRepository {
       }
 
       if (filters.search) {
+        // Sanitize search input to prevent SQL injection
+        const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
         conditions.push(
           or(
-            like(plans.key, `%${filters.search}%`),
-            like(plans.display_name, `%${filters.search}%`),
-            like(plans.description, `%${filters.search}%`)
+            like(plans.key, `%${sanitizedSearch}%`),
+            like(plans.display_name, `%${sanitizedSearch}%`),
+            like(plans.description, `%${sanitizedSearch}%`)
           )
         );
       }

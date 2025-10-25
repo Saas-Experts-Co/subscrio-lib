@@ -17,14 +17,17 @@ import {
 } from '../dtos/SubscriptionDto.js';
 import { SubscriptionMapper } from '../mappers/SubscriptionMapper.js';
 import { Subscription } from '../../domain/entities/Subscription.js';
-import { SubscriptionStatus, OverrideType } from '../../domain/value-objects/index.js';
+import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
+import { OverrideType } from '../../domain/value-objects/OverrideType.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
   NotFoundError, 
   ConflictError, 
   DomainError 
 } from '../errors/index.js';
+import { FeatureValueValidator } from '../utils/FeatureValueValidator.js';
 
 export class SubscriptionManagementService {
   constructor(
@@ -122,7 +125,7 @@ export class SubscriptionManagementService {
     const trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
     
     // Calculate currentPeriodEnd based on billing cycle duration
-    const currentPeriodStart = validatedDto.currentPeriodStart ? new Date(validatedDto.currentPeriodStart) : new Date();
+    const currentPeriodStart = validatedDto.currentPeriodStart ? new Date(validatedDto.currentPeriodStart) : now();
     const currentPeriodEnd = validatedDto.currentPeriodEnd 
       ? new Date(validatedDto.currentPeriodEnd) 
       : this.calculatePeriodEnd(currentPeriodStart, billingCycle);
@@ -134,7 +137,7 @@ export class SubscriptionManagementService {
       planId: plan.id,
       billingCycleId,
       status: SubscriptionStatus.Active,  // Default status, will be calculated dynamically
-      activationDate: validatedDto.activationDate ? new Date(validatedDto.activationDate) : new Date(),
+      activationDate: validatedDto.activationDate ? new Date(validatedDto.activationDate) : now(),
       expirationDate: validatedDto.expirationDate ? new Date(validatedDto.expirationDate) : undefined,
       cancellationDate: validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined,
       trialEndDate,
@@ -143,8 +146,8 @@ export class SubscriptionManagementService {
       stripeSubscriptionId: validatedDto.stripeSubscriptionId,
       featureOverrides: [],
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.subscriptionRepository.save(subscription);
@@ -208,7 +211,7 @@ export class SubscriptionManagementService {
       subscription.props.planId = billingCycle.props.planId; // Update plan ID to match new billing cycle
     }
 
-    subscription.props.updatedAt = new Date();
+    subscription.props.updatedAt = now();
     await this.subscriptionRepository.save(subscription);
     
     const keys = await this.resolveSubscriptionKeys(subscription);
@@ -433,7 +436,7 @@ export class SubscriptionManagementService {
     }
 
     // Validate value against feature type
-    this.validateFeatureValue(value, feature.props.valueType);
+    FeatureValueValidator.validate(value, feature.props.valueType);
 
     subscription.addFeatureOverride(feature.id, value, overrideType);
     await this.subscriptionRepository.save(subscription);
@@ -464,26 +467,6 @@ export class SubscriptionManagementService {
     await this.subscriptionRepository.save(subscription);
   }
 
-  private validateFeatureValue(value: string, valueType: string): void {
-    switch (valueType) {
-      case 'toggle':
-        if (!['true', 'false'].includes(value.toLowerCase())) {
-          throw new ValidationError('Toggle features must have value "true" or "false"');
-        }
-        break;
-      case 'numeric':
-        const num = Number(value);
-        if (isNaN(num) || !isFinite(num)) {
-          throw new ValidationError('Numeric features must have a valid number value');
-        }
-        break;
-      case 'text':
-        // Text features accept any string value
-        break;
-      default:
-        throw new ValidationError(`Unknown feature value type: ${valueType}`);
-    }
-  }
 
   private calculatePeriodEnd(startDate: Date, billingCycle: any): Date | null {
     // For forever billing cycles, return null (never expires)
@@ -518,11 +501,11 @@ export class SubscriptionManagementService {
    * This method should be called periodically by the implementor
    */
   async processAutomaticTransitions(): Promise<number> {
-    const now = new Date();
+    const currentTime = now();
     let transitionsProcessed = 0;
 
     // Find all subscriptions that need automatic transition
-    const subscriptionsToTransition = await this.findSubscriptionsForTransition(now);
+    const subscriptionsToTransition = await this.findSubscriptionsForTransition(currentTime);
     
     for (const subscription of subscriptionsToTransition) {
       await this.processSubscriptionTransition(subscription);
@@ -602,11 +585,11 @@ export class SubscriptionManagementService {
     subscription.props.planId = targetPlan.id;
     subscription.props.billingCycleId = targetBillingCycle.id;
     subscription.props.status = SubscriptionStatus.Active;
-    subscription.props.activationDate = new Date();
-    subscription.props.currentPeriodStart = new Date();
-    subscription.props.currentPeriodEnd = targetBillingCycle.calculateNextPeriodEnd(new Date());
+    subscription.props.activationDate = now();
+    subscription.props.currentPeriodStart = now();
+    subscription.props.currentPeriodEnd = targetBillingCycle.calculateNextPeriodEnd(now());
     subscription.props.featureOverrides = []; // Clear all overrides for the new plan
-    subscription.props.updatedAt = new Date();
+    subscription.props.updatedAt = now();
 
     // Save the updated subscription
     await this.subscriptionRepository.save(subscription);

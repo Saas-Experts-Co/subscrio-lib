@@ -5,7 +5,7 @@ import { DrizzleDb } from '../database/drizzle.js';
 import { billing_cycles } from '../database/schema.js';
 import { eq, and, like, or, desc, asc } from 'drizzle-orm';
 import { BillingCycleFilterDto } from '../../application/dtos/BillingCycleDto.js';
-import { DurationUnit } from '../../domain/value-objects/index.js';
+import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
 
 export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
   constructor(private readonly db: DrizzleDb) {}

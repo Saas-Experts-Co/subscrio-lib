@@ -11,14 +11,17 @@ import {
 } from '../dtos/FeatureDto.js';
 import { FeatureMapper } from '../mappers/FeatureMapper.js';
 import { Feature } from '../../domain/entities/Feature.js';
-import { FeatureStatus, FeatureValueType } from '../../domain/value-objects/index.js';
+import { FeatureStatus } from '../../domain/value-objects/FeatureStatus.js';
+import { FeatureValueType } from '../../domain/value-objects/FeatureValueType.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
   NotFoundError, 
   ConflictError, 
   DomainError 
 } from '../errors/index.js';
+import { FeatureValueValidator } from '../utils/FeatureValueValidator.js';
 
 export class FeatureManagementService {
   constructor(
@@ -43,7 +46,7 @@ export class FeatureManagementService {
     }
 
     // Validate default value based on type
-    this.validateFeatureValue(validatedDto.defaultValue, validatedDto.valueType as FeatureValueType);
+    FeatureValueValidator.validate(validatedDto.defaultValue, validatedDto.valueType as FeatureValueType);
 
     const id = generateId();
     const feature = new Feature({
@@ -56,8 +59,8 @@ export class FeatureManagementService {
       status: FeatureStatus.Active,
       validator: validatedDto.validator,
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.featureRepository.save(feature);
@@ -89,7 +92,7 @@ export class FeatureManagementService {
       feature.props.description = validatedDto.description;
     }
     if (validatedDto.defaultValue !== undefined) {
-      this.validateFeatureValue(validatedDto.defaultValue, feature.props.valueType);
+      FeatureValueValidator.validate(validatedDto.defaultValue, feature.props.valueType);
       feature.props.defaultValue = validatedDto.defaultValue;
     }
     if (validatedDto.groupName !== undefined) {
@@ -102,7 +105,7 @@ export class FeatureManagementService {
       feature.props.metadata = validatedDto.metadata;
     }
 
-    feature.props.updatedAt = new Date();
+    feature.props.updatedAt = now();
     await this.featureRepository.save(feature);
     return FeatureMapper.toDto(feature);
   }
@@ -172,24 +175,4 @@ export class FeatureManagementService {
     return features.map(FeatureMapper.toDto);
   }
 
-  private validateFeatureValue(value: string, valueType: FeatureValueType): void {
-    switch (valueType) {
-      case FeatureValueType.Toggle:
-        if (!['true', 'false'].includes(value.toLowerCase())) {
-          throw new ValidationError('Toggle features must have value "true" or "false"');
-        }
-        break;
-      case FeatureValueType.Numeric:
-        const num = Number(value);
-        if (isNaN(num) || !isFinite(num)) {
-          throw new ValidationError('Numeric features must have a valid number value');
-        }
-        break;
-      case FeatureValueType.Text:
-        // Text features accept any string value
-        break;
-      default:
-        throw new ValidationError(`Unknown feature value type: ${valueType}`);
-    }
-  }
 }

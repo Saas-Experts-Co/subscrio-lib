@@ -2,6 +2,7 @@ import { Entity } from '../base/Entity.js';
 import { FeatureStatus } from '../value-objects/FeatureStatus.js';
 import { FeatureValueType } from '../value-objects/FeatureValueType.js';
 import { DomainError } from '../../application/errors/index.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface FeatureProps {
   key: string;
@@ -40,12 +41,12 @@ export class Feature extends Entity<FeatureProps> {
 
   archive(): void {
     this.props.status = FeatureStatus.Archived;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     this.props.status = FeatureStatus.Active;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   canDelete(): boolean {
@@ -57,7 +58,7 @@ export class Feature extends Entity<FeatureProps> {
       throw new DomainError('Display name cannot be empty');
     }
     this.props.displayName = name;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
 }

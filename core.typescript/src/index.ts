@@ -29,3 +29,29 @@ export { SubscriptionStatus } from './domain/value-objects/SubscriptionStatus.js
 export { OverrideType } from './domain/value-objects/OverrideType.js';
 export { DurationUnit } from './domain/value-objects/DurationUnit.js';
 
+// Utilities
+export { FeatureValueValidator } from './application/utils/FeatureValueValidator.js';
+export { now, nowISO, fromISOString, addDays, addMonths, addYears, isPast, isFuture, isToday, formatDate, formatDateTime } from './infrastructure/utils/date.js';
+
+// Domain entities
+export * from './domain/entities/Product.js';
+export * from './domain/entities/Feature.js';
+export * from './domain/entities/Plan.js';
+export * from './domain/entities/Customer.js';
+export * from './domain/entities/Subscription.js';
+export * from './domain/entities/APIKey.js';
+export * from './domain/entities/BillingCycle.js';
+export * from './domain/entities/SystemConfig.js';
+
+// Repository interfaces
+export * from './application/repositories/IProductRepository.js';
+export * from './application/repositories/IFeatureRepository.js';
+export * from './application/repositories/IPlanRepository.js';
+export * from './application/repositories/ICustomerRepository.js';
+export * from './application/repositories/ISubscriptionRepository.js';
+export * from './application/repositories/IAPIKeyRepository.js';
+export * from './application/repositories/IBillingCycleRepository.js';
+
+// Constants
+export * from './application/constants/index.js';
+

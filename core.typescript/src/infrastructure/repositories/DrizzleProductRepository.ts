@@ -6,6 +6,7 @@ import { Product } from '../../domain/entities/Product.js';
 import { ProductMapper } from '../../application/mappers/ProductMapper.js';
 import { ProductFilterDto } from '../../application/dtos/ProductDto.js';
 import { generateId } from '../utils/uuid.js';
+import { now } from '../utils/date.js';
 
 export class DrizzleProductRepository implements IProductRepository {
   constructor(private readonly db: DrizzleDb) {}
@@ -56,10 +57,12 @@ export class DrizzleProductRepository implements IProductRepository {
     }
 
     if (filters?.search) {
+      // Sanitize search input to prevent SQL injection
+      const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
       query = query.where(
         or(
-          ilike(products.display_name, `%${filters.search}%`),
-          ilike(products.key, `%${filters.search}%`)
+          ilike(products.display_name, `%${sanitizedSearch}%`),
+          ilike(products.key, `%${sanitizedSearch}%`)
         )
       ) as any;
     }
@@ -97,7 +100,7 @@ export class DrizzleProductRepository implements IProductRepository {
         id: generateId(),
         product_id: productId,
         feature_id: featureId,
-        created_at: new Date()
+        created_at: now()
       })
       .onConflictDoNothing();
   }

@@ -9,8 +9,10 @@ import {
 } from '../dtos/APIKeyDto.js';
 import { APIKeyMapper } from '../mappers/APIKeyMapper.js';
 import { APIKey } from '../../domain/entities/APIKey.js';
-import { APIKeyStatus, APIKeyScope } from '../../domain/value-objects/index.js';
+import { APIKeyStatus } from '../../domain/value-objects/APIKeyStatus.js';
+import { APIKeyScope } from '../../domain/value-objects/APIKeyScope.js';
 import { generateId, generateKey } from '../../infrastructure/utils/uuid.js';
+import { now } from '../../infrastructure/utils/date.js';
 import crypto from 'crypto';
 import { 
   ValidationError, 
@@ -58,8 +60,8 @@ export class APIKeyManagementService {
       ipWhitelist: validatedDto.ipWhitelist,
       createdBy: validatedDto.createdBy,
       metadata: validatedDto.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now(),
+      updatedAt: now()
     }, id);
 
     await this.apiKeyRepository.save(apiKey);
@@ -100,7 +102,7 @@ export class APIKeyManagementService {
       apiKey.props.metadata = validatedDto.metadata;
     }
 
-    apiKey.props.updatedAt = new Date();
+    apiKey.props.updatedAt = now();
     await this.apiKeyRepository.save(apiKey);
     return APIKeyMapper.toDto(apiKey);
   }

@@ -1,6 +1,7 @@
 import { Entity } from '../base/Entity.js';
 import { APIKeyStatus } from '../value-objects/APIKeyStatus.js';
 import { APIKeyScope } from '../value-objects/APIKeyScope.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface APIKeyProps {
   key: string;  // External reference key for this API key
@@ -37,23 +38,23 @@ export class APIKey extends Entity<APIKeyProps> {
 
   archive(): void {
     this.props.status = APIKeyStatus.Revoked;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     this.props.status = APIKeyStatus.Active;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   updateLastUsed(): void {
-    this.props.lastUsedAt = new Date();
+    this.props.lastUsedAt = now();
   }
 
   isExpired(): boolean {
     if (!this.props.expiresAt) {
       return false;
     }
-    return this.props.expiresAt < new Date();
+    return this.props.expiresAt < now();
   }
 
   isValidForIp(ip: string): boolean {

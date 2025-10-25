@@ -1,5 +1,8 @@
 import { Entity } from '../base/Entity.js';
 import { ProductStatus } from '../value-objects/ProductStatus.js';
+import { DomainError } from '../../application/errors/index.js';
+import { MAX_DISPLAY_NAME_LENGTH, MIN_DISPLAY_NAME_LENGTH } from '../../application/constants/index.js';
+import { now } from '../../infrastructure/utils/date.js';
 
 export interface ProductProps {
   key: string;
@@ -26,12 +29,12 @@ export class Product extends Entity<ProductProps> {
 
   archive(): void {
     this.props.status = ProductStatus.Archived;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   unarchive(): void {
     this.props.status = ProductStatus.Active;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 
   canDelete(): boolean {
@@ -39,11 +42,14 @@ export class Product extends Entity<ProductProps> {
   }
 
   updateDisplayName(name: string): void {
-    if (!name || name.trim().length === 0) {
-      throw new Error('Display name cannot be empty');
+    if (!name || name.trim().length < MIN_DISPLAY_NAME_LENGTH) {
+      throw new DomainError('Display name cannot be empty. Product key: ' + this.key);
+    }
+    if (name.length > MAX_DISPLAY_NAME_LENGTH) {
+      throw new DomainError(`Display name cannot exceed ${MAX_DISPLAY_NAME_LENGTH} characters. Product key: ${this.key}, provided length: ${name.length}`);
     }
     this.props.displayName = name;
-    this.props.updatedAt = new Date();
+    this.props.updatedAt = now();
   }
 }
 
