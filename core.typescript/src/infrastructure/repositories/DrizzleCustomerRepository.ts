@@ -61,13 +61,12 @@ export class DrizzleCustomerRepository implements ICustomerRepository {
       }
 
       if (filters.search) {
-        // Sanitize search input to prevent SQL injection
-        const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+        // Drizzle handles parameterized queries automatically - no manual sanitization needed
         conditions.push(
           or(
-            like(customers.key, `%${sanitizedSearch}%`),
-            like(customers.display_name, `%${sanitizedSearch}%`),
-            like(customers.email, `%${sanitizedSearch}%`)
+            like(customers.key, `%${filters.search}%`),
+            like(customers.display_name, `%${filters.search}%`),
+            like(customers.email, `%${filters.search}%`)
           )
         );
       }

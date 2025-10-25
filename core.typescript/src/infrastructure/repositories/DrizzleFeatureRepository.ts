@@ -59,13 +59,12 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
       }
 
       if (filters.search) {
-        // Sanitize search input to prevent SQL injection
-        const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+        // Drizzle handles parameterized queries automatically - no manual sanitization needed
         conditions.push(
           or(
-            like(features.key, `%${sanitizedSearch}%`),
-            like(features.display_name, `%${sanitizedSearch}%`),
-            like(features.description, `%${sanitizedSearch}%`)
+            like(features.key, `%${filters.search}%`),
+            like(features.display_name, `%${filters.search}%`),
+            like(features.description, `%${filters.search}%`)
           )
         );
       }

@@ -3,7 +3,7 @@ import { Plan, PlanFeatureValue } from '../../domain/entities/Plan.js';
 import { PlanMapper } from '../../application/mappers/PlanMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
 import { plans, plan_features, billing_cycles } from '../database/schema.js';
-import { eq, and, like, or, desc, asc } from 'drizzle-orm';
+import { eq, and, like, or, desc, asc, inArray } from 'drizzle-orm';
 import { PlanFilterDto } from '../../application/dtos/PlanDto.js';
 import { generateId } from '../utils/uuid.js';
 
@@ -108,13 +108,12 @@ export class DrizzlePlanRepository implements IPlanRepository {
       }
 
       if (filters.search) {
-        // Sanitize search input to prevent SQL injection
-        const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+        // Drizzle handles parameterized queries automatically - no manual sanitization needed
         conditions.push(
           or(
-            like(plans.key, `%${sanitizedSearch}%`),
-            like(plans.display_name, `%${sanitizedSearch}%`),
-            like(plans.description, `%${sanitizedSearch}%`)
+            like(plans.key, `%${filters.search}%`),
+            like(plans.display_name, `%${filters.search}%`),
+            like(plans.description, `%${filters.search}%`)
           )
         );
       }
@@ -161,7 +160,7 @@ export class DrizzlePlanRepository implements IPlanRepository {
     const records = await this.db
       .select()
       .from(plans)
-      .where(eq(plans.id, ids[0])); // This is simplified - would need proper IN clause
+      .where(inArray(plans.id, ids));
 
     const plansWithValues = [];
     for (const record of records) {

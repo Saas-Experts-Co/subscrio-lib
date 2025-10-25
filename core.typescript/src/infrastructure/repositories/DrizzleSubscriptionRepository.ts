@@ -3,7 +3,7 @@ import { Subscription, FeatureOverride } from '../../domain/entities/Subscriptio
 import { SubscriptionMapper } from '../../application/mappers/SubscriptionMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
 import { subscriptions, subscription_feature_overrides } from '../database/schema.js';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { SubscriptionFilterDto } from '../../application/dtos/SubscriptionDto.js';
 import { OverrideType } from '../../domain/value-objects/OverrideType.js';
 import { generateId } from '../utils/uuid.js';
@@ -166,7 +166,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     const records = await this.db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.id, ids[0])); // This is simplified - would need proper IN clause
+      .where(inArray(subscriptions.id, ids));
 
     const subscriptionsWithOverrides = [];
     for (const record of records) {

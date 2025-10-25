@@ -57,12 +57,11 @@ export class DrizzleProductRepository implements IProductRepository {
     }
 
     if (filters?.search) {
-      // Sanitize search input to prevent SQL injection
-      const sanitizedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+      // Drizzle handles parameterized queries automatically - no manual sanitization needed
       query = query.where(
         or(
-          ilike(products.display_name, `%${sanitizedSearch}%`),
-          ilike(products.key, `%${sanitizedSearch}%`)
+          ilike(products.display_name, `%${filters.search}%`),
+          ilike(products.key, `%${filters.search}%`)
         )
       ) as any;
     }

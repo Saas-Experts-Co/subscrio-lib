@@ -67,6 +67,7 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
       }
 
       if (filters.search) {
+        // Drizzle handles parameterized queries automatically - no manual sanitization needed
         conditions.push(
           or(
             like(billing_cycles.display_name, `%${filters.search}%`),

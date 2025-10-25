@@ -69,6 +69,7 @@ export class DrizzleAPIKeyRepository implements IAPIKeyRepository {
       }
 
       if (filters.search) {
+        // Drizzle handles parameterized queries automatically - no manual sanitization needed
         conditions.push(
           or(
             like(api_keys.display_name, `%${filters.search}%`),

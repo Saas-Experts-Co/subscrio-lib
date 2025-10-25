@@ -10,7 +10,6 @@ import { MAX_SUBSCRIPTIONS_PER_CUSTOMER } from '../constants/index.js';
 
 export class FeatureCheckerService {
   private readonly resolver: FeatureValueResolver;
-  private readonly planCache = new Map<string, any>(); // Cache for plans to avoid memory leaks
 
   constructor(
     private readonly subscriptionRepository: ISubscriptionRepository,
@@ -20,18 +19,6 @@ export class FeatureCheckerService {
     private readonly productRepository: IProductRepository
   ) {
     this.resolver = new FeatureValueResolver();
-  }
-
-  /**
-   * Get plans with caching to avoid memory leaks
-   */
-  private async getPlansCached(planIds: string[]): Promise<Map<string, any>> {
-    const missingIds = planIds.filter(id => !this.planCache.has(id));
-    if (missingIds.length > 0) {
-      const plans = await this.planRepository.findByIds(missingIds);
-      plans.forEach(plan => this.planCache.set(plan.id, plan));
-    }
-    return new Map(planIds.map(id => [id, this.planCache.get(id)!]));
   }
 
   /**
@@ -153,15 +140,16 @@ export class FeatureCheckerService {
       return defaultValue ?? null;
     }
 
-    // Get active subscriptions for this customer and product
+    // Get active subscriptions for this customer
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
       { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
-    // Batch load all plans to avoid N+1 queries and memory leaks
+    // Batch load all plans to avoid N+1 queries
     const planIds = subscriptions.map(s => s.planId);
-    const planMap = await this.getPlansCached(planIds);
+    const plans = await this.planRepository.findByIds(planIds);
+    const planMap = new Map(plans.map(p => [p.id, p]));
 
     // Filter subscriptions for this product using in-memory map
     const productSubscriptions = subscriptions.filter(subscription => {
@@ -176,16 +164,11 @@ export class FeatureCheckerService {
       return (feature.defaultValue as T) ?? defaultValue ?? null;
     }
 
-    // Get plans for subscriptions
-    const productPlanIds = productSubscriptions.map(s => s.planId);
-    const productPlans = await this.planRepository.findByIds(productPlanIds);
-    const productPlanMap = new Map(productPlans.map(p => [p.id, p]));
-
     // Resolve using hierarchy
     let resolvedValue: string | null = null;
 
     for (const subscription of productSubscriptions) {
-      const plan = productPlanMap.get(subscription.planId);
+      const plan = planMap.get(subscription.planId);
       const value = this.resolver.resolve(feature, plan ?? null, subscription);
       
       // If this subscription has an override, use it immediately
@@ -236,15 +219,16 @@ export class FeatureCheckerService {
     // Get all features for the product
     const features = await this.featureRepository.findByProduct(product.id);
 
-    // Get active subscriptions for this customer and product
+    // Get active subscriptions for this customer
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
       customer.id,
       { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
-    // Batch load all plans to avoid N+1 queries and memory leaks
+    // Batch load all plans to avoid N+1 queries
     const planIds = subscriptions.map(s => s.planId);
-    const planMap = await this.getPlansCached(planIds);
+    const plans = await this.planRepository.findByIds(planIds);
+    const planMap = new Map(plans.map(p => [p.id, p]));
 
     // Filter subscriptions for this product using in-memory map
     const productSubscriptions = subscriptions.filter(subscription => {
@@ -263,15 +247,9 @@ export class FeatureCheckerService {
       return resolved;
     }
 
-    // Get plans for subscriptions
-    const allPlanIds = productSubscriptions.map(s => s.planId);
-    const allPlans = await this.planRepository.findByIds(allPlanIds);
-    const allPlanMap = new Map(allPlans.map(p => [p.id, p]));
-
     // Resolve all features
-    return this.resolver.resolveAll(features, allPlanMap, productSubscriptions);
+    return this.resolver.resolveAll(features, planMap, productSubscriptions);
   }
-
 
   /**
    * Check if customer has access to a specific plan

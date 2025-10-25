@@ -169,6 +169,32 @@ describe('Products E2E Tests', () => {
       const archivedProducts = await subscrio.products.listProducts({ status: 'archived' });
       expect(archivedProducts.some(p => p.key === archived.key)).toBe(true);
     });
+
+    test('prevents SQL injection in search queries', async () => {
+      // Create test products
+      await subscrio.products.createProduct({
+        key: 'safe-product',
+        displayName: 'Safe Product'
+      });
+      await subscrio.products.createProduct({
+        key: 'another-product',
+        displayName: 'Another Product'
+      });
+
+      // Attempt SQL injection in search - should be treated as literal text, not executed as SQL
+      const maliciousSearch = "'; DROP TABLE products; --";
+      const results = await subscrio.products.listProducts({ search: maliciousSearch });
+      
+      // Should return empty results (no products match the literal search string)
+      // and should NOT drop the products table (which would cause subsequent queries to fail)
+      expect(results).toEqual([]);
+
+      // Verify the products table still exists and is accessible
+      const allProducts = await subscrio.products.listProducts();
+      expect(allProducts.length).toBeGreaterThanOrEqual(2);
+      expect(allProducts.some(p => p.key === 'safe-product')).toBe(true);
+      expect(allProducts.some(p => p.key === 'another-product')).toBe(true);
+    });
   });
 });
 
