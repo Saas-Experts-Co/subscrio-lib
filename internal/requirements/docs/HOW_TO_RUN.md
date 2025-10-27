@@ -5,7 +5,7 @@
 ### 1. Start the API Server
 
 ```bash
-pnpm dev:api
+npm run dev
 ```
 
 **Expected output:**
@@ -22,7 +22,7 @@ pnpm dev:api
 **In a new terminal:**
 
 ```bash
-pnpm dev:admin
+npm run dev
 ```
 
 **Expected output:**
@@ -83,7 +83,7 @@ Stop-Process -Id <PID>
 
 1. Check PostgreSQL is running on port 5432
 2. Verify `packages/api/.env` has correct DATABASE_URL
-3. Test connection: `pnpm test` (core tests should pass)
+3. Test connection: `npm test` (core tests should pass)
 
 ### "Invalid passphrase"
 
@@ -110,15 +110,15 @@ Once both are running:
 ### Build Everything
 
 ```bash
-pnpm build
+npm run build
 ```
 
 ### Deploy API
 
 ```bash
 cd packages/api
-pnpm build
-pnpm start
+npm run build
+npm start
 # Or use PM2, Docker, etc.
 ```
 
@@ -126,7 +126,7 @@ pnpm start
 
 ```bash
 cd packages/admin
-pnpm build
+npm run build
 # Serve dist/ folder with any static host
 # Configure VITE_API_URL if API is on different domain
 ```

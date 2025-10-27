@@ -8,14 +8,14 @@ Combined server package that serves both the REST API and Admin UI for Subscrio.
 
 ```bash
 # 1. Install dependencies
-pnpm install
+npm install
 
 # 2. Set up environment
 cp .env.example .env
 # Edit .env with your database details
 
 # 3. Development
-pnpm dev        # Starts server with HMR
+npm run dev        # Starts server with HMR
 
 # 4. Open http://localhost:3002
 # Login with passphrase from .env (default: admin123)
@@ -41,7 +41,7 @@ pnpm dev        # Starts server with HMR
 Runs server with hot reload for both API and admin UI:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 This starts:
@@ -53,8 +53,8 @@ This starts:
 Build and run production server:
 
 ```bash
-pnpm build   # Build everything
-pnpm start   # Run production server
+npm run build   # Build everything
+npm start       # Run production server
 ```
 
 ---
@@ -122,23 +122,23 @@ curl -H "Authorization: Bearer your-jwt-token" \
 
 ```bash
 # Development
-pnpm dev              # Start server with HMR
+npm run dev              # Start server with HMR
 
 # Building
-pnpm build            # Build everything
-pnpm build:admin      # Build admin UI only
+npm run build            # Build everything
+npm run build:admin      # Build admin UI only
 
 # Production
-pnpm start            # Run production server
+npm start                # Run production server
 
 # Testing
-pnpm test             # Run all tests
-pnpm test:watch       # Watch mode
-pnpm test:coverage    # Coverage report
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
 
 # Quality
-pnpm typecheck        # TypeScript checks
-pnpm generate:openapi # Generate OpenAPI spec
+npm run typecheck        # TypeScript checks
+npm run generate:openapi # Generate OpenAPI spec
 ```
 
 ---
@@ -188,8 +188,8 @@ The API is documented using OpenAPI 3.0 specification.
 When you add or modify API endpoints:
 1. Update the route in `src/api/index.ts`
 2. Update the OpenAPI definition in `scripts/generate-openapi.ts`
-3. Regenerate: `pnpm generate:openapi`
-4. Verify: `pnpm test`
+3. Regenerate: `npm run generate:openapi`
+4. Verify: `npm test`
 
 ---
 
@@ -227,7 +227,7 @@ When you add or modify API endpoints:
 ### Build for Production
 
 ```bash
-pnpm build
+npm run build
 ```
 
 The build process:
@@ -262,12 +262,12 @@ docker run -p 3002:3002 --env-file .env subscrio
 
 **"Cannot find module"**
 ```bash
-pnpm install
+npm install
 ```
 
 **"Invalid passphrase"**
 - Check `ADMIN_PASSPHRASE` in `.env`
-- Restart server: `pnpm dev`
+- Restart server: `npm run dev`
 
 **"Port 3002 already in use"**
 ```bash
@@ -291,9 +291,9 @@ kill -9 <PID>
 
 1. Make changes to API routes in `src/api/index.ts`
 2. Update OpenAPI spec in `scripts/generate-openapi.ts`
-3. Regenerate spec: `pnpm generate:openapi`
+3. Regenerate spec: `npm run generate:openapi`
 4. Add tests in `tests/` directory
-5. Run tests: `pnpm test`
+5. Run tests: `npm test`
 6. Submit PR
 
 See [tests/README.md](./tests/README.md) for detailed testing documentation.

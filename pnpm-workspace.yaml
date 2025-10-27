@@ -1,5 +1,0 @@
-packages:
-  - 'core.typescript'
-  - 'core.typescript/sample'
-  - 'server'
-  - 'other-projects/*'

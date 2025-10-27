@@ -17,13 +17,13 @@ tests/
 
 ```bash
 # Run all tests
-pnpm test
+npm test
 
 # Watch mode
-pnpm test:watch
+npm run test:watch
 
 # With coverage
-pnpm test:coverage
+npm run test:coverage
 ```
 
 ## Test Categories
@@ -60,10 +60,10 @@ Ensures the `openapi.json` file accurately reflects the actual API implementatio
 
 ```bash
 # Regenerate OpenAPI spec
-pnpm generate:openapi
+npm run generate:openapi
 
 # Then run tests again
-pnpm test
+npm test
 ```
 
 ## Environment Setup
@@ -105,20 +105,20 @@ LOG_LEVEL=error
 
 3. **Regenerate OpenAPI spec**
    ```bash
-   pnpm generate:openapi
+   npm run generate:openapi
    ```
 
 4. **Run tests to verify**
    ```bash
-   pnpm test
+   npm test
    ```
 
 ### When Modifying Existing Endpoints
 
 1. Update the endpoint in `src/api/index.ts`
 2. Update the corresponding entry in `scripts/generate-openapi.ts`
-3. Regenerate: `pnpm generate:openapi`
-4. Run tests: `pnpm test`
+3. Regenerate: `npm run generate:openapi`
+4. Run tests: `npm test`
 
 ## CI/CD Integration
 
@@ -135,8 +135,8 @@ test-api:
       ports:
         - 5432:5432
   steps:
-    - run: pnpm install
-    - run: pnpm --filter @subscrio/server test
+    - run: npm install
+    - run: npm test
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/subscrio_test
 ```
@@ -146,7 +146,7 @@ test-api:
 Run with coverage to ensure API endpoints are tested:
 
 ```bash
-pnpm test:coverage
+npm run test:coverage
 ```
 
 Coverage reports are generated in `coverage/` directory.
@@ -164,7 +164,7 @@ psql $DATABASE_URL -c "SELECT 1"
 
 Generate the OpenAPI spec:
 ```bash
-pnpm generate:openapi
+npm run generate:openapi
 ```
 
 ### Authentication tests fail
@@ -177,7 +177,7 @@ pnpm generate:openapi
 
 1. Compare `EXPECTED_ROUTES` in test with actual routes in `src/api/index.ts`
 2. Ensure route paths match exactly (including parameter names)
-3. Regenerate OpenAPI spec: `pnpm generate:openapi`
+3. Regenerate OpenAPI spec: `npm run generate:openapi`
 
 ## Best Practices
 

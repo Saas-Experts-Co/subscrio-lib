@@ -44,25 +44,25 @@ Download from postgresql.org and install
 
 ```bash
 cd core.typescript
-pnpm test
+npm test
 ```
 
 ### 3. Watch Mode
 
 ```bash
-pnpm test:watch
+npm run test:watch
 ```
 
 ### 4. Coverage Report
 
 ```bash
-pnpm test:coverage
+npm run test:coverage
 ```
 
 ### 5. Debug Mode (Keep Test Database)
 
 ```bash
-pnpm test:debug
+npm run test:debug
 ```
 
 This runs tests with `KEEP_TEST_DB=true` to preserve the test database for debugging.
@@ -396,10 +396,10 @@ export default defineConfig({
 ```
 
 **Available Test Scripts:**
-- `pnpm test` - Run all tests once
-- `pnpm test:watch` - Run tests in watch mode
-- `pnpm test:coverage` - Run tests with coverage report
-- `pnpm test:debug` - Run tests with `KEEP_TEST_DB=true` for debugging
+- `npm test` - Run all tests once
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage report
+- `npm run test:debug` - Run tests with `KEEP_TEST_DB=true` for debugging
 
 ## CI/CD Integration
 
@@ -428,15 +428,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:coverage
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:coverage
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 ```
@@ -463,7 +460,7 @@ export TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres
 - Check for unclosed database connections
 - Global setup handles database creation/cleanup automatically
 - Tests run sequentially (configured via `singleThread: true`)
-- Use `pnpm test:debug` to preserve test database for investigation
+- Use `npm run test:debug` to preserve test database for investigation
 
 ### "Too many connections"
 - PostgreSQL may have connection limit reached
@@ -472,7 +469,7 @@ export TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres
 - Terminate zombie connections from failed test runs
 
 ### Test Database Issues
-- **Keep test database for debugging**: `KEEP_TEST_DB=true pnpm test`
+- **Keep test database for debugging**: `KEEP_TEST_DB=true npm test`
 - **Manual cleanup**: Connect to postgres and run `DROP DATABASE IF EXISTS subscrio_test;`
 - **Check for orphaned databases**: Look for databases matching `subscrio_test_*` pattern
 - **Global setup logs**: Check console output for database setup/teardown messages
@@ -523,7 +520,7 @@ export TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres
 
 ```bash
 # Generate coverage report
-pnpm test:coverage
+npm run test:coverage
 
 # View HTML report
 open coverage/index.html  # macOS
@@ -584,5 +581,5 @@ describe('NewFeature E2E Tests', () => {
 
 - See main [README.md](../README.md) for project setup
 - See [requirements.md](../../../requirements/requirements.md) for specifications
-- Run `pnpm test:watch` for interactive testing during development
+- Run `npm run test:watch` for interactive testing during development
 

@@ -1003,5 +1003,5 @@ writeFileSync(outputPath, JSON.stringify(openapiSpec, null, 2), 'utf-8');
 
 console.log('✅ Generated openapi.json');
 console.log(`   📄 ${outputPath}`);
-console.log('   ℹ️  Run tests to verify: pnpm test');
+console.log('   ℹ️  Run tests to verify: npm test');
 

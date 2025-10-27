@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "pnpm build:admin; pnpm exec tsc --project tsconfig.server.json",
+    "build": "npm run build:admin && npx tsc --project tsconfig.server.json",
     "build:admin": "vite build",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",

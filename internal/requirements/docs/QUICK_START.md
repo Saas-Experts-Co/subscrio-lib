@@ -7,7 +7,7 @@ Get up and running with Subscrio in 5 minutes!
 ## Prerequisites
 
 - Node.js 20+
-- PNPM 8+
+- npm 10+
 - PostgreSQL 15+ running locally
 
 ---
@@ -19,7 +19,7 @@ Get up and running with Subscrio in 5 minutes!
 cd Subscrio
 
 # Install all dependencies
-pnpm install
+npm install
 ```
 
 ---
@@ -52,13 +52,13 @@ VITE_ADMIN_PASSPHRASE=admin123
 
 ```bash
 # Run tests (creates test databases automatically)
-pnpm test
+npm test
 
 # With coverage
-pnpm test:coverage
+npm run test:coverage
 
 # Watch mode
-pnpm test:watch
+npm run test:watch
 ```
 
 **Expected Result:**
@@ -74,7 +74,7 @@ Tests  13 passed (13)
 
 ```bash
 # Build the core library
-pnpm build:core
+npm run build
 ```
 
 **Expected Result:**
@@ -89,8 +89,9 @@ dist/index.cjs    134.55 kB
 ## 5. Run Admin App
 
 ```bash
-# Start development server
-pnpm --filter @subscrio/admin run dev
+# Start development server (from server directory)
+cd server
+npm run dev
 ```
 
 **Expected Result:**
@@ -219,24 +220,26 @@ await subscrio.close();
 ### Make Changes to Core
 
 ```bash
-# 1. Make changes to packages/core/src/...
+# 1. Make changes to core.typescript/src/...
 
 # 2. Run tests
-pnpm test
+cd core.typescript
+npm test
 
 # 3. Build
-pnpm build:core
+npm run build
 ```
 
 ### Make Changes to Admin
 
 ```bash
-# 1. Make changes to packages/admin/src/...
+# 1. Make changes to server/src/admin/...
 
 # 2. Hot reload is automatic (Vite dev server)
 
 # 3. Build for production
-pnpm --filter @subscrio/admin run build
+cd server
+npm run build
 ```
 
 ---
@@ -284,12 +287,12 @@ Customer → Subscription → Plan → Features
 
 ```bash
 # Clean install
-rm -rf node_modules packages/*/node_modules
-pnpm install
+rm -rf node_modules core.typescript/node_modules server/node_modules
+npm install
 
 # Clean build
-rm -rf packages/*/dist
-pnpm build
+rm -rf core.typescript/dist server/dist
+npm run build
 ```
 
 ---

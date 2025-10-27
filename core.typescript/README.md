@@ -377,6 +377,70 @@ ADMIN_PASSPHRASE=your-secure-passphrase
 3. **Environment**: Set `DATABASE_URL` and other config
 4. **Monitoring**: Enable logging for production debugging
 
+## Development
+
+### Building from Source
+
+```bash
+# Install dependencies
+npm install
+
+# Build the library (outputs to dist/)
+npm run build
+
+# Type check
+npm run typecheck
+```
+
+The build process uses Vite in library mode and generates:
+- `dist/index.js` - ES module
+- `dist/index.cjs` - CommonJS module
+- `dist/index.d.ts` - TypeScript declarations
+- `dist/config/index.js` - Config module export
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests and keep database for debugging
+npm run test:debug
+```
+
+### Development Database
+
+```bash
+# Rebuild development database (drops and recreates)
+npm run db:rebuild
+```
+
+### Project Structure
+
+```
+src/
+├── application/        # Application services & DTOs
+│   ├── services/      # Business logic services
+│   ├── dtos/          # Data transfer objects
+│   ├── mappers/       # Entity ↔ DTO transformations
+│   └── repositories/  # Repository interfaces
+├── domain/            # Domain entities & business logic
+│   ├── entities/      # Domain entities
+│   ├── services/      # Domain services
+│   └── value-objects/ # Enums & value objects
+├── infrastructure/    # Technical implementations
+│   ├── database/      # Drizzle schema & connection
+│   └── repositories/  # Repository implementations
+├── config/            # Configuration loading
+└── index.ts           # Public API exports
+```
+
 ## API Reference
 
 - [Complete API Documentation](./docs/API_REFERENCE.md)

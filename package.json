@@ -1,13 +1,14 @@
 {
   "name": "subscrio-workspace",
   "private": true,
+  "workspaces": [
+    "core.typescript",
+    "server"
+  ],
   "scripts": {
-    "build:core": "cd core.typescript && pnpm build",
-    "build:all": "pnpm build:core && cd server && pnpm build",
-    "test:core": "cd core.typescript && pnpm test",
-    "dev:server": "cd server && pnpm dev"
-  },
-  "devDependencies": {
-    "pnpm": "^8.0.0"
+    "build:core": "npm run build --workspace=core.typescript",
+    "build:all": "npm run build --workspaces",
+    "test:core": "npm run test --workspace=core.typescript",
+    "dev:server": "npm run dev --workspace=server"
   }
 }

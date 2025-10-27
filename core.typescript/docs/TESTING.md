@@ -24,16 +24,16 @@ postgresql://postgres:postgres@localhost:5432/postgres
 
 ```bash
 # Just run tests (PostgreSQL must be running)
-pnpm test
+npm test
 
 # Watch mode
-pnpm test:watch
+npm run test:watch
 
 # With coverage
-pnpm test:coverage
+npm run test:coverage
 
 # Debug mode - keep test databases after completion
-pnpm test:debug
+npm run test:debug
 ```
 
 ## Debugging with Preserved Test Databases
@@ -42,14 +42,14 @@ When debugging failing tests, you can preserve the test database to inspect its 
 
 ```bash
 # Run tests and keep databases
-pnpm test:debug
+npm run test:debug
 
 # Or set the environment variable directly
 $env:KEEP_TEST_DB = "true"
-pnpm test
+npm test
 
 # Or on Unix/Mac
-KEEP_TEST_DB=true pnpm test
+KEEP_TEST_DB=true npm test
 ```
 
 After the tests complete, you'll see output like:
@@ -96,7 +96,7 @@ If your PostgreSQL uses different credentials, set the environment variable:
 ```bash
 # PowerShell
 $env:TEST_DATABASE_URL = "postgresql://your_user:your_password@localhost:5432/postgres"
-pnpm test
+npm test
 
 # Or create packages/core/.env file
 TEST_DATABASE_URL=postgresql://your_user:your_password@localhost:5432/postgres

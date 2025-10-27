@@ -27,7 +27,7 @@ This demo walks through a complete customer lifecycle:
 
 - Node.js 18+ or compatible runtime
 - PostgreSQL database (local or remote)
-- PNPM package manager
+- npm package manager
 
 ## Setup
 
@@ -43,12 +43,13 @@ This demo walks through a complete customer lifecycle:
    # Edit .env with your database connection string
    ```
 
-3. **Install dependencies** (from repository root):
+3. **Install dependencies**:
    ```bash
-   pnpm install
+   cd core.typescript/sample
+   npm install
    ```
    
-   This will install dependencies for all workspace packages including the sample.
+   **Note:** The sample imports the core library directly via relative path (`../src/index.js`), making it fully portable with no symlinks.
 
 ## Running the Demo
 
@@ -56,18 +57,18 @@ From the `core.typescript/sample` directory:
 
 ```bash
 # Standard mode (runs continuously)
-pnpm start
+npm start
 
 # Interactive mode (pauses after each step for database inspection)
-pnpm start -- --interactive
+npm start -- --interactive
 # or
-pnpm start -- -i
+npm start -- -i
 ```
 
 Or using the watch mode for development:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## What to Expect

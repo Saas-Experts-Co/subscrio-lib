@@ -66,7 +66,7 @@ We've implemented a **unified single-server architecture** where:
 ```bash
 # Install JWT dependencies for API
 cd packages/api
-pnpm install
+npm install
 ```
 
 ### Step 2: Update API Server Environment (ONLY ONE .env NEEDED!)
@@ -96,10 +96,10 @@ LOG_LEVEL=error
 
 ```bash
 # Terminal 1 - API Server (port 3002)
-pnpm dev:api
+npm run dev
 
 # Terminal 2 - Admin UI Dev Server (port 5173)
-pnpm dev:admin
+npm run dev
 ```
 
 Admin will be at `http://localhost:5173` with hot module replacement.
@@ -108,10 +108,10 @@ Admin will be at `http://localhost:5173` with hot module replacement.
 
 ```bash
 # Build everything
-pnpm build
+npm run build
 
 # Run unified server
-pnpm start
+npm start
 ```
 
 Everything will be at `http://localhost:3002`.
@@ -165,18 +165,18 @@ PORT=3002
 ### Development Mode
 ```bash
 # Terminal 1
-pnpm dev:api
+npm run dev
 
 # Terminal 2  
-pnpm dev:admin
+npm run dev
 ```
 
 Open `http://localhost:5173`
 
 ### Production Mode
 ```bash
-pnpm build
-pnpm start
+npm run build
+npm start
 ```
 
 Open `http://localhost:3002`
@@ -198,7 +198,7 @@ Navigate around the admin UI - all requests should work!
 ### "Cannot find module 'jsonwebtoken'"
 ```bash
 cd packages/api
-pnpm install
+npm install
 ```
 
 ### "Invalid passphrase"
@@ -239,7 +239,7 @@ pnpm install
 
 ```bash
 # 1. Build everything
-pnpm build
+npm run build
 
 # 2. Deploy the API server (includes admin!)
 # The admin static files are automatically served

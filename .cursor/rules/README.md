@@ -204,16 +204,16 @@ When adding new patterns to the requirements document:
 
 ```bash
 # Type checking (enforces many rules)
-pnpm typecheck
+npm typecheck
 
 # Linting
-pnpm lint
+npm lint
 
 # Run tests (validates behavior matches rules)
-pnpm test
+npm test
 
 # Build (ensures no import cycles, etc.)
-pnpm build
+npm build
 ```
 
 ## Common Violations and Fixes

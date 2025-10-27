@@ -9,7 +9,6 @@
     "dev": "tsx watch index.ts"
   },
   "dependencies": {
-    "@subscrio/core": "workspace:*",
     "dotenv": "^17.2.3"
   },
   "devDependencies": {

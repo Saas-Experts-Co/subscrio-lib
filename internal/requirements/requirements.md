@@ -145,7 +145,7 @@ if (license.expiresAt && license.expiresAt < new Date()) {
 ## Technology Stack
 
 Subscrio is a monorepo-based TypeScript library for SaaS subscription and feature management using:
-- **PNPM workspaces** for monorepo management
+- **npm workspaces** for monorepo management
 - **Vite** for fast builds across all packages
 - **Vitest** for end-to-end testing with real PostgreSQL
 - **Drizzle ORM** for type-safe database access
@@ -564,7 +564,7 @@ export class ProductMapper {
 
 ### Monorepo Structure
 
-**Package Manager**: PNPM with workspaces
+**Package Manager**: npm with workspaces
 **Build Tool**: Vite for all packages
 
 ```
@@ -593,14 +593,14 @@ subscrio/
 │       │   └── main.tsx
 │       ├── package.json
 │       └── vite.config.ts
-├── pnpm-workspace.yaml
+├── package.json (with workspaces)
 ├── package.json           # Root package with build scripts
 ├── tsconfig.base.json     # Shared TypeScript config
 └── .env.example
 ```
 
 **Why This Structure**:
-- **Shared builds**: Single `pnpm build` command builds all packages
+- **Shared builds**: Single `npm run build` command builds all packages
 - **Testing**: All packages can run tests in isolation or together
 - **Type safety**: TypeScript references ensure type checking across packages
 - **Code sharing**: `@subscrio/core` is imported directly by both `api` and `admin`

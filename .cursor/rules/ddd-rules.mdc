@@ -6,13 +6,6 @@ alwaysApply: true
 
 These rules guide Cursor to generate consistent code that matches the requirements document.
 
-## Monorepo & Build
-- Use **PNPM workspaces** with the monorepo layout under `/packages`.
-- Use **Vite** for all builds:
-  - `packages/core/vite.core.config.ts` in **library mode (ES module)**.
-  - `packages/api/vite.api.config.ts` in **SSR/server** mode.
-  - `packages/admin/vite.admin.config.ts` for **React**.
-- Use **TypeScript** everywhere (strict mode). Target **ES2022**.
 
 ## Admin App Process Model
 - The **admin app must NOT call REST**. It **imports `@subscrio/core` directly** and runs in the **same Node process**.

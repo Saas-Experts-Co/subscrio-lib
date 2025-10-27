@@ -73,7 +73,7 @@ describe('OpenAPI Specification Validation', () => {
       spec = JSON.parse(content);
     } catch (error) {
       throw new Error(
-        `Failed to load openapi.json. Run: pnpm generate:openapi\nError: ${error}`
+        `Failed to load openapi.json. Run: npm run generate:openapi\nError: ${error}`
       );
     }
 
@@ -103,7 +103,7 @@ describe('OpenAPI Specification Validation', () => {
     if (missingRoutes.length > 0) {
       throw new Error(
         `OpenAPI spec is missing routes:\n${missingRoutes.map(r => `  - ${r}`).join('\n')}\n\n` +
-        `Run: pnpm generate:openapi`
+        `Run: npm run generate:openapi`
       );
     }
   });

@@ -1,6 +1,5 @@
-import { Subscrio } from '@subscrio/core';
+import { Subscrio, OverrideType } from '../src/index.js';
 import { loadConfig } from './config.js';
-import { OverrideType } from '@subscrio/core';
 
 // Global interactive mode flag
 let isInteractiveMode = false;

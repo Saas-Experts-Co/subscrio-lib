@@ -87,9 +87,9 @@ Subscrio/
 - [ ] Created `packages/.env` from `packages/env.example`
 - [ ] Updated DATABASE_URL with your credentials
 - [ ] Set ADMIN_PASSPHRASE to something secure
-- [ ] Run `pnpm test` - should pass (13/13)
-- [ ] Run `pnpm dev:api` - should start on port 3002
-- [ ] Run `pnpm dev:admin` - should start on port 3001
+- [ ] Run `npm test` - should pass (13/13)
+- [ ] Run `npm run dev` - should start on port 3002
+- [ ] Run `npm run dev` - should start on port 3001
 - [ ] Open http://localhost:3001 and login
 
 ---

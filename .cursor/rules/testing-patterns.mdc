@@ -417,16 +417,16 @@ export class TestFixtures {
 
 ```bash
 # Run all tests
-pnpm test
+npm test
 
 # Run specific file
-pnpm test products.test.ts
+npm test products.test.ts
 
 # Run with coverage
-pnpm test:coverage
+npm test:coverage
 
 # Watch mode
-pnpm test:watch
+npm test:watch
 ```
 
 ## CI Integration
@@ -442,7 +442,7 @@ test:
       ports:
         - 5432:5432
   steps:
-    - run: pnpm test:coverage
+    - run: npm test:coverage
       env:
         TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 ```
