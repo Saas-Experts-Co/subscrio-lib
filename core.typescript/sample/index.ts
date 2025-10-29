@@ -9,7 +9,8 @@ let isInteractiveMode = false;
 // ═══════════════════════════════════════════════════════════
 
 async function main() {
-  printHeader();
+  const config = loadConfig();
+  printHeader(config.database.connectionString);
   
   // Check for command line arguments
   const args = process.argv.slice(2);
@@ -26,7 +27,6 @@ async function main() {
   // Set interactive mode based on user choice (but never in automated mode)
   isInteractiveMode = !isAutomated && choice === 'i';
   
-  const config = loadConfig();
   const subscrio = new Subscrio(config);
 
   try {
@@ -763,9 +763,6 @@ async function runPhase7_DowngradeToFree(subscrio: Subscrio) {
   printInfo('Simulating period end date passing - library automatically transitions to free plan', 1);
   printInfo('This simulates the automatic transition configured in the professional plan', 1);
   
-  // Get the current subscription to access its cancellation date
-  const currentSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
-  
   // Simulate the period end by setting currentPeriodEnd to 1 day ago
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
   
@@ -871,11 +868,29 @@ async function runPhase8_Summary() {
 // HELPER METHODS
 // ═══════════════════════════════════════════════════════════
 
-function printHeader() {
+function extractDatabaseName(connectionString: string): string {
+  try {
+    // Parse PostgreSQL connection string
+    // Format: postgresql://user:password@host:port/database
+    const url = new URL(connectionString);
+    const dbName = url.pathname.substring(1); // Remove leading slash
+    return dbName || 'unknown';
+  } catch (error) {
+    // Fallback: try to extract database name using regex
+    const match = connectionString.match(/\/([^/?]+)(?:\?|$)/);
+    return match ? match[1] : 'unknown';
+  }
+}
+
+function printHeader(connectionString: string) {
+  const dbName = extractDatabaseName(connectionString);
+  
   console.log('\n╔═══════════════════════════════════════════════════════════╗');
   console.log('║                                                           ║');
-  console.log('║         Subscrio Customer Lifecycle Demo                 ║');
-  console.log('║         Scenario: ProjectHub SaaS Platform               ║');
+  console.log('║         Subscrio Customer Lifecycle Demo                  ║');
+  console.log('║         Scenario: ProjectHub SaaS Platform                ║');
+  console.log('║                                                           ║');
+  console.log(`║         Database: ${dbName.padEnd(39)} ║`);
   console.log('║                                                           ║');
   if (isInteractiveMode) {
     console.log('║         🔍 INTERACTIVE MODE ENABLED                      ║');
@@ -903,6 +918,10 @@ function printSuccess(message: string) {
 function printInfo(message: string, indent: number = 1) {
   const prefix = '│' + '  '.repeat(indent);
   console.log(`${prefix}${message}`);
+}
+
+function printError(message: string) {
+  console.log(`│ ❌ ${message}`);
 }
 
 function printDivider() {
