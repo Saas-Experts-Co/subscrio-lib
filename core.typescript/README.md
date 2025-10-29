@@ -1,128 +1,39 @@
-# @subscrio/core
+# @subscrio/core - TypeScript Implementation
 
-**The missing layer in your SaaS stack: The entitlement engine that translates subscriptions into feature access.**
+TypeScript/Node.js implementation of the Subscrio subscription management library.
 
-Every time a user clicks a button, creates a resource, or calls an API endpoint, your application asks: "Is this customer allowed to do this?" Subscrio is the definitive answer.
-
-## The Problem You're Solving
-
-**Right now, you have two disconnected systems:**
-
-1. **Billing Platform** (Stripe, Paddle) - Handles payments and invoices
-2. **Your Application** - Enforces what users can actually do
-
-**The gap:** Who translates "Pro Plan" into actionable permissions throughout your app?
-
-```typescript
-// This is what you're doing now (scattered across dozens of files):
-if (customer.plan === 'pro') {
-  maxProjects = 50;
-} else if (customer.plan === 'enterprise') {
-  maxProjects = 999;
-}
-```
-
-**This creates massive problems:**
-- Change a plan? Requires code deployment
-- Custom deals? Engineers build one-off override logic  
-- Multiple products? Conditional statements become unmaintainable
-- Sales flexibility? Product team can't experiment without engineering
-- Vendor lock-in? You're forced to parse your billing system's data structures
-
-## The Solution
-
-**Subscrio is the entitlement layer your SaaS application is missing.**
-
-It's not feature flags for gradual rollouts. It's not a billing system for processing payments. It's the authoritative system between them that knows exactly what each customer is entitled to access.
-
-### How It Works
-
-**1. Define Your Business Model (Once)**
-```typescript
-// Configure products, features, and plans
-const product = await subscrio.products.createProduct({
-  key: 'project-management',
-  displayName: 'Project Management'
-});
-
-const maxProjects = await subscrio.features.createFeature({
-  key: 'max-projects',
-  displayName: 'Max Projects',
-  valueType: 'numeric',
-  defaultValue: '3'
-});
-
-const proPlan = await subscrio.plans.createPlan({
-  productKey: 'project-management',
-  key: 'pro',
-  displayName: 'Pro Plan'
-});
-
-// Set feature values per plan
-await subscrio.plans.setFeatureValue('pro', 'max-projects', '50');
-```
-
-**2. Enforce Entitlements Throughout Your App**
-```typescript
-// In your project creation endpoint:
-const maxProjects = await subscrio.featureChecker.getValueForCustomer(
-  customerId, 
-  'project-management', 
-  'max-projects'
-);
-
-if (currentProjects >= parseInt(maxProjects)) {
-  throw new Error('Upgrade to create more projects');
-}
-```
-
-**3. Business Teams Control Configuration**
-```typescript
-// Sales needs to close a deal with custom terms:
-await subscrio.subscriptions.addFeatureOverride(
-  subscriptionId,
-  'max-projects', 
-  '75', 
-  'temporary', // expires in 12 months
-  new Date('2025-12-31')
-);
-// Customer immediately gets access—no deployment needed
-```
-
-## Why Subscrio Wins
-
-**vs. Building In-House:**
-- ✅ Saves 120+ hours of development
-- ✅ Production-tested with audit trails  
-- ✅ No technical debt as your business model evolves
-
-**vs. Feature Flags (LaunchDarkly, Split):**
-- ✅ Feature flags roll out new code gradually
-- ✅ Subscrio manages what customers paid for and can access
-- ✅ Different problems, different solutions
-
-**vs. Billing Systems (Stripe, Paddle):**
-- ✅ Billing handles payments and invoices
-- ✅ Subscrio translates subscriptions into feature entitlements
-- ✅ Tightly integrated, not competing
-
-## Key Benefits
-
-✅ **Zero Configuration**: Works out of the box with sensible defaults  
-✅ **Feature Resolution**: Automatic hierarchy (subscription → plan → default)  
-✅ **Multiple Subscriptions**: Customers can have multiple active subscriptions  
-✅ **Trial Management**: Built-in trial period handling  
-✅ **Override System**: Temporary and permanent feature overrides  
-✅ **Status Calculation**: Dynamic subscription status based on dates  
-✅ **Production Ready**: Battle-tested with comprehensive error handling  
-✅ **Type Safety**: Full TypeScript support with compile-time validation  
-✅ **Business Flexibility**: Change plans and grant exceptions without deployments  
+> **📖 For the complete project overview, see the [main README](../README.md)**
 
 ## Installation
 
 ```bash
 npm install @subscrio/core
 ```
+
+## Development Commands
+
+If you're working with the source code, here are the essential commands:
+
+```bash
+# Install dependencies (required first)
+npm install
+
+# Build the library
+npm run build
+
+# Run tests
+npm test
+
+# Run the sample application
+cd sample
+npm install
+npm start
+```
+
+**Prerequisites:**
+- Node.js 18+
+- PostgreSQL running locally
+- Copy `env.example` to `.env` and configure your database connection
 
 ## Quick Start
 
@@ -137,64 +48,6 @@ const subscrio = new Subscrio({
 
 // Install schema (first time only)
 await subscrio.installSchema();
-```
-
-## Entity Hierarchy
-
-```
-Features (standalone)
-├── key: string
-├── valueType: 'toggle' | 'numeric' | 'text'
-└── defaultValue: string
-
-Product
-├── key: string
-├── displayName: string
-├── → Features (many-to-many)  # Products can have multiple features
-└── → Plans (one-to-many)     # Products can have multiple plans
-    └── Plan
-        ├── key: string
-        ├── displayName: string
-        ├── featureValues: PlanFeatureValue[]  # Embedded feature value overrides
-        │   ├── featureId: string
-        │   ├── value: string
-        │   ├── createdAt: Date
-        │   └── updatedAt: Date
-        └── → BillingCycles (one-to-many)
-            └── BillingCycle
-                ├── key: string
-                ├── durationValue: number
-                ├── durationUnit: 'days' | 'months' | 'years'
-                └── externalProductId: string
-
-Customer
-├── key: string (your app's user ID)
-├── displayName: string
-├── email: string
-└── → Subscriptions (one-to-many)
-    └── Subscription
-        ├── key: string
-        ├── status: 'active' | 'trial' | 'cancelled' | 'cancellation_pending' | 'expired' | 'suspended' (calculated dynamically)
-        ├── currentPeriodStart: Date
-        ├── currentPeriodEnd: Date
-        ├── trialEndDate?: Date
-        └── featureOverrides: FeatureOverride[]  # Embedded feature overrides
-            ├── featureId: string
-            ├── value: string
-            ├── type: 'permanent' | 'temporary'
-            └── createdAt: Date
-
-Feature Value Resolution (how we determine access/value):
-1. Subscription Override (highest priority)
-2. Plan Value
-3. Feature Default (fallback)
-
-Subscription Status Calculation (calculated dynamically):
-1. If cancelled and cancellation date has passed → 'cancelled'
-2. If cancellation is scheduled for the future → 'cancellation_pending'
-3. If expired and expiration date has passed → 'expired'
-4. If trial end date is in the future → 'trial'
-5. If trial end date has passed or no trial → 'active'
 ```
 
 ## Basic Usage

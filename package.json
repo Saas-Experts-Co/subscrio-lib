@@ -1,14 +1,21 @@
 {
-  "name": "subscrio-workspace",
+  "name": "subscrio-lib",
   "private": true,
-  "workspaces": [
-    "core.typescript",
-    "server"
-  ],
-  "scripts": {
-    "build:core": "npm run build --workspace=core.typescript",
-    "build:all": "npm run build --workspaces",
-    "test:core": "npm run test --workspace=core.typescript",
-    "dev:server": "npm run dev --workspace=server"
-  }
+  "description": "Multi-language subscription management library",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/subscrio/subscrio-lib.git"
+  },
+  "homepage": "https://github.com/subscrio/subscrio-lib#readme",
+  "bugs": {
+    "url": "https://github.com/subscrio/subscrio-lib/issues"
+  },
+  "keywords": [
+    "subscription",
+    "entitlement",
+    "feature-flags",
+    "billing",
+    "saas",
+    "multi-language"
+  ]
 }
