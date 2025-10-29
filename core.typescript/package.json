@@ -1,10 +1,23 @@
 {
   "name": "@subscrio/core",
   "version": "0.1.0",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "restricted"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/subscrio/subscrio-lib.git"
   },
+  "homepage": "https://github.com/subscrio/subscrio-lib#readme",
+  "bugs": {
+    "url": "https://github.com/subscrio/subscrio-lib/issues"
+  },
+  "keywords": [
+    "subscription",
+    "entitlement",
+    "feature-flags",
+    "billing",
+    "saas",
+    "typescript"
+  ],
+  
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -25,6 +38,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "vite build",
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",

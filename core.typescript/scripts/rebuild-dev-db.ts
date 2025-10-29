@@ -17,7 +17,7 @@ try {
   const config: SubscrioConfig = {
     database: {
       connectionString: process.env.DATABASE_URL || 
-        'postgresql://postgres:Backseat1!@localhost:5432/postgres'
+        'postgresql://postgres:PASSWORD@localhost:5432/postgres'
     }
   };
   

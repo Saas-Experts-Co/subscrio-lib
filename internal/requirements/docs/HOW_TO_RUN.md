@@ -44,7 +44,7 @@ Go to **http://localhost:3001** and login with passphrase: `admin123`
 **Create `packages/api/.env`:**
 
 ```bash
-DATABASE_URL=postgresql://postgres:Backseat1!@localhost:5432/postgres
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/postgres
 ADMIN_PASSPHRASE=admin123
 PORT=3002
 ```

@@ -30,7 +30,7 @@ npm install
 
 The project is configured to use:
 ```
-postgresql://postgres:Backseat1!@localhost:5432/postgres
+postgresql://postgres:PASSWORD@localhost:5432/postgres
 ```
 
 To use a different database:

@@ -20,8 +20,8 @@ Create `packages/.env` with:
 
 ```bash
 # Database Connection (used by @subscrio/core and @subscrio/api)
-DATABASE_URL=postgresql://postgres:Backseat1!@localhost:5432/postgres
-TEST_DATABASE_URL=postgresql://postgres:Backseat1!@localhost:5432/postgres
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/postgres
+TEST_DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/postgres
 
 # Admin Authentication (used by @subscrio/api)
 ADMIN_PASSPHRASE=admin123
