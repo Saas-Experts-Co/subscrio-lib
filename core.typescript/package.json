@@ -1,6 +1,9 @@
 {
-  "name": "@subscrio/core",
+  "name": "@saas-experts/subscrio",
   "version": "0.1.0",
+  "description": "TypeScript subscription management library with feature flags, billing cycles, and Stripe integration",
+  "author": "Subscrio Team",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/subscrio/subscrio-lib.git"
@@ -15,8 +18,14 @@
     "feature-flags",
     "billing",
     "saas",
-    "typescript"
+    "typescript",
+    "stripe",
+    "postgresql",
+    "drizzle"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   
   "type": "module",
   "main": "./dist/index.cjs",
