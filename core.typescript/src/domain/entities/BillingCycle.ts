@@ -1,5 +1,6 @@
 import { Entity } from '../base/Entity.js';
 import { DurationUnit } from '../value-objects/DurationUnit.js';
+import { BillingCycleStatus } from '../value-objects/BillingCycleStatus.js';
 import { now } from '../../infrastructure/utils/date.js';
 
 export interface BillingCycleProps {
@@ -7,6 +8,7 @@ export interface BillingCycleProps {
   key: string;
   displayName: string;
   description?: string;
+  status: BillingCycleStatus;
   durationValue?: number; // Optional for forever duration
   durationUnit: DurationUnit;
   externalProductId?: string;
@@ -25,6 +27,10 @@ export class BillingCycle extends Entity<BillingCycleProps> {
 
   get displayName(): string {
     return this.props.displayName;
+  }
+
+  get status(): BillingCycleStatus {
+    return this.props.status;
   }
 
   calculateNextPeriodEnd(startDate: Date): Date | null {
@@ -55,20 +61,17 @@ export class BillingCycle extends Entity<BillingCycleProps> {
   }
 
   archive(): void {
-    // Billing cycles don't have status, so we'll use a different approach
-    // This method is here for consistency but may not be used
+    this.props.status = BillingCycleStatus.Archived;
     this.props.updatedAt = now();
   }
 
   unarchive(): void {
-    // Billing cycles don't have status, so we'll use a different approach
-    // This method is here for consistency but may not be used
+    this.props.status = BillingCycleStatus.Active;
     this.props.updatedAt = now();
   }
 
   canDelete(): boolean {
-    // TODO: Check if any plans are using this billing cycle
-    return true;
+    return this.props.status === BillingCycleStatus.Archived;
   }
 }
 

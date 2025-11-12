@@ -135,6 +135,25 @@ describe('Products E2E Tests', () => {
         subscrio.products.deleteProduct(product.key)
       ).rejects.toThrow('must be archived');
     });
+
+    test('prevents deletion of product with plans', async () => {
+      const product = await subscrio.products.createProduct({
+        key: 'product-with-plans',
+        displayName: 'Product With Plans'
+      });
+
+      await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: 'plan-for-product',
+        displayName: 'Plan For Product'
+      });
+
+      await subscrio.products.archiveProduct(product.key);
+
+      await expect(
+        subscrio.products.deleteProduct(product.key)
+      ).rejects.toThrow('has associated plans');
+    });
   });
 
   describe('Product Listing', () => {
@@ -190,7 +209,6 @@ describe('Products E2E Tests', () => {
       // Verify the products table still exists and is accessible
       
       const allProducts = await subscrio.products.listProducts();
-      console.log('All products:', allProducts);
       expect(allProducts.length).toBeGreaterThanOrEqual(2);
      
     });

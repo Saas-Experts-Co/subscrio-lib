@@ -161,6 +161,30 @@ export class FeatureManagementService {
       );
     }
 
+    // Check for product associations
+    const hasProductAssociations = await this.featureRepository.hasProductAssociations(feature.id);
+    if (hasProductAssociations) {
+      throw new DomainError(
+        `Cannot delete feature '${feature.key}'. Feature is associated with products. Please dissociate from all products first.`
+      );
+    }
+
+    // Check for plan feature values
+    const hasPlanFeatureValues = await this.featureRepository.hasPlanFeatureValues(feature.id);
+    if (hasPlanFeatureValues) {
+      throw new DomainError(
+        `Cannot delete feature '${feature.key}'. Feature is used in plan feature values. Please remove from all plans first.`
+      );
+    }
+
+    // Check for subscription overrides
+    const hasSubscriptionOverrides = await this.featureRepository.hasSubscriptionOverrides(feature.id);
+    if (hasSubscriptionOverrides) {
+      throw new DomainError(
+        `Cannot delete feature '${feature.key}'. Feature has subscription overrides. Please remove all subscription overrides first.`
+      );
+    }
+
     await this.featureRepository.delete(feature.id);
   }
 

@@ -1,5 +1,6 @@
 import { IBillingCycleRepository } from '../repositories/IBillingCycleRepository.js';
 import { IPlanRepository } from '../repositories/IPlanRepository.js';
+import { ISubscriptionRepository } from '../repositories/ISubscriptionRepository.js';
 import { 
   CreateBillingCycleDto, 
   CreateBillingCycleDtoSchema, 
@@ -12,6 +13,7 @@ import {
 import { BillingCycleMapper } from '../mappers/BillingCycleMapper.js';
 import { BillingCycle } from '../../domain/entities/BillingCycle.js';
 import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
+import { BillingCycleStatus } from '../../domain/value-objects/BillingCycleStatus.js';
 import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
@@ -24,7 +26,8 @@ import {
 export class BillingCycleManagementService {
   constructor(
     private readonly billingCycleRepository: IBillingCycleRepository,
-    private readonly planRepository: IPlanRepository
+    private readonly planRepository: IPlanRepository,
+    private readonly subscriptionRepository: ISubscriptionRepository
   ) {}
 
   async createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto> {
@@ -76,6 +79,7 @@ export class BillingCycleManagementService {
       key: validatedDto.key,
       displayName: validatedDto.displayName,
       description: validatedDto.description,
+      status: BillingCycleStatus.Active,
       durationValue: validatedDto.durationValue,
       durationUnit: validatedDto.durationUnit as DurationUnit,
       externalProductId: validatedDto.externalProductId,
@@ -219,7 +223,23 @@ export class BillingCycleManagementService {
 
     if (!billingCycle.canDelete()) {
       throw new DomainError(
-        'Cannot delete billing cycle that is being used by plans'
+        `Cannot delete billing cycle with status '${billingCycle.status}'. Billing cycle must be archived before deletion.`
+      );
+    }
+
+    // Check for subscriptions before deletion
+    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForBillingCycle(billingCycle.id);
+    if (hasSubscriptions) {
+      throw new DomainError(
+        `Cannot delete billing cycle '${billingCycle.key}'. Billing cycle has active subscriptions. Please cancel or expire all subscriptions first.`
+      );
+    }
+
+    // Check for plan transition references
+    const hasPlanTransitionReferences = await this.planRepository.hasPlanTransitionReferences(billingCycle.key);
+    if (hasPlanTransitionReferences) {
+      throw new DomainError(
+        `Cannot delete billing cycle '${billingCycle.key}'. Billing cycle is referenced by plan transition settings. Please update or remove plan transition references first.`
       );
     }
 

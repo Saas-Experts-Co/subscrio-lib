@@ -199,4 +199,24 @@ export class DrizzlePlanRepository implements IPlanRepository {
     return !!record;
   }
 
+  async hasBillingCycles(planId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: billing_cycles.id })
+      .from(billing_cycles)
+      .where(eq(billing_cycles.plan_id, planId))
+      .limit(1);
+
+    return !!record;
+  }
+
+  async hasPlanTransitionReferences(billingCycleKey: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: plans.id })
+      .from(plans)
+      .where(eq(plans.on_expire_transition_to_billing_cycle_key, billingCycleKey))
+      .limit(1);
+
+    return !!record;
+  }
+
 }

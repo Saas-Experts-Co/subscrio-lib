@@ -22,6 +22,7 @@ export { ProductStatus } from './domain/value-objects/ProductStatus.js';
 export { FeatureStatus } from './domain/value-objects/FeatureStatus.js';
 export { FeatureValueType } from './domain/value-objects/FeatureValueType.js';
 export { PlanStatus } from './domain/value-objects/PlanStatus.js';
+export { BillingCycleStatus } from './domain/value-objects/BillingCycleStatus.js';
 export { CustomerStatus } from './domain/value-objects/CustomerStatus.js';
 export { APIKeyStatus } from './domain/value-objects/APIKeyStatus.js';
 export { APIKeyScope } from './domain/value-objects/APIKeyScope.js';

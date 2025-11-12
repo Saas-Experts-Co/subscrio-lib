@@ -13,5 +13,9 @@ export interface ISubscriptionRepository {
   
   // Find active subscription for customer and plan combination
   findActiveByCustomerAndPlan(customerId: string, planId: string): Promise<Subscription | null>;
+  
+  // Foreign key checks
+  hasSubscriptionsForPlan(planId: string): Promise<boolean>;
+  hasSubscriptionsForBillingCycle(billingCycleId: string): Promise<boolean>;
 }
 

@@ -1,4 +1,4 @@
-export enum PlanStatus {
+export enum BillingCycleStatus {
   Active = 'active',
   Archived = 'archived'
 }

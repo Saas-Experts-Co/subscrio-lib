@@ -13,5 +13,8 @@ export interface IProductRepository {
   associateFeature(productId: string, featureId: string): Promise<void>;
   dissociateFeature(productId: string, featureId: string): Promise<void>;
   getFeaturesByProduct(productId: string): Promise<string[]>;
+  
+  // Foreign key checks
+  hasPlans(productKey: string): Promise<boolean>;
 }
 

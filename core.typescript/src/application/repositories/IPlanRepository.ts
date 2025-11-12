@@ -11,5 +11,9 @@ export interface IPlanRepository {
   findByIds(ids: string[]): Promise<Plan[]>;
   delete(id: string): Promise<void>;
   exists(id: string): Promise<boolean>;
+  
+  // Foreign key checks
+  hasBillingCycles(planId: string): Promise<boolean>;
+  hasPlanTransitionReferences(billingCycleKey: string): Promise<boolean>;
 }
 

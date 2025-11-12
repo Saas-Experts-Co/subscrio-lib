@@ -37,7 +37,7 @@ export interface ProductDto {
 }
 
 export const ProductFilterDtoSchema = z.object({
-  status: z.enum(['active', 'inactive', 'archived']).optional(),
+  status: z.enum(['active', 'archived']).optional(),
   search: z.string().optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),

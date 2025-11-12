@@ -62,6 +62,10 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
         // For now, filtering by planId would need to be done at service layer
       }
 
+      if (filters.status) {
+        conditions.push(eq(billing_cycles.status, filters.status));
+      }
+
       if (filters.durationUnit) {
         conditions.push(eq(billing_cycles.duration_unit, filters.durationUnit));
       }

@@ -66,6 +66,7 @@ export interface BillingCycleDto {
   key: string;
   displayName: string;
   description?: string | null;
+  status: string;
   durationValue?: number | null;
   durationUnit: string;
   externalProductId?: string | null;
@@ -75,6 +76,7 @@ export interface BillingCycleDto {
 
 export const BillingCycleFilterDtoSchema = z.object({
   planKey: z.string().optional(),
+  status: z.enum(['active', 'archived']).optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).default(0),
   durationUnit: z.enum(['days', 'weeks', 'months', 'years', 'forever']).optional(),

@@ -1,6 +1,7 @@
 import { BillingCycle } from '../../domain/entities/BillingCycle.js';
 import { BillingCycleDto } from '../dtos/BillingCycleDto.js';
 import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
+import { BillingCycleStatus } from '../../domain/value-objects/BillingCycleStatus.js';
 
 export class BillingCycleMapper {
   static toDto(billingCycle: BillingCycle, productKey?: string, planKey?: string): BillingCycleDto {
@@ -10,6 +11,7 @@ export class BillingCycleMapper {
       key: billingCycle.key,
       displayName: billingCycle.displayName,
       description: billingCycle.props.description ?? null,
+      status: billingCycle.status,
       durationValue: billingCycle.props.durationValue ?? null,
       durationUnit: billingCycle.props.durationUnit,
       externalProductId: billingCycle.props.externalProductId ?? null,
@@ -25,6 +27,7 @@ export class BillingCycleMapper {
         key: raw.key,
         displayName: raw.display_name,
         description: raw.description,
+        status: (raw.status as BillingCycleStatus) || BillingCycleStatus.Active,
         durationValue: raw.duration_value,
         durationUnit: raw.duration_unit as DurationUnit,
         externalProductId: raw.external_product_id,
@@ -42,6 +45,7 @@ export class BillingCycleMapper {
       key: billingCycle.key,
       display_name: billingCycle.displayName,
       description: billingCycle.props.description,
+      status: billingCycle.status,
       duration_value: billingCycle.props.durationValue,
       duration_unit: billingCycle.props.durationUnit,
       external_product_id: billingCycle.props.externalProductId,

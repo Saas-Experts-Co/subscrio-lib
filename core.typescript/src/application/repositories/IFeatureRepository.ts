@@ -12,5 +12,10 @@ export interface IFeatureRepository {
   
   // Get features by product
   findByProduct(productId: string): Promise<Feature[]>;
+  
+  // Foreign key checks
+  hasProductAssociations(featureId: string): Promise<boolean>;
+  hasPlanFeatureValues(featureId: string): Promise<boolean>;
+  hasSubscriptionOverrides(featureId: string): Promise<boolean>;
 }
 

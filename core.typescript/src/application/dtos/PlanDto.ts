@@ -44,7 +44,7 @@ export interface PlanDto {
 
 export const PlanFilterDtoSchema = z.object({
   productKey: z.string().optional(),
-  status: z.enum(['active', 'inactive', 'archived']).optional(),
+  status: z.enum(['active', 'archived']).optional(),
   search: z.string().optional(),
   sortBy: z.enum(['displayName', 'createdAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),

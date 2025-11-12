@@ -127,6 +127,7 @@ export const billing_cycles = pgTable('billing_cycles', {
   key: text('key').notNull(),
   display_name: text('display_name').notNull(),
   description: text('description'),
+  status: text('status').notNull(),
   duration_value: integer('duration_value'),
   duration_unit: text('duration_unit').notNull(),
   external_product_id: text('external_product_id'),

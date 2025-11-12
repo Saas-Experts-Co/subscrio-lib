@@ -1,6 +1,6 @@
 import { eq, and, ilike, or } from 'drizzle-orm';
 import { DrizzleDb } from '../database/drizzle.js';
-import { products, product_features } from '../database/schema.js';
+import { products, product_features, plans } from '../database/schema.js';
 import { IProductRepository } from '../../application/repositories/IProductRepository.js';
 import { Product } from '../../domain/entities/Product.js';
 import { ProductMapper } from '../../application/mappers/ProductMapper.js';
@@ -122,6 +122,16 @@ export class DrizzleProductRepository implements IProductRepository {
       .where(eq(product_features.product_id, productId));
 
     return records.map(r => r.feature_id);
+  }
+
+  async hasPlans(productKey: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: plans.id })
+      .from(plans)
+      .where(eq(plans.product_key, productKey))
+      .limit(1);
+
+    return !!record;
   }
 }
 

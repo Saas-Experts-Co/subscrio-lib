@@ -142,6 +142,7 @@ export class SchemaInstaller {
         key TEXT NOT NULL,
         display_name TEXT NOT NULL,
         description TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
         duration_value INTEGER,
         duration_unit TEXT NOT NULL,
         external_product_id TEXT,
@@ -149,6 +150,19 @@ export class SchemaInstaller {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
         UNIQUE(plan_id, key)
       )
+    `);
+    
+    // Add status column to existing billing_cycles table if it doesn't exist
+    await this.db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'billing_cycles' AND column_name = 'status'
+        ) THEN
+          ALTER TABLE billing_cycles ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+        END IF;
+      END $$;
     `);
 
     // Plan features (junction table)

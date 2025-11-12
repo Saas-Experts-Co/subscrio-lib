@@ -314,8 +314,42 @@ describe('Billing Cycles E2E Tests', () => {
     });
   });
 
-  describe('Relationship Tests', () => {
-    test('deletes billing cycle with no references', async () => {
+  describe('Billing Cycle Lifecycle', () => {
+    test('creates billing cycle with active status', async () => {
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: testPlan.key,
+        key: 'status-test-cycle',
+        displayName: 'Status Test Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      expect(cycle.status).toBe('active');
+    });
+
+    test('archives and unarchives billing cycle', async () => {
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: testPlan.key,
+        key: 'archive-test-cycle',
+        displayName: 'Archive Test Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      expect(cycle.status).toBe('active');
+
+      // Archive
+      await subscrio.billingCycles.archiveBillingCycle(cycle.key);
+      const archived = await subscrio.billingCycles.getBillingCycle(cycle.key);
+      expect(archived?.status).toBe('archived');
+
+      // Unarchive
+      await subscrio.billingCycles.unarchiveBillingCycle(cycle.key);
+      const unarchived = await subscrio.billingCycles.getBillingCycle(cycle.key);
+      expect(unarchived?.status).toBe('active');
+    });
+
+    test('deletes archived billing cycle with no references', async () => {
       const cycle = await subscrio.billingCycles.createBillingCycle({
         planKey: testPlan.key,
         key: 'delete-cycle',
@@ -324,10 +358,98 @@ describe('Billing Cycles E2E Tests', () => {
         durationUnit: 'months'
       });
 
+      await subscrio.billingCycles.archiveBillingCycle(cycle.key);
       await subscrio.billingCycles.deleteBillingCycle(cycle.key);
 
       const retrieved = await subscrio.billingCycles.getBillingCycle(cycle.key);
       expect(retrieved).toBeNull();
+    });
+
+    test('prevents deletion of active billing cycle', async () => {
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: testPlan.key,
+        key: 'no-delete-cycle',
+        displayName: 'No Delete Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      await expect(
+        subscrio.billingCycles.deleteBillingCycle(cycle.key)
+      ).rejects.toThrow('must be archived');
+    });
+  });
+
+  describe('Relationship Tests', () => {
+    test('deletes billing cycle with no references', async () => {
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: testPlan.key,
+        key: 'delete-no-ref-cycle',
+        displayName: 'Delete No Ref Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      await subscrio.billingCycles.archiveBillingCycle(cycle.key);
+      await subscrio.billingCycles.deleteBillingCycle(cycle.key);
+
+      const retrieved = await subscrio.billingCycles.getBillingCycle(cycle.key);
+      expect(retrieved).toBeNull();
+    });
+
+    test('prevents deletion of billing cycle with subscriptions', async () => {
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: testPlan.key,
+        key: 'cycle-with-subs',
+        displayName: 'Cycle With Subs',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const customer = await subscrio.customers.createCustomer({
+        key: 'customer-for-cycle',
+        displayName: 'Customer For Cycle'
+      });
+
+      await subscrio.subscriptions.createSubscription({
+        customerKey: customer.key,
+        planKey: testPlan.key,
+        billingCycleKey: cycle.key,
+        key: 'sub-for-cycle'
+      });
+
+      await subscrio.billingCycles.archiveBillingCycle(cycle.key);
+
+      await expect(
+        subscrio.billingCycles.deleteBillingCycle(cycle.key)
+      ).rejects.toThrow('has active subscriptions');
+    });
+
+    test('prevents deletion of billing cycle referenced by plan transition', async () => {
+      const transitionPlan = await subscrio.plans.createPlan({
+        productKey: testProduct.key,
+        key: 'transition-plan',
+        displayName: 'Transition Plan'
+      });
+
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: transitionPlan.key,
+        key: 'transition-cycle',
+        displayName: 'Transition Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Update plan to reference this billing cycle in transition
+      await subscrio.plans.updatePlan(transitionPlan.key, {
+        onExpireTransitionToBillingCycleKey: cycle.key
+      });
+
+      await subscrio.billingCycles.archiveBillingCycle(cycle.key);
+
+      await expect(
+        subscrio.billingCycles.deleteBillingCycle(cycle.key)
+      ).rejects.toThrow('referenced by plan transition settings');
     });
   });
 });

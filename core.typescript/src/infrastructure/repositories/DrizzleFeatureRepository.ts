@@ -2,7 +2,7 @@ import { IFeatureRepository } from '../../application/repositories/IFeatureRepos
 import { Feature } from '../../domain/entities/Feature.js';
 import { FeatureMapper } from '../../application/mappers/FeatureMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
-import { features, product_features } from '../database/schema.js';
+import { features, product_features, plan_features, subscription_feature_overrides } from '../database/schema.js';
 import { eq, and, like, or, desc, asc, inArray } from 'drizzle-orm';
 import { FeatureFilterDto } from '../../application/dtos/FeatureDto.js';
 
@@ -144,6 +144,36 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
       .where(eq(features.id, id))
       .limit(1);
     
+    return !!record;
+  }
+
+  async hasProductAssociations(featureId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: product_features.id })
+      .from(product_features)
+      .where(eq(product_features.feature_id, featureId))
+      .limit(1);
+
+    return !!record;
+  }
+
+  async hasPlanFeatureValues(featureId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: plan_features.id })
+      .from(plan_features)
+      .where(eq(plan_features.feature_id, featureId))
+      .limit(1);
+
+    return !!record;
+  }
+
+  async hasSubscriptionOverrides(featureId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: subscription_feature_overrides.id })
+      .from(subscription_feature_overrides)
+      .where(eq(subscription_feature_overrides.feature_id, featureId))
+      .limit(1);
+
     return !!record;
   }
 }

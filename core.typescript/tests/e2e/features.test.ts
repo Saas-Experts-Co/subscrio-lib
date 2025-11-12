@@ -271,6 +271,61 @@ describe('Features E2E Tests', () => {
         subscrio.features.deleteFeature(feature.key)
       ).rejects.toThrow('archived');
     });
+
+    test('prevents deletion of feature with product associations', async () => {
+      const product = await subscrio.products.createProduct({
+        key: 'feature-test-product',
+        displayName: 'Feature Test Product'
+      });
+
+      const feature = await subscrio.features.createFeature({
+        key: 'feature-with-product',
+        displayName: 'Feature With Product',
+        valueType: 'toggle',
+        defaultValue: 'false'
+      });
+
+      await subscrio.products.associateFeature(product.key, feature.key);
+      await subscrio.features.archiveFeature(feature.key);
+
+      await expect(
+        subscrio.features.deleteFeature(feature.key)
+      ).rejects.toThrow('associated with products');
+    });
+
+    test('prevents deletion of feature with plan feature values', async () => {
+      const product = await subscrio.products.createProduct({
+        key: 'plan-feature-test-product',
+        displayName: 'Plan Feature Test Product'
+      });
+
+      const feature = await subscrio.features.createFeature({
+        key: 'feature-with-plan-values',
+        displayName: 'Feature With Plan Values',
+        valueType: 'toggle',
+        defaultValue: 'false'
+      });
+
+      // Dissociate from product first so we can test plan feature values check
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: 'plan-with-feature',
+        displayName: 'Plan With Feature'
+      });
+
+      // Associate feature to product, then set plan feature value
+      await subscrio.products.associateFeature(product.key, feature.key);
+      await subscrio.plans.setFeatureValue(plan.key, feature.key, 'true');
+      
+      // Dissociate from product to test plan feature values check
+      await subscrio.products.dissociateFeature(product.key, feature.key);
+      
+      await subscrio.features.archiveFeature(feature.key);
+
+      await expect(
+        subscrio.features.deleteFeature(feature.key)
+      ).rejects.toThrow('used in plan feature values');
+    });
   });
 
   describe('List & Filter Tests', () => {

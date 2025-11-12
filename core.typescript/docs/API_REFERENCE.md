@@ -62,7 +62,7 @@ const subscrio = new Subscrio({
   key: string;
   displayName: string;
   description?: string;
-  status: string;                 // 'active' | 'inactive' | 'archived'
+  status: string;                 // 'active' | 'archived'
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601
   updatedAt: string;              // ISO 8601
@@ -124,7 +124,7 @@ const subscrio = new Subscrio({
   key: string;
   displayName: string;
   description?: string;
-  status: string;                 // 'active' | 'inactive' | 'archived'
+  status: string;                 // 'active' | 'archived'
   onExpireTransitionToPlanKey?: string; // Plan key
   metadata?: Record<string, unknown>;
   createdAt: string;              // ISO 8601

@@ -84,7 +84,8 @@ export class Subscrio {
     this.plans = new PlanManagementService(
       this.planRepo,
       this.productRepo,
-      this.featureRepo
+      this.featureRepo,
+      this.subscriptionRepo
     );
     this.customers = new CustomerManagementService(this.customerRepo);
     this.apiKeys = new APIKeyManagementService(this.apiKeyRepo);
@@ -96,7 +97,11 @@ export class Subscrio {
       this.featureRepo,
       this.productRepo
     );
-    this.billingCycles = new BillingCycleManagementService(this.billingCycleRepo, this.planRepo);
+    this.billingCycles = new BillingCycleManagementService(
+      this.billingCycleRepo,
+      this.planRepo,
+      this.subscriptionRepo
+    );
     this.featureChecker = new FeatureCheckerService(
       this.subscriptionRepo,
       this.planRepo,

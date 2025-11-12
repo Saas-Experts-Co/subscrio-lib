@@ -1,6 +1,7 @@
 import { IPlanRepository } from '../repositories/IPlanRepository.js';
 import { IProductRepository } from '../repositories/IProductRepository.js';
 import { IFeatureRepository } from '../repositories/IFeatureRepository.js';
+import { ISubscriptionRepository } from '../repositories/ISubscriptionRepository.js';
 import { 
   CreatePlanDto, 
   CreatePlanDtoSchema, 
@@ -27,7 +28,8 @@ export class PlanManagementService {
   constructor(
     private readonly planRepository: IPlanRepository,
     private readonly productRepository: IProductRepository,
-    private readonly featureRepository: IFeatureRepository
+    private readonly featureRepository: IFeatureRepository,
+    private readonly subscriptionRepository: ISubscriptionRepository
   ) {}
 
   private async resolvePlanKeys(plan: Plan): Promise<{
@@ -213,6 +215,22 @@ export class PlanManagementService {
       throw new DomainError(
         `Cannot delete plan with status '${plan.status}'. ` +
         'Plan must be archived before deletion.'
+      );
+    }
+
+    // Check for subscriptions before deletion (more critical than billing cycles)
+    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForPlan(plan.id);
+    if (hasSubscriptions) {
+      throw new DomainError(
+        `Cannot delete plan '${plan.key}'. Plan has active subscriptions. Please cancel or expire all subscriptions first.`
+      );
+    }
+
+    // Check for billing cycles before deletion
+    const hasBillingCycles = await this.planRepository.hasBillingCycles(plan.id);
+    if (hasBillingCycles) {
+      throw new DomainError(
+        `Cannot delete plan '${plan.key}'. Plan has associated billing cycles. Please delete or archive all billing cycles first.`
       );
     }
 

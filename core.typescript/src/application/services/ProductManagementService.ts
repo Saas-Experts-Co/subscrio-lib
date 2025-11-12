@@ -121,6 +121,14 @@ export class ProductManagementService {
       );
     }
 
+    // Check for plans before deletion
+    const hasPlans = await this.productRepository.hasPlans(product.key);
+    if (hasPlans) {
+      throw new DomainError(
+        `Cannot delete product '${product.key}'. Product has associated plans. Please delete or archive all plans first.`
+      );
+    }
+
     await this.productRepository.delete(product.id);
   }
 

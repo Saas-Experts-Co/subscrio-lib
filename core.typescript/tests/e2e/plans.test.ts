@@ -292,6 +292,92 @@ describe('Plans E2E Tests', () => {
       const retrieved = await subscrio.plans.getPlan(plan.key);
       expect(retrieved).toBeNull();
     });
+
+    test('prevents deletion of plan with billing cycles', async () => {
+      const product = await subscrio.products.createProduct({
+        key: 'plan-with-cycles-product',
+        displayName: 'Plan With Cycles Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: 'plan-with-cycles',
+        displayName: 'Plan With Cycles'
+      });
+
+      await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: 'cycle-for-plan',
+        displayName: 'Cycle For Plan',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      await subscrio.plans.archivePlan(plan.key);
+
+      await expect(
+        subscrio.plans.deletePlan(plan.key)
+      ).rejects.toThrow('has associated billing cycles');
+    });
+
+    test('prevents deletion of plan with subscriptions', async () => {
+      const product = await subscrio.products.createProduct({
+        key: 'plan-with-subs-product',
+        displayName: 'Plan With Subs Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: 'plan-with-subs',
+        displayName: 'Plan With Subs'
+      });
+
+      const billingCycle1 = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: 'cycle-1-for-subs',
+        displayName: 'Cycle 1 For Subs',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const billingCycle2 = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: 'cycle-2-for-subs',
+        displayName: 'Cycle 2 For Subs',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const customer = await subscrio.customers.createCustomer({
+        key: 'customer-for-plan',
+        displayName: 'Customer For Plan'
+      });
+
+      // Create subscription using cycle 1
+      await subscrio.subscriptions.createSubscription({
+        customerKey: customer.key,
+        planKey: plan.key,
+        billingCycleKey: billingCycle1.key,
+        key: 'sub-for-plan'
+      });
+
+      // Archive and delete cycle 1 (this will fail because it has subscriptions)
+      await subscrio.billingCycles.archiveBillingCycle(billingCycle1.key);
+      await expect(
+        subscrio.billingCycles.deleteBillingCycle(billingCycle1.key)
+      ).rejects.toThrow('has active subscriptions');
+
+      // Archive and delete cycle 2 (should work - no subscriptions)
+      await subscrio.billingCycles.archiveBillingCycle(billingCycle2.key);
+      await subscrio.billingCycles.deleteBillingCycle(billingCycle2.key);
+
+      await subscrio.plans.archivePlan(plan.key);
+
+      // Now try to delete plan - should fail because it has subscriptions (even though cycle 1 is archived)
+      await expect(
+        subscrio.plans.deletePlan(plan.key)
+      ).rejects.toThrow('has active subscriptions');
+    });
   });
 
   describe('List & Filter Tests', () => {
@@ -346,24 +432,6 @@ describe('Plans E2E Tests', () => {
 
       const activePlans = await subscrio.plans.listPlans({ status: 'active' });
       expect(activePlans.every(p => p.status === 'active')).toBe(true);
-    });
-
-    test('filters plans by status (archived)', async () => {
-      const product = await subscrio.products.createProduct({
-        key: 'filter-inactive-product',
-        displayName: 'Filter Inactive Product'
-      });
-
-      const plan = await subscrio.plans.createPlan({
-        productKey: product.key,
-        key: 'filter-inactive-plan',
-        displayName: 'Filter Inactive Plan'
-      });
-
-      await subscrio.plans.archivePlan(plan.key);
-
-      const archivedPlans = await subscrio.plans.listPlans({ status: 'archived' });
-      expect(archivedPlans.some(p => p.key === plan.key)).toBe(true);
     });
 
     test('filters plans by status (archived)', async () => {

@@ -206,4 +206,24 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     
     return !!record;
   }
+
+  async hasSubscriptionsForPlan(planId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.plan_id, planId))
+      .limit(1);
+
+    return !!record;
+  }
+
+  async hasSubscriptionsForBillingCycle(billingCycleId: string): Promise<boolean> {
+    const [record] = await this.db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.billing_cycle_id, billingCycleId))
+      .limit(1);
+
+    return !!record;
+  }
 }
