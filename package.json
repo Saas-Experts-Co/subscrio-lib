@@ -1,14 +1,14 @@
 {
-  "name": "subscrio-lib",
+  "name": "subscrio",
   "private": true,
   "description": "Multi-language subscription management library",
   "repository": {
     "type": "git",
-    "url": "https://github.com/subscrio/subscrio-lib.git"
+    "url": "https://github.com/Saas-Experts-Co/subscrio.git"
   },
-  "homepage": "https://github.com/subscrio/subscrio-lib#readme",
+  "homepage": "https://github.com/Saas-Experts-Co/subscrio#readme",
   "bugs": {
-    "url": "https://github.com/subscrio/subscrio-lib/issues"
+    "url": "https://github.com/Saas-Experts-Co/subscrio/issues"
   },
   "keywords": [
     "subscription",

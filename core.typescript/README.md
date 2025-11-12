@@ -171,10 +171,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please see our [Contributing Guide](https://github.com/subscrio/subscrio-lib/blob/main/CONTRIBUTING.md) for details.
+Contributions are welcome! Please see our [Contributing Guide](https://github.com/Saas-Experts-Co/subscrio/blob/main/CONTRIBUTING.md) for details.
 
 ## Support
 
-- 📖 [Documentation](https://github.com/subscrio/subscrio-lib#readme)
-- 🐛 [Report Issues](https://github.com/subscrio/subscrio-lib/issues)
-- 💬 [Discussions](https://github.com/subscrio/subscrio-lib/discussions)
+- 📖 [Documentation](https://github.com/Saas-Experts-Co/subscrio#readme)
+- 🐛 [Report Issues](https://github.com/Saas-Experts-Co/subscrio/issues)
+- 💬 [Discussions](https://github.com/Saas-Experts-Co/subscrio/discussions)
