@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.9] - 2025-11-13
+
+### Changed
+
+* Standardized entities and repositories to use numeric IDs internally for more consistent type handling.
+* Refactored repository ID handling and removed redundant checks to simplify the code and reduce edge-case failures.
+* Updated API documentation to reference public keys instead of internal IDs where appropriate, clarifying how clients should interact with the API.
+* Updated `package.json` metadata and scripts in preparation for the 0.1.9 release.
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
