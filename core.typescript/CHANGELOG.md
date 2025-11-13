@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-11-13
+
+### Added
+- Archived state for customers and subscriptions with filtering and deletion enforcement
+- Status enums and database column for billing cycles
+- Shared utilities for feature validation, time handling, and constants
+- Base repository and service abstractions with environment config helpers
+- Audit report document with findings and remediation plan
+- Expanded README, API reference, and demo scripts
+- MIT license, `.npmignore`, and npm metadata updates
+
+### Changed
+- Renamed package from `@subscrio/core` to `@saas-experts/subscrio`
+- Removed `inactive` status; use `archived` instead
+- Prevent deletion of entities with associations or active subscriptions
+- Made keys and foreign-key identifiers immutable in update DTOs
+- Switched to `npm` and improved CLI output
+- Optimized feature checks and plan lookups with caching
+
+### Deprecated
+- None.
+
+### Removed
+- Legacy code paths and deprecated assets from published package
+- Manual SQL sanitization helpers; using Drizzle's parameterized queries
+- `inactive` status value from DTOs and docs
+
+### Fixed
+- Hardened deletion and association rules to prevent orphaned states
+- Improved test coverage for subscriptions, features, and SQL injection
+
+### Security
+- Strengthened SQL injection defenses with parameterized queries
+
 ## [0.1.0] - 2024-12-19
 
 ### Added
