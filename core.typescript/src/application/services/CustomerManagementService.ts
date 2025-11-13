@@ -11,7 +11,6 @@ import {
 import { CustomerMapper } from '../mappers/CustomerMapper.js';
 import { Customer } from '../../domain/entities/Customer.js';
 import { CustomerStatus } from '../../domain/value-objects/CustomerStatus.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
@@ -48,7 +47,7 @@ export class CustomerManagementService {
       }
     }
 
-    const id = generateId();
+    // Create domain entity (no ID - database will generate)
     const customer = new Customer({
       key: validatedDto.key,
       displayName: validatedDto.displayName,
@@ -58,10 +57,11 @@ export class CustomerManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    await this.customerRepository.save(customer);
-    return CustomerMapper.toDto(customer);
+    // Save and get entity with generated ID
+    const savedCustomer = await this.customerRepository.save(customer);
+    return CustomerMapper.toDto(savedCustomer);
   }
 
   async updateCustomer(key: string, dto: UpdateCustomerDto): Promise<CustomerDto> {
@@ -103,8 +103,8 @@ export class CustomerManagementService {
     }
 
     customer.props.updatedAt = now();
-    await this.customerRepository.save(customer);
-    return CustomerMapper.toDto(customer);
+    const savedCustomer = await this.customerRepository.save(customer);
+    return CustomerMapper.toDto(savedCustomer);
   }
 
   async getCustomer(key: string): Promise<CustomerDto | null> {
@@ -158,6 +158,9 @@ export class CustomerManagementService {
       );
     }
 
+    if (customer.id === undefined) {
+      throw new Error('Customer ID is undefined');
+    }
     await this.customerRepository.delete(customer.id);
   }
 }

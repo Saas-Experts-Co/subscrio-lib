@@ -11,7 +11,7 @@ import { APIKeyMapper } from '../mappers/APIKeyMapper.js';
 import { APIKey } from '../../domain/entities/APIKey.js';
 import { APIKeyStatus } from '../../domain/value-objects/APIKeyStatus.js';
 import { APIKeyScope } from '../../domain/value-objects/APIKeyScope.js';
-import { generateId, generateKey } from '../../infrastructure/utils/uuid.js';
+import { generateKey } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import crypto from 'crypto';
 import { 
@@ -46,8 +46,8 @@ export class APIKeyManagementService {
       return this.createAPIKey(dto);
     }
 
-    const id = generateId();
     const key = generateKey('ak');  // Generate external reference key
+    // Create domain entity (no ID - database will generate)
     const apiKey = new APIKey({
       key,
       keyHash,
@@ -62,13 +62,14 @@ export class APIKeyManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    await this.apiKeyRepository.save(apiKey);
+    // Save and get entity with generated ID
+    const savedAPIKey = await this.apiKeyRepository.save(apiKey);
 
     // Return with plaintext key (only time it's available)
     return {
-      ...APIKeyMapper.toDto(apiKey),
+      ...APIKeyMapper.toDto(savedAPIKey),
       plaintextKey
     };
   }
@@ -144,6 +145,9 @@ export class APIKeyManagementService {
       );
     }
 
+    if (apiKey.id === undefined) {
+      throw new Error('API key ID is undefined');
+    }
     await this.apiKeyRepository.delete(apiKey.id);
   }
 

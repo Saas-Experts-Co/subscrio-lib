@@ -4,7 +4,7 @@ import { BillingCycleStatus } from '../value-objects/BillingCycleStatus.js';
 import { now } from '../../infrastructure/utils/date.js';
 
 export interface BillingCycleProps {
-  planId: string;
+  planId: number;
   key: string;
   displayName: string;
   description?: string;
@@ -17,7 +17,7 @@ export interface BillingCycleProps {
 }
 
 export class BillingCycle extends Entity<BillingCycleProps> {
-  get planId(): string {
+  get planId(): number {
     return this.props.planId;
   }
 

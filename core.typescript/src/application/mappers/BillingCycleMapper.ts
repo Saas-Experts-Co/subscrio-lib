@@ -23,7 +23,7 @@ export class BillingCycleMapper {
   static toDomain(raw: any): BillingCycle {
     return new BillingCycle(
       {
-        planId: raw.plan_id,
+        planId: raw.plan_id as number,
         key: raw.key,
         displayName: raw.display_name,
         description: raw.description,
@@ -34,13 +34,12 @@ export class BillingCycleMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
   }
 
   static toPersistence(billingCycle: BillingCycle): any {
-    return {
-      id: billingCycle.id,
+    const record: any = {
       plan_id: billingCycle.planId,
       key: billingCycle.key,
       display_name: billingCycle.displayName,
@@ -52,6 +51,13 @@ export class BillingCycleMapper {
       created_at: billingCycle.props.createdAt,
       updated_at: billingCycle.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (billingCycle.id !== undefined) {
+      record.id = billingCycle.id;
+    }
+    
+    return record;
   }
 }
 

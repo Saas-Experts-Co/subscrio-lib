@@ -13,7 +13,6 @@ import {
 } from '../dtos/ProductDto.js';
 import { ProductMapper } from '../mappers/ProductMapper.js';
 import { ValidationError, NotFoundError, ConflictError, DomainError } from '../errors/index.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 
 export class ProductManagementService {
@@ -41,8 +40,7 @@ export class ProductManagementService {
       );
     }
 
-    // Create domain entity
-    const id = generateId();
+    // Create domain entity (no ID - database will generate)
     const product = new Product({
       key: validatedDto.key,
       displayName: validatedDto.displayName,
@@ -51,12 +49,12 @@ export class ProductManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    // Save
-    await this.productRepository.save(product);
+    // Save and get entity with generated ID
+    const savedProduct = await this.productRepository.save(product);
 
-    return ProductMapper.toDto(product);
+    return ProductMapper.toDto(savedProduct);
   }
 
   async updateProduct(key: string, dto: UpdateProductDto): Promise<ProductDto> {
@@ -89,9 +87,9 @@ export class ProductManagementService {
     product.props.updatedAt = now();
 
     // Save
-    await this.productRepository.save(product);
+    const savedProduct = await this.productRepository.save(product);
 
-    return ProductMapper.toDto(product);
+    return ProductMapper.toDto(savedProduct);
   }
 
   async getProduct(key: string): Promise<ProductDto | null> {
@@ -129,6 +127,9 @@ export class ProductManagementService {
       );
     }
 
+    if (product.id === undefined) {
+      throw new Error('Product ID is undefined');
+    }
     await this.productRepository.delete(product.id);
   }
 
@@ -139,9 +140,9 @@ export class ProductManagementService {
     }
 
     product.archive();
-    await this.productRepository.save(product);
+    const savedProduct = await this.productRepository.save(product);
 
-    return ProductMapper.toDto(product);
+    return ProductMapper.toDto(savedProduct);
   }
 
   async unarchiveProduct(key: string): Promise<ProductDto> {
@@ -151,9 +152,9 @@ export class ProductManagementService {
     }
 
     product.unarchive();
-    await this.productRepository.save(product);
+    const savedProduct = await this.productRepository.save(product);
 
-    return ProductMapper.toDto(product);
+    return ProductMapper.toDto(savedProduct);
   }
 
   async associateFeature(productKey: string, featureKey: string): Promise<void> {

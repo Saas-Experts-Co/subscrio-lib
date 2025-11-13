@@ -5,7 +5,7 @@ import { DomainError } from '../../application/errors/index.js';
 import { now } from '../../infrastructure/utils/date.js';
 
 export interface FeatureOverride {
-  featureId: string;
+  featureId: number;
   value: string;
   type: OverrideType;
   createdAt: Date;
@@ -13,9 +13,9 @@ export interface FeatureOverride {
 
 export interface SubscriptionProps {
   key: string;  // External reference key for this subscription
-  customerId: string;
-  planId: string;
-  billingCycleId: string;
+  customerId: number;
+  planId: number;
+  billingCycleId: number;
   status: SubscriptionStatus; // Stored status (should match computed status)
   isArchived: boolean; // Archive flag - blocks updates but doesn't affect status calculation
   activationDate?: Date;
@@ -36,11 +36,11 @@ export class Subscription extends Entity<SubscriptionProps> {
     return this.props.key;
   }
 
-  get customerId(): string {
+  get customerId(): number {
     return this.props.customerId;
   }
 
-  get planId(): string {
+  get planId(): number {
     return this.props.planId;
   }
 
@@ -138,7 +138,7 @@ export class Subscription extends Entity<SubscriptionProps> {
     this.props.updatedAt = now();
   }
 
-  addFeatureOverride(featureId: string, value: string, type: OverrideType): void {
+  addFeatureOverride(featureId: number, value: string, type: OverrideType): void {
     // Remove existing override if present
     this.removeFeatureOverride(featureId);
     
@@ -151,14 +151,14 @@ export class Subscription extends Entity<SubscriptionProps> {
     this.props.updatedAt = now();
   }
 
-  removeFeatureOverride(featureId: string): void {
+  removeFeatureOverride(featureId: number): void {
     this.props.featureOverrides = this.props.featureOverrides.filter(
       o => o.featureId !== featureId
     );
     this.props.updatedAt = now();
   }
 
-  getFeatureOverride(featureId: string): FeatureOverride | null {
+  getFeatureOverride(featureId: number): FeatureOverride | null {
     return this.props.featureOverrides.find(o => o.featureId === featureId) || null;
   }
 

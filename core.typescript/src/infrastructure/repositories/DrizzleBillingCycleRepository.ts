@@ -10,18 +10,40 @@ import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
 export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(billingCycle: BillingCycle): Promise<void> {
+  async save(billingCycle: BillingCycle): Promise<BillingCycle> {
     const record = BillingCycleMapper.toPersistence(billingCycle);
-    await this.db
-      .insert(billing_cycles)
-      .values(record)
-      .onConflictDoUpdate({
-        target: billing_cycles.id,
-        set: record
-      });
+    
+    if (billingCycle.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(billing_cycles)
+        .values(record)
+        .returning({ id: billing_cycles.id });
+      
+      // Update entity with generated ID
+      return new BillingCycle(billingCycle.props, inserted.id);
+    } else {
+      // Update existing entity
+      await this.db
+        .update(billing_cycles)
+        .set({
+          plan_id: record.plan_id,
+          key: record.key,
+          display_name: record.display_name,
+          description: record.description,
+          status: record.status,
+          duration_value: record.duration_value,
+          duration_unit: record.duration_unit,
+          external_product_id: record.external_product_id,
+          updated_at: record.updated_at
+        })
+        .where(eq(billing_cycles.id, billingCycle.id));
+      
+      return billingCycle;
+    }
   }
 
-  async findById(id: string): Promise<BillingCycle | null> {
+  async findById(id: number): Promise<BillingCycle | null> {
     const [record] = await this.db
       .select()
       .from(billing_cycles)
@@ -41,7 +63,7 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
     return record ? BillingCycleMapper.toDomain(record) : null;
   }
 
-  async findByPlan(planId: string): Promise<BillingCycle[]> {
+  async findByPlan(planId: number): Promise<BillingCycle[]> {
     const records = await this.db
       .select()
       .from(billing_cycles)
@@ -119,11 +141,11 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
     return records.map(BillingCycleMapper.toDomain);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(billing_cycles).where(eq(billing_cycles.id, id));
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: billing_cycles.id })
       .from(billing_cycles)

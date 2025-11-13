@@ -5,31 +5,42 @@ import { IProductRepository } from '../../application/repositories/IProductRepos
 import { Product } from '../../domain/entities/Product.js';
 import { ProductMapper } from '../../application/mappers/ProductMapper.js';
 import { ProductFilterDto } from '../../application/dtos/ProductDto.js';
-import { generateId } from '../utils/uuid.js';
 import { now } from '../utils/date.js';
 
 export class DrizzleProductRepository implements IProductRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(product: Product): Promise<void> {
+  async save(product: Product): Promise<Product> {
     const record = ProductMapper.toPersistence(product);
-    await this.db
-      .insert(products)
-      .values(record)
-      .onConflictDoUpdate({
-        target: products.id,
-        set: {
+    
+    if (product.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(products)
+        .values(record)
+        .returning({ id: products.id });
+      
+      // Update entity with generated ID
+      return new Product(product.props, inserted.id);
+    } else {
+      // Update existing entity
+      await this.db
+        .update(products)
+        .set({
           key: record.key,
           display_name: record.display_name,
           description: record.description,
           status: record.status,
           metadata: record.metadata,
           updated_at: record.updated_at
-        }
-      });
+        })
+        .where(eq(products.id, product.id));
+      
+      return product;
+    }
   }
 
-  async findById(id: string): Promise<Product | null> {
+  async findById(id: number): Promise<Product | null> {
     const [record] = await this.db
       .select()
       .from(products)
@@ -78,11 +89,11 @@ export class DrizzleProductRepository implements IProductRepository {
     return records.map(ProductMapper.toDomain);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(products).where(eq(products.id, id));
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: products.id })
       .from(products)
@@ -92,11 +103,10 @@ export class DrizzleProductRepository implements IProductRepository {
     return !!record;
   }
 
-  async associateFeature(productId: string, featureId: string): Promise<void> {
+  async associateFeature(productId: number, featureId: number): Promise<void> {
     await this.db
       .insert(product_features)
       .values({
-        id: generateId(),
         product_id: productId,
         feature_id: featureId,
         created_at: now()
@@ -104,7 +114,7 @@ export class DrizzleProductRepository implements IProductRepository {
       .onConflictDoNothing();
   }
 
-  async dissociateFeature(productId: string, featureId: string): Promise<void> {
+  async dissociateFeature(productId: number, featureId: number): Promise<void> {
     await this.db
       .delete(product_features)
       .where(
@@ -115,7 +125,7 @@ export class DrizzleProductRepository implements IProductRepository {
       );
   }
 
-  async getFeaturesByProduct(productId: string): Promise<string[]> {
+  async getFeaturesByProduct(productId: number): Promise<number[]> {
     const records = await this.db
       .select({ feature_id: product_features.feature_id })
       .from(product_features)
@@ -125,10 +135,19 @@ export class DrizzleProductRepository implements IProductRepository {
   }
 
   async hasPlans(productKey: string): Promise<boolean> {
+    // Join with products table to resolve key to ID
+    const [product] = await this.db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.key, productKey))
+      .limit(1);
+    
+    if (!product) return false;
+
     const [record] = await this.db
       .select({ id: plans.id })
       .from(plans)
-      .where(eq(plans.product_key, productKey))
+      .where(eq(plans.product_id, product.id))
       .limit(1);
 
     return !!record;

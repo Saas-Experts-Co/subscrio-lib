@@ -26,13 +26,12 @@ export class ProductMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
   }
 
   static toPersistence(product: Product): any {
-    return {
-      id: product.id,
+    const record: any = {
       key: product.key,
       display_name: product.displayName,
       description: product.props.description,
@@ -41,6 +40,13 @@ export class ProductMapper {
       created_at: product.props.createdAt,
       updated_at: product.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (product.id !== undefined) {
+      record.id = product.id;
+    }
+    
+    return record;
   }
 }
 

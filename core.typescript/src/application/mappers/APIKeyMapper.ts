@@ -38,13 +38,12 @@ export class APIKeyMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
   }
 
   static toPersistence(apiKey: APIKey): any {
-    return {
-      id: apiKey.id,
+    const record: any = {
       key: apiKey.key,
       key_hash: apiKey.keyHash,
       display_name: apiKey.props.displayName,
@@ -59,6 +58,13 @@ export class APIKeyMapper {
       created_at: apiKey.props.createdAt,
       updated_at: apiKey.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (apiKey.id !== undefined) {
+      record.id = apiKey.id;
+    }
+    
+    return record;
   }
 }
 

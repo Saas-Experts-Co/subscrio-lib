@@ -2,12 +2,12 @@ import { BillingCycle } from '../../domain/entities/BillingCycle.js';
 import { BillingCycleFilterDto } from '../dtos/BillingCycleDto.js';
 
 export interface IBillingCycleRepository {
-  save(billingCycle: BillingCycle): Promise<void>;
-  findById(id: string): Promise<BillingCycle | null>;
+  save(billingCycle: BillingCycle): Promise<BillingCycle>;
+  findById(id: number): Promise<BillingCycle | null>;
   findByKey(key: string): Promise<BillingCycle | null>;
-  findByPlan(planId: string): Promise<BillingCycle[]>;
+  findByPlan(planId: number): Promise<BillingCycle[]>;
   findAll(filters?: BillingCycleFilterDto): Promise<BillingCycle[]>;
-  delete(id: string): Promise<void>;
-  exists(id: string): Promise<boolean>;
+  delete(id: number): Promise<void>;
+  exists(id: number): Promise<boolean>;
 }
 

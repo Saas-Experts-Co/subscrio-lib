@@ -3,7 +3,7 @@ import { ICustomerRepository } from '../repositories/ICustomerRepository.js';
 import { IPlanRepository } from '../repositories/IPlanRepository.js';
 import { IBillingCycleRepository } from '../repositories/IBillingCycleRepository.js';
 import { Subscription } from '../../domain/entities/Subscription.js';
-import { generateId, generateKey } from '../../infrastructure/utils/uuid.js';
+import { generateKey } from '../../infrastructure/utils/uuid.js';
 import Stripe from 'stripe';
 import { NotFoundError, ValidationError } from '../errors/index.js';
 import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
@@ -243,8 +243,13 @@ export class StripeIntegrationService {
       throw new NotFoundError(`Billing cycle with key '${billingCycleKey}' not found`);
     }
 
+    if (customer.id === undefined || plan.id === undefined || billingCycle.id === undefined) {
+      throw new Error('Customer, plan, or billing cycle ID is undefined');
+    }
+
     // This would integrate with Stripe SDK to create the subscription
     // For now, creating a placeholder subscription
+    // Create domain entity (no ID - database will generate)
     const subscription = new Subscription({
       key: generateKey('sub'),  // Auto-generate key for Stripe subscriptions
       customerId: customer.id,
@@ -255,16 +260,17 @@ export class StripeIntegrationService {
       activationDate: now(),
       currentPeriodStart: now(),
       currentPeriodEnd: billingCycle.calculateNextPeriodEnd(now()) ?? undefined,
-      stripeSubscriptionId: `sub_placeholder_${generateId()}`,
+      stripeSubscriptionId: `sub_placeholder_${Date.now()}`,
       featureOverrides: [],
       createdAt: now(),
       updatedAt: now()
-    }, generateId());
+    });
 
     // Sync status after creation to ensure stored status matches computed status
     subscription.syncStatus();
 
-    await this.subscriptionRepository.save(subscription);
-    return subscription;
+    // Save and get entity with generated ID
+    const savedSubscription = await this.subscriptionRepository.save(subscription);
+    return savedSubscription;
   }
 }

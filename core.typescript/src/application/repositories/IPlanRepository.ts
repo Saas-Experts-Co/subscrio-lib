@@ -2,18 +2,18 @@ import { Plan } from '../../domain/entities/Plan.js';
 import { PlanFilterDto } from '../dtos/PlanDto.js';
 
 export interface IPlanRepository {
-  save(plan: Plan): Promise<void>;
-  findById(id: string): Promise<Plan | null>;
+  save(plan: Plan): Promise<Plan>;
+  findById(id: number): Promise<Plan | null>;
   findByKey(key: string): Promise<Plan | null>;
-  findByProduct(productKey: string): Promise<Plan[]>; // Uses productKey directly from database
-  findByBillingCycleId(billingCycleId: string): Promise<Plan | null>;
+  findByProduct(productKey: string): Promise<Plan[]>; // Uses productKey - joins to resolve
+  findByBillingCycleId(billingCycleId: number): Promise<Plan | null>;
   findAll(filters?: PlanFilterDto): Promise<Plan[]>;
-  findByIds(ids: string[]): Promise<Plan[]>;
-  delete(id: string): Promise<void>;
-  exists(id: string): Promise<boolean>;
+  findByIds(ids: number[]): Promise<Plan[]>;
+  delete(id: number): Promise<void>;
+  exists(id: number): Promise<boolean>;
   
   // Foreign key checks
-  hasBillingCycles(planId: string): Promise<boolean>;
+  hasBillingCycles(planId: number): Promise<boolean>;
   hasPlanTransitionReferences(billingCycleKey: string): Promise<boolean>;
 }
 

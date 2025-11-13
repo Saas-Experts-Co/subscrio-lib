@@ -34,9 +34,9 @@ export class SubscriptionMapper {
     const subscription = new Subscription(
       {
         key: raw.key,
-        customerId: raw.customer_id,
-        planId: raw.plan_id,
-        billingCycleId: raw.billing_cycle_id,
+        customerId: raw.customer_id as number,
+        planId: raw.plan_id as number,
+        billingCycleId: raw.billing_cycle_id as number,
         status: raw.status as SubscriptionStatus || SubscriptionStatus.Active,
         isArchived: raw.is_archived === true,
         activationDate: raw.activation_date ? new Date(raw.activation_date) : undefined,
@@ -51,7 +51,7 @@ export class SubscriptionMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
     // Sync stored status with computed status
     subscription.syncStatus();
@@ -62,8 +62,7 @@ export class SubscriptionMapper {
     // Sync status before saving to ensure database status matches computed status
     subscription.syncStatus();
     
-    return {
-      id: subscription.id,
+    const record: any = {
       key: subscription.key,
       customer_id: subscription.customerId,
       plan_id: subscription.planId,
@@ -81,6 +80,13 @@ export class SubscriptionMapper {
       created_at: subscription.props.createdAt,
       updated_at: subscription.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (subscription.id !== undefined) {
+      record.id = subscription.id;
+    }
+    
+    return record;
   }
 }
 

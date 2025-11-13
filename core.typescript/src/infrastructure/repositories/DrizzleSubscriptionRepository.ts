@@ -6,54 +6,98 @@ import { subscriptions, subscription_feature_overrides } from '../database/schem
 import { eq, and, desc, asc, inArray, gte, lte, isNotNull, isNull } from 'drizzle-orm';
 import { SubscriptionFilterDto } from '../../application/dtos/SubscriptionDto.js';
 import { OverrideType } from '../../domain/value-objects/OverrideType.js';
-import { generateId } from '../utils/uuid.js';
 
 export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(subscription: Subscription): Promise<void> {
+  async save(subscription: Subscription): Promise<Subscription> {
     const record = SubscriptionMapper.toPersistence(subscription);
-    await this.db
-      .insert(subscriptions)
-      .values(record)
-      .onConflictDoUpdate({
-        target: subscriptions.id,
-        set: record
-      });
+    
+    let savedSubscriptionId: number;
+    if (subscription.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(subscriptions)
+        .values(record)
+        .returning({ id: subscriptions.id });
+      
+      savedSubscriptionId = inserted.id;
+      
+      // Insert feature overrides
+      if (subscription.props.featureOverrides.length > 0) {
+        const overrideRecords = subscription.props.featureOverrides.map(override => ({
+          subscription_id: savedSubscriptionId,
+          feature_id: override.featureId,
+          value: override.value,
+          override_type: override.type,
+          created_at: override.createdAt
+        }));
 
-    // Delete existing feature overrides
-    await this.db.delete(subscription_feature_overrides).where(eq(subscription_feature_overrides.subscription_id, subscription.id));
+        await this.db.insert(subscription_feature_overrides).values(overrideRecords);
+      }
+      
+      // Return entity with generated ID
+      return new Subscription(subscription.props, savedSubscriptionId);
+    } else {
+      // Update existing entity
+      savedSubscriptionId = subscription.id;
+      
+      await this.db
+        .update(subscriptions)
+        .set({
+          key: record.key,
+          customer_id: record.customer_id,
+          plan_id: record.plan_id,
+          billing_cycle_id: record.billing_cycle_id,
+          status: record.status,
+          is_archived: record.is_archived,
+          activation_date: record.activation_date,
+          expiration_date: record.expiration_date,
+          cancellation_date: record.cancellation_date,
+          trial_end_date: record.trial_end_date,
+          current_period_start: record.current_period_start,
+          current_period_end: record.current_period_end,
+          stripe_subscription_id: record.stripe_subscription_id,
+          metadata: record.metadata,
+          updated_at: record.updated_at
+        })
+        .where(eq(subscriptions.id, subscription.id));
 
-    // Insert new feature overrides
-    if (subscription.props.featureOverrides.length > 0) {
-      const overrideRecords = subscription.props.featureOverrides.map(override => ({
-        id: generateId(),
-        subscription_id: subscription.id,
-        feature_id: override.featureId,
-        value: override.value,
-        override_type: override.type,
-        created_at: override.createdAt
-      }));
+      // Delete existing feature overrides
+      await this.db.delete(subscription_feature_overrides).where(eq(subscription_feature_overrides.subscription_id, subscription.id));
 
-      await this.db.insert(subscription_feature_overrides).values(overrideRecords);
+      // Insert new feature overrides
+      if (subscription.props.featureOverrides.length > 0) {
+        const overrideRecords = subscription.props.featureOverrides.map(override => ({
+          subscription_id: subscription.id,
+          feature_id: override.featureId,
+          value: override.value,
+          override_type: override.type,
+          created_at: override.createdAt
+        }));
+
+        await this.db.insert(subscription_feature_overrides).values(overrideRecords);
+      }
+      
+      return subscription;
     }
   }
 
-  private async loadFeatureOverrides(subscriptionId: string): Promise<FeatureOverride[]> {
+  private async loadFeatureOverrides(subscriptionId: number): Promise<FeatureOverride[]> {
     const records = await this.db
       .select()
       .from(subscription_feature_overrides)
       .where(eq(subscription_feature_overrides.subscription_id, subscriptionId));
 
     return records.map(r => ({
-      featureId: r.feature_id,
+      featureId: r.feature_id as number,
       value: r.value,
       type: r.override_type as OverrideType,
       createdAt: new Date(r.created_at)
     }));
   }
 
-  async findById(id: string): Promise<Subscription | null> {
+  async findById(id: number): Promise<Subscription | null> {
     const [record] = await this.db
       .select()
       .from(subscriptions)
@@ -215,7 +259,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return subscriptionsWithOverrides;
   }
 
-  async findByCustomerId(customerId: string, filters?: any): Promise<Subscription[]> {
+  async findByCustomerId(customerId: number, filters?: any): Promise<Subscription[]> {
     const conditions = [eq(subscriptions.customer_id, customerId)];
     
     // Don't filter by status in database - status is computed from dates
@@ -240,7 +284,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return subscriptionsWithOverrides;
   }
 
-  async findByIds(ids: string[]): Promise<Subscription[]> {
+  async findByIds(ids: number[]): Promise<Subscription[]> {
     if (ids.length === 0) return [];
 
     const records = await this.db
@@ -256,11 +300,11 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return subscriptionsWithOverrides;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(subscriptions).where(eq(subscriptions.id, id));
   }
 
-  async findActiveByCustomerAndPlan(customerId: string, planId: string): Promise<Subscription | null> {
+  async findActiveByCustomerAndPlan(customerId: number, planId: number): Promise<Subscription | null> {
     // Don't filter by stored status - filter by computed status after loading
     const records = await this.db
       .select()
@@ -282,7 +326,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return null;
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: subscriptions.id })
       .from(subscriptions)
@@ -292,7 +336,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return !!record;
   }
 
-  async hasSubscriptionsForPlan(planId: string): Promise<boolean> {
+  async hasSubscriptionsForPlan(planId: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: subscriptions.id })
       .from(subscriptions)
@@ -302,7 +346,7 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return !!record;
   }
 
-  async hasSubscriptionsForBillingCycle(billingCycleId: string): Promise<boolean> {
+  async hasSubscriptionsForBillingCycle(billingCycleId: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: subscriptions.id })
       .from(subscriptions)

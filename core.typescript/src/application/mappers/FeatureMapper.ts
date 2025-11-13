@@ -35,13 +35,12 @@ export class FeatureMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
   }
 
   static toPersistence(feature: Feature): any {
-    return {
-      id: feature.id,
+    const record: any = {
       key: feature.key,
       display_name: feature.displayName,
       description: feature.props.description,
@@ -54,6 +53,13 @@ export class FeatureMapper {
       created_at: feature.props.createdAt,
       updated_at: feature.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (feature.id !== undefined) {
+      record.id = feature.id;
+    }
+    
+    return record;
   }
 }
 

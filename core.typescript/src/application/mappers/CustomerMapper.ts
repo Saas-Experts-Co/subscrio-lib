@@ -28,13 +28,12 @@ export class CustomerMapper {
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at)
       },
-      raw.id
+      raw.id as number | undefined
     );
   }
 
   static toPersistence(customer: Customer): any {
-    return {
-      id: customer.id,
+    const record: any = {
       key: customer.key,
       display_name: customer.props.displayName,
       email: customer.props.email,
@@ -44,6 +43,13 @@ export class CustomerMapper {
       created_at: customer.props.createdAt,
       updated_at: customer.props.updatedAt
     };
+    
+    // Only include id for updates (not inserts)
+    if (customer.id !== undefined) {
+      record.id = customer.id;
+    }
+    
+    return record;
   }
 }
 

@@ -9,18 +9,38 @@ import { CustomerFilterDto } from '../../application/dtos/CustomerDto.js';
 export class DrizzleCustomerRepository implements ICustomerRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(customer: Customer): Promise<void> {
+  async save(customer: Customer): Promise<Customer> {
     const record = CustomerMapper.toPersistence(customer);
-    await this.db
-      .insert(customers)
-      .values(record)
-      .onConflictDoUpdate({
-        target: customers.id,
-        set: record
-      });
+    
+    if (customer.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(customers)
+        .values(record)
+        .returning({ id: customers.id });
+      
+      // Update entity with generated ID
+      return new Customer(customer.props, inserted.id);
+    } else {
+      // Update existing entity
+      await this.db
+        .update(customers)
+        .set({
+          key: record.key,
+          display_name: record.display_name,
+          email: record.email,
+          external_billing_id: record.external_billing_id,
+          status: record.status,
+          metadata: record.metadata,
+          updated_at: record.updated_at
+        })
+        .where(eq(customers.id, customer.id));
+      
+      return customer;
+    }
   }
 
-  async findById(id: string): Promise<Customer | null> {
+  async findById(id: number): Promise<Customer | null> {
     const [record] = await this.db
       .select()
       .from(customers)
@@ -102,11 +122,11 @@ export class DrizzleCustomerRepository implements ICustomerRepository {
     return records.map(CustomerMapper.toDomain);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(customers).where(eq(customers.id, id));
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: customers.id })
       .from(customers)

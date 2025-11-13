@@ -1,7 +1,7 @@
-import { pgTable, text, integer, timestamp, jsonb, boolean, unique, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, jsonb, boolean, unique, bigserial, bigint } from 'drizzle-orm/pg-core';
 
 export const products = pgTable('products', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name').notNull(),
   description: text('description'),
@@ -12,7 +12,7 @@ export const products = pgTable('products', {
 });
 
 export const features = pgTable('features', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name').notNull(),
   description: text('description'),
@@ -27,33 +27,33 @@ export const features = pgTable('features', {
 });
 
 export const product_features = pgTable('product_features', {
-  id: uuid('id').primaryKey(),
-  product_id: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  feature_id: uuid('feature_id').notNull().references(() => features.id, { onDelete: 'cascade' }),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  product_id: bigint('product_id', { mode: 'number' }).notNull().references(() => products.id, { onDelete: 'cascade' }),
+  feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
   created_at: timestamp('created_at').notNull().defaultNow()
 }, (table) => ({
   uniqueProductFeature: unique().on(table.product_id, table.feature_id)
 }));
 
 export const plans = pgTable('plans', {
-  id: uuid('id').primaryKey(),
-  product_key: text('product_key').notNull(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  product_id: bigint('product_id', { mode: 'number' }).notNull().references(() => products.id, { onDelete: 'cascade' }),
   key: text('key').notNull(),
   display_name: text('display_name').notNull(),
   description: text('description'),
   status: text('status').notNull(),
-  on_expire_transition_to_billing_cycle_key: text('on_expire_transition_to_billing_cycle_key'),
+  on_expire_transition_to_billing_cycle_id: bigint('on_expire_transition_to_billing_cycle_id', { mode: 'number' }).references(() => billing_cycles.id),
   metadata: jsonb('metadata'),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow()
 }, (table) => ({
-  uniqueProductKey: unique().on(table.product_key, table.key)
+  uniqueProductKey: unique().on(table.product_id, table.key)
 }));
 
 export const plan_features = pgTable('plan_features', {
-  id: uuid('id').primaryKey(),
-  plan_id: uuid('plan_id').notNull().references(() => plans.id, { onDelete: 'cascade' }),
-  feature_id: uuid('feature_id').notNull().references(() => features.id, { onDelete: 'cascade' }),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
+  feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
   value: text('value').notNull(),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow()
@@ -63,7 +63,7 @@ export const plan_features = pgTable('plan_features', {
 
 
 export const customers = pgTable('customers', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name'),
   email: text('email'),
@@ -75,7 +75,7 @@ export const customers = pgTable('customers', {
 });
 
 export const api_keys = pgTable('api_keys', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),  // External reference key
   key_hash: text('key_hash').notNull().unique(),
   display_name: text('display_name').notNull(),
@@ -92,11 +92,11 @@ export const api_keys = pgTable('api_keys', {
 });
 
 export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),  // External reference key
-  customer_id: uuid('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
-  plan_id: uuid('plan_id').notNull().references(() => plans.id, { onDelete: 'cascade' }),
-  billing_cycle_id: uuid('billing_cycle_id').notNull().references(() => billing_cycles.id, { onDelete: 'cascade' }),
+  customer_id: bigint('customer_id', { mode: 'number' }).notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
+  billing_cycle_id: bigint('billing_cycle_id', { mode: 'number' }).notNull().references(() => billing_cycles.id, { onDelete: 'cascade' }),
   activation_date: timestamp('activation_date'),
   expiration_date: timestamp('expiration_date'),
   cancellation_date: timestamp('cancellation_date'),
@@ -112,9 +112,9 @@ export const subscriptions = pgTable('subscriptions', {
 });
 
 export const subscription_feature_overrides = pgTable('subscription_feature_overrides', {
-  id: uuid('id').primaryKey(),
-  subscription_id: uuid('subscription_id').notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
-  feature_id: uuid('feature_id').notNull().references(() => features.id, { onDelete: 'cascade' }),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  subscription_id: bigint('subscription_id', { mode: 'number' }).notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
+  feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
   value: text('value').notNull(),
   override_type: text('override_type').notNull(),
   created_at: timestamp('created_at').notNull().defaultNow()
@@ -123,8 +123,8 @@ export const subscription_feature_overrides = pgTable('subscription_feature_over
 }));
 
 export const billing_cycles = pgTable('billing_cycles', {
-  id: uuid('id').primaryKey(),
-  plan_id: uuid('plan_id').notNull().references(() => plans.id, { onDelete: 'cascade' }),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
   key: text('key').notNull(),
   display_name: text('display_name').notNull(),
   description: text('description'),
@@ -139,7 +139,7 @@ export const billing_cycles = pgTable('billing_cycles', {
 }));
 
 export const system_config = pgTable('system_config', {
-  id: uuid('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   config_key: text('config_key').notNull().unique(),
   config_value: text('config_value').notNull(),
   encrypted: boolean('encrypted').notNull().default(false),

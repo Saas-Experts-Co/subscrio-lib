@@ -19,7 +19,6 @@ import { SubscriptionMapper } from '../mappers/SubscriptionMapper.js';
 import { Subscription } from '../../domain/entities/Subscription.js';
 import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
 import { OverrideType } from '../../domain/value-objects/OverrideType.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
@@ -133,7 +132,10 @@ export class SubscriptionManagementService {
       }
     }
 
-    const id = generateId();
+    if (customer.id === undefined || plan.id === undefined || billingCycleId === undefined) {
+      throw new Error('Customer, plan, or billing cycle ID is undefined');
+    }
+
     const trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
     
     // Calculate currentPeriodEnd based on billing cycle duration
@@ -143,6 +145,7 @@ export class SubscriptionManagementService {
       : this.calculatePeriodEnd(currentPeriodStart, billingCycle);
     
     
+    // Create domain entity (no ID - database will generate)
     const subscription = new Subscription({
       key: validatedDto.key,  // User-supplied key
       customerId: customer.id,
@@ -161,16 +164,17 @@ export class SubscriptionManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
     
     // Sync status after creation to ensure stored status matches computed status
     subscription.syncStatus();
 
-    await this.subscriptionRepository.save(subscription);
+    // Save and get entity with generated ID
+    const savedSubscription = await this.subscriptionRepository.save(subscription);
 
-    const keys = await this.resolveSubscriptionKeys(subscription);
+    const keys = await this.resolveSubscriptionKeys(savedSubscription);
     return SubscriptionMapper.toDto(
-      subscription,
+      savedSubscription,
       keys.customerKey,
       keys.productKey,
       keys.planKey,

@@ -1,5 +1,6 @@
 import { Subscrio, OverrideType } from '../src/index.js';
 import { loadConfig } from './config.js';
+import { sql } from 'drizzle-orm';
 
 // Global interactive mode flag
 let isInteractiveMode = false;
@@ -15,6 +16,7 @@ async function main() {
   // Check for command line arguments
   const args = process.argv.slice(2);
   const isAutomated = args.includes('--automated') || args.includes('-a');
+  const shouldRecreate = args.includes('--recreate') || args.includes('-r');
   
   // Prompt for demo start with options (unless automated)
   const choice = await promptDemoStart(isAutomated);
@@ -30,6 +32,13 @@ async function main() {
   const subscrio = new Subscrio(config);
 
   try {
+    // Drop and recreate schema if requested
+    if (shouldRecreate) {
+      console.log('\n🔄 Dropping and recreating Subscrio tables...');
+      await subscrio.dropSchema();
+      console.log('✅ Tables dropped successfully');
+    }
+    
     // Clean up existing demo entities
     await cleanupDemoEntities(subscrio);
     
@@ -1003,24 +1012,54 @@ async function promptDemoStart(automated: boolean = false) {
 
 
 async function cleanupDemoEntities(subscrio: Subscrio) {
-  try {
-    const db = (subscrio as any).db; // Access the database directly for cleanup
-    
-    console.log('🧹 Cleaning up existing demo entities...');
+  const db = (subscrio as any).db; // Access the database directly for cleanup
+  
+  console.log('🧹 Cleaning up existing demo entities...');
 
-    // Delete in reverse dependency order
-    console.log('🗑️  Deleting demo entities...');
-    await db.execute(`DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-after-cancellation')`);
-    await db.execute(`DELETE FROM customers WHERE key = 'acme-corp'`);
-    await db.execute(`DELETE FROM billing_cycles WHERE key IN ('free-forever', 'starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`);
-    await db.execute(`DELETE FROM plans WHERE key IN ('free', 'starter', 'professional', 'enterprise')`);
-    await db.execute(`DELETE FROM features WHERE key IN ('max-projects', 'max-users-per-project', 'gantt-charts', 'custom-branding', 'api-access')`);
-    await db.execute(`DELETE FROM products WHERE key = 'projecthub'`);
+  // Helper function to safely delete (suppresses errors for missing tables or 0 rows)
+  const safeDelete = async (query: string, description: string) => {
+    try {
+      await db.execute(sql.raw(query));
+    } catch (error) {
+      // Suppress errors for expected scenarios:
+      // - Table doesn't exist (--recreate case)
+      // - 0 rows affected (empty tables, normal case)
+      const errorString = String(error).toLowerCase();
+      const isExpected = 
+        errorString.includes('does not exist') ||
+        errorString.includes('relation') ||
+        errorString.includes('0 rows') ||
+        errorString.includes('no rows');
+      
+      if (!isExpected) {
+        // Only log unexpected errors
+        console.log(`⚠️  Warning: ${description} failed: ${error}`);
+      }
+    }
+  };
 
-    console.log('✅ Demo entities cleanup completed');
-    console.log('═'.repeat(50) + '\n');
-  } catch (error) {
-    console.log(`❌ Error during cleanup: ${error}`);
-    console.log('Continuing with demo...\n');
-  }
+  // Delete in reverse dependency order
+  // Note: These may affect 0 rows or fail if tables don't exist (when using --recreate)
+  console.log('🗑️  Deleting demo entities...');
+  await safeDelete(
+    `DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-after-cancellation')`,
+    'Deleting subscriptions'
+  );
+  await safeDelete(`DELETE FROM customers WHERE key = 'acme-corp'`, 'Deleting customers');
+  await safeDelete(
+    `DELETE FROM billing_cycles WHERE key IN ('free-forever', 'starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`,
+    'Deleting billing cycles'
+  );
+  await safeDelete(
+    `DELETE FROM plans WHERE key IN ('free', 'starter', 'professional', 'enterprise')`,
+    'Deleting plans'
+  );
+  await safeDelete(
+    `DELETE FROM features WHERE key IN ('max-projects', 'max-users-per-project', 'gantt-charts', 'custom-branding', 'api-access')`,
+    'Deleting features'
+  );
+  await safeDelete(`DELETE FROM products WHERE key = 'projecthub'`, 'Deleting products');
+
+  console.log('✅ Demo entities cleanup completed');
+  console.log('═'.repeat(50) + '\n');
 }

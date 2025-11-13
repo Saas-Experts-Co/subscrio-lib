@@ -9,18 +9,41 @@ import { FeatureFilterDto } from '../../application/dtos/FeatureDto.js';
 export class DrizzleFeatureRepository implements IFeatureRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(feature: Feature): Promise<void> {
+  async save(feature: Feature): Promise<Feature> {
     const record = FeatureMapper.toPersistence(feature);
-    await this.db
-      .insert(features)
-      .values(record)
-      .onConflictDoUpdate({
-        target: features.id,
-        set: record
-      });
+    
+    if (feature.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(features)
+        .values(record)
+        .returning({ id: features.id });
+      
+      // Update entity with generated ID
+      return new Feature(feature.props, inserted.id);
+    } else {
+      // Update existing entity
+      await this.db
+        .update(features)
+        .set({
+          key: record.key,
+          display_name: record.display_name,
+          description: record.description,
+          value_type: record.value_type,
+          default_value: record.default_value,
+          group_name: record.group_name,
+          status: record.status,
+          validator: record.validator,
+          metadata: record.metadata,
+          updated_at: record.updated_at
+        })
+        .where(eq(features.id, feature.id));
+      
+      return feature;
+    }
   }
 
-  async findById(id: string): Promise<Feature | null> {
+  async findById(id: number): Promise<Feature | null> {
     const [record] = await this.db
       .select()
       .from(features)
@@ -98,7 +121,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return records.map(FeatureMapper.toDomain);
   }
 
-  async findByIds(ids: string[]): Promise<Feature[]> {
+  async findByIds(ids: number[]): Promise<Feature[]> {
     if (ids.length === 0) return [];
 
     const records = await this.db
@@ -109,7 +132,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return records.map(FeatureMapper.toDomain);
   }
 
-  async findByProduct(productId: string): Promise<Feature[]> {
+  async findByProduct(productId: number): Promise<Feature[]> {
     const records = await this.db
       .select({
         id: features.id,
@@ -133,11 +156,11 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return records.map(FeatureMapper.toDomain);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(features).where(eq(features.id, id));
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: features.id })
       .from(features)
@@ -147,7 +170,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return !!record;
   }
 
-  async hasProductAssociations(featureId: string): Promise<boolean> {
+  async hasProductAssociations(featureId: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: product_features.id })
       .from(product_features)
@@ -157,7 +180,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return !!record;
   }
 
-  async hasPlanFeatureValues(featureId: string): Promise<boolean> {
+  async hasPlanFeatureValues(featureId: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: plan_features.id })
       .from(plan_features)
@@ -167,7 +190,7 @@ export class DrizzleFeatureRepository implements IFeatureRepository {
     return !!record;
   }
 
-  async hasSubscriptionOverrides(featureId: string): Promise<boolean> {
+  async hasSubscriptionOverrides(featureId: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: subscription_feature_overrides.id })
       .from(subscription_feature_overrides)

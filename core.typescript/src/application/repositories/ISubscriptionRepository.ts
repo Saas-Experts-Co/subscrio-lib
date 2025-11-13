@@ -2,20 +2,21 @@ import { Subscription } from '../../domain/entities/Subscription.js';
 import { SubscriptionFilterDto } from '../dtos/SubscriptionDto.js';
 
 export interface ISubscriptionRepository {
-  save(subscription: Subscription): Promise<void>;
-  findById(id: string): Promise<Subscription | null>;
+  save(subscription: Subscription): Promise<Subscription>;
+  findById(id: number): Promise<Subscription | null>;
   findByKey(key: string): Promise<Subscription | null>;
-  findByCustomerId(customerId: string, filters?: SubscriptionFilterDto): Promise<Subscription[]>;
+  findByCustomerId(customerId: number, filters?: SubscriptionFilterDto): Promise<Subscription[]>;
   findByStripeId(stripeSubscriptionId: string): Promise<Subscription | null>;
   findAll(filters?: SubscriptionFilterDto): Promise<Subscription[]>;
-  delete(id: string): Promise<void>;
-  exists(id: string): Promise<boolean>;
+  findByIds(ids: number[]): Promise<Subscription[]>;
+  delete(id: number): Promise<void>;
+  exists(id: number): Promise<boolean>;
   
   // Find active subscription for customer and plan combination
-  findActiveByCustomerAndPlan(customerId: string, planId: string): Promise<Subscription | null>;
+  findActiveByCustomerAndPlan(customerId: number, planId: number): Promise<Subscription | null>;
   
   // Foreign key checks
-  hasSubscriptionsForPlan(planId: string): Promise<boolean>;
-  hasSubscriptionsForBillingCycle(billingCycleId: string): Promise<boolean>;
+  hasSubscriptionsForPlan(planId: number): Promise<boolean>;
+  hasSubscriptionsForBillingCycle(billingCycleId: number): Promise<boolean>;
 }
 

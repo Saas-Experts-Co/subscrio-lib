@@ -4,7 +4,7 @@ import { DomainError } from '../../application/errors/index.js';
 import { now } from '../../infrastructure/utils/date.js';
 
 export interface PlanFeatureValue {
-  featureId: string;
+  featureId: number;
   value: string;
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +50,7 @@ export class Plan extends Entity<PlanProps> {
     this.props.updatedAt = now();
   }
 
-  setFeatureValue(featureId: string, value: string): void {
+  setFeatureValue(featureId: number, value: string): void {
     const existing = this.props.featureValues.find(fv => fv.featureId === featureId);
     if (existing) {
       existing.value = value;
@@ -66,14 +66,14 @@ export class Plan extends Entity<PlanProps> {
     this.props.updatedAt = now();
   }
 
-  removeFeatureValue(featureId: string): void {
+  removeFeatureValue(featureId: number): void {
     this.props.featureValues = this.props.featureValues.filter(
       fv => fv.featureId !== featureId
     );
     this.props.updatedAt = now();
   }
 
-  getFeatureValue(featureId: string): string | null {
+  getFeatureValue(featureId: number): string | null {
     const featureValue = this.props.featureValues.find(fv => fv.featureId === featureId);
     return featureValue ? featureValue.value : null;
   }

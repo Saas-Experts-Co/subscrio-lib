@@ -9,18 +9,43 @@ import { APIKeyFilterDto } from '../../application/dtos/APIKeyDto.js';
 export class DrizzleAPIKeyRepository implements IAPIKeyRepository {
   constructor(private readonly db: DrizzleDb) {}
 
-  async save(apiKey: APIKey): Promise<void> {
+  async save(apiKey: APIKey): Promise<APIKey> {
     const record = APIKeyMapper.toPersistence(apiKey);
-    await this.db
-      .insert(api_keys)
-      .values(record)
-      .onConflictDoUpdate({
-        target: api_keys.id,
-        set: record
-      });
+    
+    if (apiKey.id === undefined) {
+      // Insert new entity
+      const [inserted] = await this.db
+        .insert(api_keys)
+        .values(record)
+        .returning({ id: api_keys.id });
+      
+      // Update entity with generated ID
+      return new APIKey(apiKey.props, inserted.id);
+    } else {
+      // Update existing entity
+      await this.db
+        .update(api_keys)
+        .set({
+          key: record.key,
+          key_hash: record.key_hash,
+          display_name: record.display_name,
+          description: record.description,
+          status: record.status,
+          scope: record.scope,
+          expires_at: record.expires_at,
+          last_used_at: record.last_used_at,
+          ip_whitelist: record.ip_whitelist,
+          created_by: record.created_by,
+          metadata: record.metadata,
+          updated_at: record.updated_at
+        })
+        .where(eq(api_keys.id, apiKey.id));
+      
+      return apiKey;
+    }
   }
 
-  async findById(id: string): Promise<APIKey | null> {
+  async findById(id: number): Promise<APIKey | null> {
     const [record] = await this.db
       .select()
       .from(api_keys)
@@ -109,11 +134,11 @@ export class DrizzleAPIKeyRepository implements IAPIKeyRepository {
     return records.map(APIKeyMapper.toDomain);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await this.db.delete(api_keys).where(eq(api_keys.id, id));
   }
 
-  async exists(id: string): Promise<boolean> {
+  async exists(id: number): Promise<boolean> {
     const [record] = await this.db
       .select({ id: api_keys.id })
       .from(api_keys)

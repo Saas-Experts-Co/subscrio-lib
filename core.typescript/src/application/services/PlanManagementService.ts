@@ -14,7 +14,6 @@ import {
 import { PlanMapper } from '../mappers/PlanMapper.js';
 import { Plan } from '../../domain/entities/Plan.js';
 import { PlanStatus } from '../../domain/value-objects/PlanStatus.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
@@ -75,7 +74,7 @@ export class PlanManagementService {
     }
 
 
-    const id = generateId();
+    // Create domain entity (no ID - database will generate)
     const plan = new Plan({
       productKey: product.key,
       key: validatedDto.key,
@@ -87,12 +86,13 @@ export class PlanManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    await this.planRepository.save(plan);
+    // Save and get entity with generated ID
+    const savedPlan = await this.planRepository.save(plan);
     
     return PlanMapper.toDto(
-      plan, 
+      savedPlan, 
       product.key,
       validatedDto.onExpireTransitionToBillingCycleKey
     );
@@ -216,6 +216,10 @@ export class PlanManagementService {
         `Cannot delete plan with status '${plan.status}'. ` +
         'Plan must be archived before deletion.'
       );
+    }
+
+    if (plan.id === undefined) {
+      throw new Error('Plan ID is undefined');
     }
 
     // Check for subscriptions before deletion (more critical than billing cycles)

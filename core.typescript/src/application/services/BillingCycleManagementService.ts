@@ -14,7 +14,6 @@ import { BillingCycleMapper } from '../mappers/BillingCycleMapper.js';
 import { BillingCycle } from '../../domain/entities/BillingCycle.js';
 import { DurationUnit } from '../../domain/value-objects/DurationUnit.js';
 import { BillingCycleStatus } from '../../domain/value-objects/BillingCycleStatus.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
@@ -73,7 +72,11 @@ export class BillingCycleManagementService {
       }
     }
 
-    const id = generateId();
+    if (plan.id === undefined) {
+      throw new Error('Plan ID is undefined');
+    }
+
+    // Create domain entity (no ID - database will generate)
     const billingCycle = new BillingCycle({
       planId: plan.id,
       key: validatedDto.key,
@@ -85,10 +88,11 @@ export class BillingCycleManagementService {
       externalProductId: validatedDto.externalProductId,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    await this.billingCycleRepository.save(billingCycle);
-    return BillingCycleMapper.toDto(billingCycle, plan.productKey, plan.key);
+    // Save and get entity with generated ID
+    const savedBillingCycle = await this.billingCycleRepository.save(billingCycle);
+    return BillingCycleMapper.toDto(savedBillingCycle, plan.productKey, plan.key);
   }
 
   async updateBillingCycle(key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto> {
@@ -225,6 +229,10 @@ export class BillingCycleManagementService {
       throw new DomainError(
         `Cannot delete billing cycle with status '${billingCycle.status}'. Billing cycle must be archived before deletion.`
       );
+    }
+
+    if (billingCycle.id === undefined) {
+      throw new Error('Billing cycle ID is undefined');
     }
 
     // Check for subscriptions before deletion

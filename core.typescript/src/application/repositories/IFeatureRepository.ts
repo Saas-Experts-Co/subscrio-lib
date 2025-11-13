@@ -2,20 +2,20 @@ import { Feature } from '../../domain/entities/Feature.js';
 import { FeatureFilterDto } from '../dtos/FeatureDto.js';
 
 export interface IFeatureRepository {
-  save(feature: Feature): Promise<void>;
-  findById(id: string): Promise<Feature | null>;
+  save(feature: Feature): Promise<Feature>;
+  findById(id: number): Promise<Feature | null>;
   findByKey(key: string): Promise<Feature | null>;
   findAll(filters?: FeatureFilterDto): Promise<Feature[]>;
-  findByIds(ids: string[]): Promise<Feature[]>;
-  delete(id: string): Promise<void>;
-  exists(id: string): Promise<boolean>;
+  findByIds(ids: number[]): Promise<Feature[]>;
+  delete(id: number): Promise<void>;
+  exists(id: number): Promise<boolean>;
   
   // Get features by product
-  findByProduct(productId: string): Promise<Feature[]>;
+  findByProduct(productId: number): Promise<Feature[]>;
   
   // Foreign key checks
-  hasProductAssociations(featureId: string): Promise<boolean>;
-  hasPlanFeatureValues(featureId: string): Promise<boolean>;
-  hasSubscriptionOverrides(featureId: string): Promise<boolean>;
+  hasProductAssociations(featureId: number): Promise<boolean>;
+  hasPlanFeatureValues(featureId: number): Promise<boolean>;
+  hasSubscriptionOverrides(featureId: number): Promise<boolean>;
 }
 

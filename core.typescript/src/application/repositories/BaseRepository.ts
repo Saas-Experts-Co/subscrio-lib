@@ -7,27 +7,28 @@ export abstract class BaseRepository<T> {
   /**
    * Check if entity exists by ID
    */
-  abstract exists(id: string): Promise<boolean>;
+  abstract exists(id: number): Promise<boolean>;
 
   /**
    * Find entity by ID
    */
-  abstract findById(id: string): Promise<T | null>;
+  abstract findById(id: number): Promise<T | null>;
 
   /**
    * Save entity (create or update)
+   * Returns the saved entity with generated ID if it was a new entity
    */
-  abstract save(entity: T): Promise<void>;
+  abstract save(entity: T): Promise<T>;
 
   /**
    * Delete entity by ID
    */
-  abstract delete(id: string): Promise<void>;
+  abstract delete(id: number): Promise<void>;
 
   /**
    * Get entity by ID or throw NotFoundError
    */
-  protected async getByIdOrThrow(id: string): Promise<T> {
+  protected async getByIdOrThrow(id: number): Promise<T> {
     const entity = await this.findById(id);
     if (!entity) {
       throw new NotFoundError(`Entity with ID '${id}' not found`);
@@ -38,7 +39,7 @@ export abstract class BaseRepository<T> {
   /**
    * Check if entity exists and throw ConflictError if it does
    */
-  protected async checkNotExists(id: string, entityType: string): Promise<void> {
+  protected async checkNotExists(id: number, entityType: string): Promise<void> {
     const exists = await this.exists(id);
     if (exists) {
       throw new ConflictError(`${entityType} with ID '${id}' already exists`);
@@ -48,7 +49,7 @@ export abstract class BaseRepository<T> {
   /**
    * Check if entity exists and throw NotFoundError if it doesn't
    */
-  protected async checkExists(id: string, entityType: string): Promise<void> {
+  protected async checkExists(id: number, entityType: string): Promise<void> {
     const exists = await this.exists(id);
     if (!exists) {
       throw new NotFoundError(`${entityType} with ID '${id}' not found`);

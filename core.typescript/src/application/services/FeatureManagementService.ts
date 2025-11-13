@@ -13,7 +13,6 @@ import { FeatureMapper } from '../mappers/FeatureMapper.js';
 import { Feature } from '../../domain/entities/Feature.js';
 import { FeatureStatus } from '../../domain/value-objects/FeatureStatus.js';
 import { FeatureValueType } from '../../domain/value-objects/FeatureValueType.js';
-import { generateId } from '../../infrastructure/utils/uuid.js';
 import { now } from '../../infrastructure/utils/date.js';
 import { 
   ValidationError, 
@@ -48,7 +47,7 @@ export class FeatureManagementService {
     // Validate default value based on type
     FeatureValueValidator.validate(validatedDto.defaultValue, validatedDto.valueType as FeatureValueType);
 
-    const id = generateId();
+    // Create domain entity (no ID - database will generate)
     const feature = new Feature({
       key: validatedDto.key,
       displayName: validatedDto.displayName,
@@ -61,10 +60,11 @@ export class FeatureManagementService {
       metadata: validatedDto.metadata,
       createdAt: now(),
       updatedAt: now()
-    }, id);
+    });
 
-    await this.featureRepository.save(feature);
-    return FeatureMapper.toDto(feature);
+    // Save and get entity with generated ID
+    const savedFeature = await this.featureRepository.save(feature);
+    return FeatureMapper.toDto(savedFeature);
   }
 
   async updateFeature(key: string, dto: UpdateFeatureDto): Promise<FeatureDto> {
@@ -106,8 +106,8 @@ export class FeatureManagementService {
     }
 
     feature.props.updatedAt = now();
-    await this.featureRepository.save(feature);
-    return FeatureMapper.toDto(feature);
+    const savedFeature = await this.featureRepository.save(feature);
+    return FeatureMapper.toDto(savedFeature);
   }
 
   async getFeature(key: string): Promise<FeatureDto | null> {
@@ -159,6 +159,10 @@ export class FeatureManagementService {
         `Cannot delete feature with status '${feature.status}'. ` +
         'Feature must be archived before deletion.'
       );
+    }
+
+    if (feature.id === undefined) {
+      throw new Error('Feature ID is undefined');
     }
 
     // Check for product associations
