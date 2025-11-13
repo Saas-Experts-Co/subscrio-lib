@@ -16,7 +16,8 @@ export interface SubscriptionProps {
   customerId: string;
   planId: string;
   billingCycleId: string;
-  status: SubscriptionStatus;
+  status: SubscriptionStatus; // Stored status (should match computed status)
+  isArchived: boolean; // Archive flag - blocks updates but doesn't affect status calculation
   activationDate?: Date;
   expirationDate?: Date;
   cancellationDate?: Date;
@@ -101,13 +102,19 @@ export class Subscription extends Entity<SubscriptionProps> {
   }
 
   archive(): void {
-    this.props.expirationDate = now();
+    // Archive does not change any properties - just sets the archive flag
+    this.props.isArchived = true;
     this.props.updatedAt = now();
   }
 
   unarchive(): void {
-    this.props.expirationDate = undefined;
+    // Unarchive just clears the archive flag
+    this.props.isArchived = false;
     this.props.updatedAt = now();
+  }
+
+  get isArchived(): boolean {
+    return this.props.isArchived;
   }
 
   setExpirationDate(date: Date): void {
@@ -162,8 +169,40 @@ export class Subscription extends Entity<SubscriptionProps> {
     this.props.updatedAt = now();
   }
 
+  // No deletion constraint - subscriptions can be deleted regardless of status
   canDelete(): boolean {
-    return this.status === SubscriptionStatus.Expired;
+    return true;
+  }
+
+  /**
+   * Syncs the stored status with the computed status based on dates
+   * This should be called before saving to ensure database status matches computed status
+   * Note: This method computes status from dates and stores it, separate from the getter
+   */
+  syncStatus(): void {
+    const currentTime = now();
+    let computedStatus: SubscriptionStatus;
+    
+    // Compute status from dates (same logic as getter but without using the getter to avoid recursion)
+    if (this.props.cancellationDate) {
+      if (this.props.cancellationDate > currentTime) {
+        computedStatus = SubscriptionStatus.CancellationPending;
+      } else {
+        computedStatus = SubscriptionStatus.Cancelled;
+      }
+    } else if (this.props.expirationDate && this.props.expirationDate <= currentTime) {
+      computedStatus = SubscriptionStatus.Expired;
+    } else if (this.props.trialEndDate && this.props.trialEndDate > currentTime) {
+      computedStatus = SubscriptionStatus.Trial;
+    } else {
+      computedStatus = SubscriptionStatus.Active;
+    }
+    
+    // Update stored status only if it differs from computed status
+    if (this.props.status !== computedStatus) {
+      this.props.status = computedStatus;
+      this.props.updatedAt = now();
+    }
   }
 }
 

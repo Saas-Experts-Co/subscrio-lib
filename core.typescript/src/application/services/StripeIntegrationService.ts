@@ -128,6 +128,9 @@ export class StripeIntegrationService {
     }
 
     subscription.props.updatedAt = now();
+    
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
 
     await this.subscriptionRepository.save(subscription);
   }
@@ -143,6 +146,8 @@ export class StripeIntegrationService {
     }
 
     subscription.expire();
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -160,7 +165,9 @@ export class StripeIntegrationService {
       return; // Subscription not found
     }
 
-    // Status is now calculated dynamically, no need to update it
+    // Status is now calculated dynamically, but sync to ensure database is up to date
+    subscription.syncStatus();
+    await this.subscriptionRepository.save(subscription);
   }
 
   private async handlePaymentFailed(
@@ -179,6 +186,8 @@ export class StripeIntegrationService {
 
     // Suspend subscription for failed payment - status is calculated dynamically
     subscription.props.updatedAt = now();
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -208,8 +217,8 @@ export class StripeIntegrationService {
    */
   async createStripeSubscription(
     customerKey: string,
-    planId: string,
-    billingCycleId: string,
+    planKey: string,
+    billingCycleKey: string,
     _stripePriceId: string
   ): Promise<Subscription> {
     // Find customer
@@ -223,15 +232,15 @@ export class StripeIntegrationService {
     }
 
     // Find plan
-    const plan = await this.planRepository.findById(planId);
+    const plan = await this.planRepository.findByKey(planKey);
     if (!plan) {
-      throw new NotFoundError(`Plan with id '${planId}' not found`);
+      throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
     // Find billing cycle
-    const billingCycle = await this.billingCycleRepository.findById(billingCycleId);
+    const billingCycle = await this.billingCycleRepository.findByKey(billingCycleKey);
     if (!billingCycle) {
-      throw new NotFoundError(`Billing cycle with id '${billingCycleId}' not found`);
+      throw new NotFoundError(`Billing cycle with key '${billingCycleKey}' not found`);
     }
 
     // This would integrate with Stripe SDK to create the subscription
@@ -242,6 +251,7 @@ export class StripeIntegrationService {
       planId: plan.id,
       billingCycleId: billingCycle.id,
       status: SubscriptionStatus.Active,  // Default status
+      isArchived: false,
       activationDate: now(),
       currentPeriodStart: now(),
       currentPeriodEnd: billingCycle.calculateNextPeriodEnd(now()) ?? undefined,
@@ -250,6 +260,9 @@ export class StripeIntegrationService {
       createdAt: now(),
       updatedAt: now()
     }, generateId());
+
+    // Sync status after creation to ensure stored status matches computed status
+    subscription.syncStatus();
 
     await this.subscriptionRepository.save(subscription);
     return subscription;

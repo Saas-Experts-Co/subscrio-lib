@@ -27,7 +27,7 @@ export class Customer extends Entity<CustomerProps> {
   }
 
   archive(): void {
-    this.props.status = CustomerStatus.Deleted;
+    this.props.status = CustomerStatus.Archived;
     this.props.updatedAt = now();
   }
 
@@ -37,7 +37,7 @@ export class Customer extends Entity<CustomerProps> {
   }
 
   canDelete(): boolean {
-    return this.props.status === CustomerStatus.Deleted;
+    return this.props.status === CustomerStatus.Archived;
   }
 }
 

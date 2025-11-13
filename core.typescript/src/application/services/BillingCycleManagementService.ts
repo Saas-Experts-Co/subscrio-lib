@@ -249,17 +249,15 @@ export class BillingCycleManagementService {
   /**
    * Calculate next period end date based on billing cycle
    */
-  calculateNextPeriodEnd(
-    billingCycleId: string, 
+  async calculateNextPeriodEnd(
+    billingCycleKey: string, 
     currentPeriodEnd: Date
   ): Promise<Date | null> {
-    return this.billingCycleRepository.findById(billingCycleId)
-      .then(billingCycle => {
-        if (!billingCycle) {
-          throw new NotFoundError(`Billing cycle with id '${billingCycleId}' not found`);
-        }
-        return billingCycle.calculateNextPeriodEnd(currentPeriodEnd);
-      });
+    const billingCycle = await this.billingCycleRepository.findByKey(billingCycleKey);
+    if (!billingCycle) {
+      throw new NotFoundError(`Billing cycle with key '${billingCycleKey}' not found`);
+    }
+    return billingCycle.calculateNextPeriodEnd(currentPeriodEnd);
   }
 
   /**

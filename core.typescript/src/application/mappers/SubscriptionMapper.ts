@@ -31,13 +31,14 @@ export class SubscriptionMapper {
   }
 
   static toDomain(raw: any, featureOverrides: FeatureOverride[] = []): Subscription {
-    return new Subscription(
+    const subscription = new Subscription(
       {
         key: raw.key,
         customerId: raw.customer_id,
         planId: raw.plan_id,
         billingCycleId: raw.billing_cycle_id,
-        status: SubscriptionStatus.Active, // Default value, will be overridden by getter
+        status: raw.status as SubscriptionStatus || SubscriptionStatus.Active,
+        isArchived: raw.is_archived === true,
         activationDate: raw.activation_date ? new Date(raw.activation_date) : undefined,
         expirationDate: raw.expiration_date ? new Date(raw.expiration_date) : undefined,
         cancellationDate: raw.cancellation_date ? new Date(raw.cancellation_date) : undefined,
@@ -52,24 +53,31 @@ export class SubscriptionMapper {
       },
       raw.id
     );
+    // Sync stored status with computed status
+    subscription.syncStatus();
+    return subscription;
   }
 
   static toPersistence(subscription: Subscription): any {
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
+    
     return {
       id: subscription.id,
       key: subscription.key,
       customer_id: subscription.customerId,
       plan_id: subscription.planId,
       billing_cycle_id: subscription.props.billingCycleId,
-      status: subscription.status, // Store the calculated status
-      activation_date: subscription.props.activationDate,
-      expiration_date: subscription.props.expirationDate,
-      cancellation_date: subscription.props.cancellationDate,
+      status: subscription.status, // Store the computed status
+      is_archived: subscription.props.isArchived,
+      activation_date: subscription.props.activationDate ?? null,
+      expiration_date: subscription.props.expirationDate ?? null,
+      cancellation_date: subscription.props.cancellationDate ?? null,
       trial_end_date: subscription.props.trialEndDate ?? null,
-      current_period_start: subscription.props.currentPeriodStart,
-      current_period_end: subscription.props.currentPeriodEnd,
-      stripe_subscription_id: subscription.props.stripeSubscriptionId,
-      metadata: subscription.props.metadata,
+      current_period_start: subscription.props.currentPeriodStart ?? null,
+      current_period_end: subscription.props.currentPeriodEnd ?? null,
+      stripe_subscription_id: subscription.props.stripeSubscriptionId ?? null,
+      metadata: subscription.props.metadata ?? null,
       created_at: subscription.props.createdAt,
       updated_at: subscription.props.updatedAt
     };

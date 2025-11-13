@@ -48,19 +48,31 @@ export class SubscriptionManagementService {
     // Get customer
     const customer = await this.customerRepository.findById(subscription.customerId);
     if (!customer) {
-      throw new NotFoundError(`Customer with id '${subscription.customerId}' not found`);
+      // This should never happen in normal operation, but log error with subscription key
+      throw new NotFoundError(
+        `Customer not found for subscription '${subscription.key}'. ` +
+        'This indicates data integrity issue - subscription references invalid customer.'
+      );
     }
 
     // Get plan
     const plan = await this.planRepository.findById(subscription.planId);
     if (!plan) {
-      throw new NotFoundError(`Plan with id '${subscription.planId}' not found`);
+      // This should never happen in normal operation, but log error with subscription key
+      throw new NotFoundError(
+        `Plan not found for subscription '${subscription.key}'. ` +
+        'This indicates data integrity issue - subscription references invalid plan.'
+      );
     }
 
     // Get billing cycle (required)
     const cycle = await this.billingCycleRepository.findById(subscription.props.billingCycleId);
     if (!cycle) {
-      throw new NotFoundError(`Billing cycle with id '${subscription.props.billingCycleId}' not found`);
+      // This should never happen in normal operation, but log error with subscription key
+      throw new NotFoundError(
+        `Billing cycle not found for subscription '${subscription.key}'. ` +
+        'This indicates data integrity issue - subscription references invalid billing cycle.'
+      );
     }
 
     return {
@@ -137,6 +149,7 @@ export class SubscriptionManagementService {
       planId: plan.id,
       billingCycleId,
       status: SubscriptionStatus.Active,  // Default status, will be calculated dynamically
+      isArchived: false,
       activationDate: validatedDto.activationDate ? new Date(validatedDto.activationDate) : now(),
       expirationDate: validatedDto.expirationDate ? new Date(validatedDto.expirationDate) : undefined,
       cancellationDate: validatedDto.cancellationDate ? new Date(validatedDto.cancellationDate) : undefined,
@@ -149,6 +162,9 @@ export class SubscriptionManagementService {
       createdAt: now(),
       updatedAt: now()
     }, id);
+    
+    // Sync status after creation to ensure stored status matches computed status
+    subscription.syncStatus();
 
     await this.subscriptionRepository.save(subscription);
 
@@ -178,6 +194,14 @@ export class SubscriptionManagementService {
     const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
     if (!subscription) {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
+    }
+
+    // Block updates if subscription is archived
+    if (subscription.isArchived) {
+      throw new DomainError(
+        `Cannot update archived subscription with key '${subscriptionKey}'. ` +
+        'Please unarchive the subscription first.'
+      );
     }
 
     // Update properties (activationDate is immutable)
@@ -212,6 +236,8 @@ export class SubscriptionManagementService {
     }
 
     subscription.props.updatedAt = now();
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
     
     const keys = await this.resolveSubscriptionKeys(subscription);
@@ -227,6 +253,111 @@ export class SubscriptionManagementService {
   }
 
 
+  /**
+   * Resolve filter keys to IDs for database querying
+   * Returns null if any required entity is not found (to indicate empty result)
+   */
+  private async resolveFilterKeys(filters: SubscriptionFilterDto | DetailedSubscriptionFilterDto): Promise<{
+    customerId?: string;
+    planIds?: string[];
+    planId?: string;
+    billingCycleId?: string;
+    _emptyResult?: boolean; // Marker to indicate empty result
+    [key: string]: any;
+  } | null> {
+    const resolved: any = {};
+
+    // Resolve customerKey to customerId
+    if (filters.customerKey) {
+      const customer = await this.customerRepository.findByKey(filters.customerKey);
+      if (!customer) {
+        // Customer not found - return null to indicate empty result
+        return null;
+      }
+      resolved.customerId = customer.id;
+    }
+
+    // Resolve planKey and/or productKey to planIds
+    if (filters.planKey) {
+      if (filters.productKey) {
+        // Both planKey and productKey - find specific plan
+        const plan = await this.planRepository.findByKey(filters.planKey);
+        if (!plan || plan.productKey !== filters.productKey) {
+          // Plan not found or doesn't belong to product - return null to indicate empty result
+          return null;
+        }
+        resolved.planId = plan.id;
+      } else {
+        // Only planKey - plan keys are globally unique, so findByKey is sufficient
+        const plan = await this.planRepository.findByKey(filters.planKey);
+        if (!plan) {
+          return null;
+        }
+        resolved.planId = plan.id;
+      }
+    } else if (filters.productKey) {
+      // Only productKey - find all plans for this product
+      const product = await this.productRepository.findByKey(filters.productKey);
+      if (!product) {
+        return { planIds: [] };
+      }
+      const plans = await this.planRepository.findByProduct(product.key);
+      if (plans.length === 0) {
+        return { planIds: [] };
+      }
+      resolved.planIds = plans.map(p => p.id);
+    }
+
+    // Resolve billingCycleKey to billingCycleId (only for DetailedSubscriptionFilterDto)
+    if ('billingCycleKey' in filters && filters.billingCycleKey) {
+      const billingCycle = await this.billingCycleRepository.findByKey(filters.billingCycleKey);
+      if (!billingCycle) {
+        return null;
+      }
+      resolved.billingCycleId = billingCycle.id;
+    }
+
+    // Copy other filter properties (date ranges, etc.)
+    if ('activationDateFrom' in filters && filters.activationDateFrom) {
+      resolved.activationDateFrom = filters.activationDateFrom;
+    }
+    if ('activationDateTo' in filters && filters.activationDateTo) {
+      resolved.activationDateTo = filters.activationDateTo;
+    }
+    if ('expirationDateFrom' in filters && filters.expirationDateFrom) {
+      resolved.expirationDateFrom = filters.expirationDateFrom;
+    }
+    if ('expirationDateTo' in filters && filters.expirationDateTo) {
+      resolved.expirationDateTo = filters.expirationDateTo;
+    }
+    if ('trialEndDateFrom' in filters && filters.trialEndDateFrom) {
+      resolved.trialEndDateFrom = filters.trialEndDateFrom;
+    }
+    if ('trialEndDateTo' in filters && filters.trialEndDateTo) {
+      resolved.trialEndDateTo = filters.trialEndDateTo;
+    }
+    if ('currentPeriodStartFrom' in filters && filters.currentPeriodStartFrom) {
+      resolved.currentPeriodStartFrom = filters.currentPeriodStartFrom;
+    }
+    if ('currentPeriodStartTo' in filters && filters.currentPeriodStartTo) {
+      resolved.currentPeriodStartTo = filters.currentPeriodStartTo;
+    }
+    if ('currentPeriodEndFrom' in filters && filters.currentPeriodEndFrom) {
+      resolved.currentPeriodEndFrom = filters.currentPeriodEndFrom;
+    }
+    if ('currentPeriodEndTo' in filters && filters.currentPeriodEndTo) {
+      resolved.currentPeriodEndTo = filters.currentPeriodEndTo;
+    }
+    if ('hasStripeId' in filters && filters.hasStripeId !== undefined) {
+      resolved.hasStripeId = filters.hasStripeId;
+    }
+    if ('hasTrial' in filters && filters.hasTrial !== undefined) {
+      resolved.hasTrial = filters.hasTrial;
+    }
+
+    return resolved;
+  }
+
   async listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]> {
     const validationResult = SubscriptionFilterDtoSchema.safeParse(filters || {});
     if (!validationResult.success) {
@@ -236,50 +367,37 @@ export class SubscriptionManagementService {
       );
     }
 
-    let subscriptions = await this.subscriptionRepository.findAll(validationResult.data);
-    
-    // Apply key-based filters (post-fetch filtering)
-    if (filters?.customerKey) {
-      const customer = await this.customerRepository.findByKey(filters.customerKey);
-      if (customer) {
-        subscriptions = subscriptions.filter(s => s.customerId === customer.id);
-      } else {
-        subscriptions = [];
-      }
+    // Resolve keys to IDs first
+    const resolvedFilters = await this.resolveFilterKeys(validationResult.data);
+
+    // If any key resolution returned null/empty, return empty array
+    if (!resolvedFilters || 
+        (resolvedFilters.planIds && resolvedFilters.planIds.length === 0)) {
+      return [];
     }
 
-    if (filters?.productKey) {
-      const product = await this.productRepository.findByKey(filters.productKey);
-      if (product) {
-        const validPlanIds = new Set<string>();
-        const plans = await this.planRepository.findByProduct(product.key);
-        plans.forEach(p => validPlanIds.add(p.id));
-        subscriptions = subscriptions.filter(s => validPlanIds.has(s.planId));
-      } else {
-        subscriptions = [];
-      }
+    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status)
+    const dbFilters: any = {
+      ...resolvedFilters,
+      sortBy: filters?.sortBy,
+      sortOrder: filters?.sortOrder,
+      limit: filters?.limit,
+      offset: filters?.offset,
+      status: filters?.status // Will be filtered post-fetch since it's computed
+    };
+
+    // Query repository with IDs - filtering happens in SQL
+    const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
+
+    // Filter by computed status if status filter is provided (unavoidable post-fetch)
+    let filteredSubscriptions = subscriptions;
+    if (filters?.status) {
+      filteredSubscriptions = subscriptions.filter(s => s.status === filters.status);
     }
 
-    if (filters?.planKey) {
-      if (filters?.productKey) {
-        const plan = await this.planRepository.findByKey(filters.planKey);
-        if (plan) {
-          subscriptions = subscriptions.filter(s => s.planId === plan.id);
-        } else {
-          subscriptions = [];
-        }
-      } else {
-        // Filter by planKey alone - need to find all plans with this key across all products
-        const allPlans = await this.planRepository.findAll({ limit: 1000, offset: 0 });
-        const matchingPlanIds = new Set(
-          allPlans.filter(p => p.key === filters.planKey).map(p => p.id)
-        );
-        subscriptions = subscriptions.filter(s => matchingPlanIds.has(s.planId));
-      }
-    }
-    
+    // Map to DTOs
     const dtos: SubscriptionDto[] = [];
-    for (const subscription of subscriptions) {
+    for (const subscription of filteredSubscriptions) {
       const keys = await this.resolveSubscriptionKeys(subscription);
       dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
     }
@@ -295,72 +413,45 @@ export class SubscriptionManagementService {
       );
     }
 
-    // For now, use the basic listSubscriptions with the basic filters
-    // TODO: Implement advanced filtering in repository layer
-    const basicFilters: SubscriptionFilterDto = {
-      customerKey: filters.customerKey,
-      productKey: filters.productKey,
-      planKey: filters.planKey,
-      status: filters.status,
+    // Resolve keys to IDs first
+    const resolvedFilters = await this.resolveFilterKeys(validationResult.data);
+
+    // If any key resolution returned null/empty, return empty array
+    if (!resolvedFilters || 
+        (resolvedFilters.planIds && resolvedFilters.planIds.length === 0)) {
+      return [];
+    }
+
+    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status)
+    const dbFilters: any = {
+      ...resolvedFilters,
       sortBy: filters.sortBy,
       sortOrder: filters.sortOrder,
       limit: filters.limit,
-      offset: filters.offset
+      offset: filters.offset,
+      status: filters.status // Will be filtered post-fetch since it's computed
     };
 
-    let subscriptions = await this.subscriptionRepository.findAll(basicFilters);
-    
-    // Apply additional filters post-fetch (basic implementation)
-    
-    if (filters.hasStripeId !== undefined) {
-      const hasStripe = filters.hasStripeId;
-      subscriptions = subscriptions.filter(s => hasStripe ? !!s.props.stripeSubscriptionId : !s.props.stripeSubscriptionId);
+    // Query repository with IDs - filtering happens in SQL
+    const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
+
+    // Filter by computed status if status filter is provided (unavoidable post-fetch)
+    let filteredSubscriptions = subscriptions;
+    if (filters.status) {
+      filteredSubscriptions = subscriptions.filter(s => s.status === filters.status);
     }
-    
-    if (filters.hasTrial !== undefined) {
-      const hasTrial = filters.hasTrial;
-      subscriptions = subscriptions.filter(s => hasTrial ? !!s.props.trialEndDate : !s.props.trialEndDate);
-    }
-    
+
+    // Filter by hasFeatureOverrides (unavoidable post-fetch since it requires loading feature overrides)
     if (filters.hasFeatureOverrides !== undefined) {
       const hasOverrides = filters.hasFeatureOverrides;
-      subscriptions = subscriptions.filter(s => hasOverrides ? s.props.featureOverrides.length > 0 : s.props.featureOverrides.length === 0);
+      filteredSubscriptions = filteredSubscriptions.filter(s => 
+        hasOverrides ? s.props.featureOverrides.length > 0 : s.props.featureOverrides.length === 0
+      );
     }
-    
-    // Apply date range filters
-    if (filters.activationDateFrom) {
-      subscriptions = subscriptions.filter(s => s.props.activationDate && s.props.activationDate >= filters.activationDateFrom!);
-    }
-    if (filters.activationDateTo) {
-      subscriptions = subscriptions.filter(s => s.props.activationDate && s.props.activationDate <= filters.activationDateTo!);
-    }
-    if (filters.expirationDateFrom) {
-      subscriptions = subscriptions.filter(s => s.props.expirationDate && s.props.expirationDate >= filters.expirationDateFrom!);
-    }
-    if (filters.expirationDateTo) {
-      subscriptions = subscriptions.filter(s => s.props.expirationDate && s.props.expirationDate <= filters.expirationDateTo!);
-    }
-    if (filters.trialEndDateFrom) {
-      subscriptions = subscriptions.filter(s => s.props.trialEndDate && s.props.trialEndDate >= filters.trialEndDateFrom!);
-    }
-    if (filters.trialEndDateTo) {
-      subscriptions = subscriptions.filter(s => s.props.trialEndDate && s.props.trialEndDate <= filters.trialEndDateTo!);
-    }
-    if (filters.currentPeriodStartFrom) {
-      subscriptions = subscriptions.filter(s => s.props.currentPeriodStart && s.props.currentPeriodStart >= filters.currentPeriodStartFrom!);
-    }
-    if (filters.currentPeriodStartTo) {
-      subscriptions = subscriptions.filter(s => s.props.currentPeriodStart && s.props.currentPeriodStart <= filters.currentPeriodStartTo!);
-    }
-    if (filters.currentPeriodEndFrom) {
-      subscriptions = subscriptions.filter(s => s.props.currentPeriodEnd && s.props.currentPeriodEnd >= filters.currentPeriodEndFrom!);
-    }
-    if (filters.currentPeriodEndTo) {
-      subscriptions = subscriptions.filter(s => s.props.currentPeriodEnd && s.props.currentPeriodEnd <= filters.currentPeriodEndTo!);
-    }
-    
+
+    // Map to DTOs
     const dtos: SubscriptionDto[] = [];
-    for (const subscription of subscriptions) {
+    for (const subscription of filteredSubscriptions) {
       const keys = await this.resolveSubscriptionKeys(subscription);
       dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
     }
@@ -389,7 +480,10 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Archive does not change any properties - just sets the archive flag
     subscription.archive();
+    // Sync status before saving
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -399,7 +493,10 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Unarchive just clears the archive flag
     subscription.unarchive();
+    // Sync status before saving
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -409,13 +506,7 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
-    if (!subscription.canDelete()) {
-      throw new DomainError(
-        `Cannot delete subscription with status '${subscription.status}'. ` +
-        'Subscription must be expired before deletion.'
-      );
-    }
-
+    // No deletion constraint - subscriptions can be deleted regardless of status
     await this.subscriptionRepository.delete(subscription.id);
   }
 
@@ -430,6 +521,14 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Block updates if subscription is archived
+    if (subscription.isArchived) {
+      throw new DomainError(
+        `Cannot add feature override to archived subscription with key '${subscriptionKey}'. ` +
+        'Please unarchive the subscription first.'
+      );
+    }
+
     const feature = await this.featureRepository.findByKey(featureKey);
     if (!feature) {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
@@ -439,6 +538,7 @@ export class SubscriptionManagementService {
     FeatureValueValidator.validate(value, feature.props.valueType);
 
     subscription.addFeatureOverride(feature.id, value, overrideType);
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -448,12 +548,21 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Block updates if subscription is archived
+    if (subscription.isArchived) {
+      throw new DomainError(
+        `Cannot remove feature override from archived subscription with key '${subscriptionKey}'. ` +
+        'Please unarchive the subscription first.'
+      );
+    }
+
     const feature = await this.featureRepository.findByKey(featureKey);
     if (!feature) {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
     }
 
     subscription.removeFeatureOverride(feature.id);
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -463,7 +572,16 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Block updates if subscription is archived
+    if (subscription.isArchived) {
+      throw new DomainError(
+        `Cannot clear temporary overrides for archived subscription with key '${subscriptionKey}'. ` +
+        'Please unarchive the subscription first.'
+      );
+    }
+
     subscription.clearTemporaryOverrides();
+    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -556,7 +674,10 @@ export class SubscriptionManagementService {
     // Get the plan to check for transition configuration
     const plan = await this.planRepository.findById(subscription.planId);
     if (!plan) {
-      throw new NotFoundError(`Plan ${subscription.planId} not found`);
+      // Skip if plan not found - log error but don't throw to avoid breaking batch processing
+      // Don't expose internal IDs - use subscription key only
+      console.error(`Plan not found for subscription '${subscription.key}'. This indicates a data integrity issue.`);
+      return;
     }
 
     // Find the target billing cycle
@@ -584,14 +705,47 @@ export class SubscriptionManagementService {
     // Update the existing subscription to the target plan
     subscription.props.planId = targetPlan.id;
     subscription.props.billingCycleId = targetBillingCycle.id;
-    subscription.props.status = SubscriptionStatus.Active;
     subscription.props.activationDate = now();
     subscription.props.currentPeriodStart = now();
     subscription.props.currentPeriodEnd = targetBillingCycle.calculateNextPeriodEnd(now());
     subscription.props.featureOverrides = []; // Clear all overrides for the new plan
+    subscription.props.expirationDate = undefined; // Clear expiration date
+    subscription.props.cancellationDate = undefined; // Clear cancellation date
     subscription.props.updatedAt = now();
+
+    // Sync status before saving to ensure database status matches computed status
+    subscription.syncStatus();
 
     // Save the updated subscription
     await this.subscriptionRepository.save(subscription);
+  }
+
+  /**
+   * Sync subscription statuses - updates stored status to match computed status
+   * This should be called periodically to keep database status in sync with computed status
+   * @param limit Maximum number of subscriptions to process (default: 1000)
+   * @returns Number of subscriptions processed
+   */
+  async syncSubscriptionStatuses(limit: number = 1000): Promise<number> {
+    // Get all subscriptions (without status filter since we're updating them)
+    const subscriptions = await this.subscriptionRepository.findAll({
+      limit,
+      offset: 0
+    });
+
+    let syncedCount = 0;
+    for (const subscription of subscriptions) {
+      // Get current computed status
+      const computedStatus = subscription.status;
+      
+      // If stored status doesn't match computed status, update it
+      if (subscription.props.status !== computedStatus) {
+        subscription.syncStatus();
+        await this.subscriptionRepository.save(subscription);
+        syncedCount++;
+      }
+    }
+
+    return syncedCount;
   }
 }

@@ -161,7 +161,7 @@ describe('Customers E2E Tests', () => {
 
       await subscrio.customers.archiveCustomer(customer.key);
       let retrieved = await subscrio.customers.getCustomer(customer.key);
-      expect(retrieved?.status).toBe('deleted');
+      expect(retrieved?.status).toBe('archived');
 
       await subscrio.customers.unarchiveCustomer(customer.key);
       retrieved = await subscrio.customers.getCustomer(customer.key);
@@ -178,7 +178,7 @@ describe('Customers E2E Tests', () => {
 
       await subscrio.customers.archiveCustomer(customer.key);
       const retrieved = await subscrio.customers.getCustomer(customer.key);
-      expect(retrieved?.status).toBe('deleted');
+      expect(retrieved?.status).toBe('archived');
     });
 
     test('archives customer for deletion', async () => {
@@ -189,7 +189,7 @@ describe('Customers E2E Tests', () => {
 
       await subscrio.customers.archiveCustomer(customer.key);
       const retrieved = await subscrio.customers.getCustomer(customer.key);
-      expect(retrieved?.status).toBe('deleted');
+      expect(retrieved?.status).toBe('archived');
     });
 
     test('deletes customer only when marked as deleted', async () => {
@@ -213,10 +213,10 @@ describe('Customers E2E Tests', () => {
 
       await expect(
         subscrio.customers.deleteCustomer(customer.key)
-      ).rejects.toThrow('must be marked as deleted');
+      ).rejects.toThrow('must be archived');
     });
 
-    test('throws error when deleting active customer', async () => {
+    test('throws error when deleting active customer without archiving', async () => {
       const customer = await subscrio.customers.createCustomer({
         key: `delete-active-customer-${Date.now()}`,
         displayName: 'Delete Active Customer'
@@ -225,7 +225,7 @@ describe('Customers E2E Tests', () => {
       // Don't archive the customer - keep it active
       await expect(
         subscrio.customers.deleteCustomer(customer.key)
-      ).rejects.toThrow('must be marked as deleted');
+      ).rejects.toThrow('must be archived');
     });
   });
 
@@ -255,26 +255,26 @@ describe('Customers E2E Tests', () => {
       expect(activeCustomers.length).toBeGreaterThan(0);
     });
 
-    test('filters customers by status (deleted)', async () => {
+    test('filters customers by status (archived)', async () => {
       const customer = await subscrio.customers.createCustomer({
-        key: 'filter-suspended',
-        displayName: 'Filter Suspended'
+        key: 'filter-archived',
+        displayName: 'Filter Archived'
       });
       await subscrio.customers.archiveCustomer(customer.key);
 
-      const deletedCustomers = await subscrio.customers.listCustomers({ status: 'deleted' });
-      expect(deletedCustomers.some(c => c.key === customer.key)).toBe(true);
+      const archivedCustomers = await subscrio.customers.listCustomers({ status: 'archived' });
+      expect(archivedCustomers.some(c => c.key === customer.key)).toBe(true);
     });
 
-    test('filters customers by status (deleted)', async () => {
+    test('filters customers by status (archived) - second test', async () => {
       const customer = await subscrio.customers.createCustomer({
-        key: 'filter-deleted',
-        displayName: 'Filter Deleted'
+        key: `filter-archived-${Date.now()}`,
+        displayName: 'Filter Archived 2'
       });
       await subscrio.customers.archiveCustomer(customer.key);
 
-      const deletedCustomers = await subscrio.customers.listCustomers({ status: 'deleted' });
-      expect(deletedCustomers.some(c => c.key === customer.key)).toBe(true);
+      const archivedCustomers = await subscrio.customers.listCustomers({ status: 'archived' });
+      expect(archivedCustomers.some(c => c.key === customer.key)).toBe(true);
     });
 
     test('searches customers by key', async () => {

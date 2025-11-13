@@ -84,7 +84,8 @@ export class FeatureCheckerService {
     // Get plan
     const plan = await this.planRepository.findById(subscription.planId);
     if (!plan) {
-      throw new NotFoundError(`Plan with id '${subscription.planId}' not found`);
+      // Plan not found - return empty map instead of throwing
+      return new Map();
     }
 
     // Get product to find features

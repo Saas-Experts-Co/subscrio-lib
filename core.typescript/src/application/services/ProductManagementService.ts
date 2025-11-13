@@ -37,7 +37,7 @@ export class ProductManagementService {
     const existing = await this.productRepository.findByKey(validatedDto.key);
     if (existing) {
       throw new ConflictError(
-        `Product with key '${validatedDto.key}' already exists. Existing product: ${existing.displayName} (ID: ${existing.id}, Status: ${existing.status})`
+        `Product with key '${validatedDto.key}' already exists`
       );
     }
 

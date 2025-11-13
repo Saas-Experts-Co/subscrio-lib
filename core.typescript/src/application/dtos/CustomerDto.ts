@@ -33,7 +33,7 @@ export interface CustomerDto {
 }
 
 export const CustomerFilterDtoSchema = z.object({
-  status: z.enum(['active', 'suspended', 'deleted']).optional(),
+  status: z.enum(['active', 'suspended', 'archived', 'deleted']).optional(),
   search: z.string().optional(),
   sortBy: z.enum(['displayName', 'key', 'createdAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),

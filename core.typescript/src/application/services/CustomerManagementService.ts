@@ -37,7 +37,7 @@ export class CustomerManagementService {
     // Check if key already exists
     const existing = await this.customerRepository.findByKey(validatedDto.key);
     if (existing) {
-      throw new ConflictError(`Customer with key '${validatedDto.key}' already exists. Existing customer ID: ${existing.id}, Status: ${existing.status}`);
+      throw new ConflictError(`Customer with key '${validatedDto.key}' already exists`);
     }
 
     // Check if external billing ID already exists (if provided)
@@ -154,7 +154,7 @@ export class CustomerManagementService {
     if (!customer.canDelete()) {
       throw new ValidationError(
         `Cannot delete customer with status '${customer.status}'. ` +
-        'Customer must be marked as deleted before permanent deletion.'
+        'Customer must be archived before permanent deletion.'
       );
     }
 

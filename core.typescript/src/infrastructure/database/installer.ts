@@ -187,14 +187,14 @@ export class SchemaInstaller {
         customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
         plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
         billing_cycle_id UUID NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
-        status TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        is_archived BOOLEAN NOT NULL DEFAULT FALSE,
         activation_date TIMESTAMP,
         expiration_date TIMESTAMP,
         cancellation_date TIMESTAMP,
         trial_end_date TIMESTAMP,
         current_period_start TIMESTAMP,
         current_period_end TIMESTAMP,
-        auto_renew BOOLEAN NOT NULL DEFAULT TRUE,
         stripe_subscription_id TEXT UNIQUE,
         metadata JSONB,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -213,6 +213,19 @@ export class SchemaInstaller {
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         UNIQUE(subscription_id, feature_id)
       )
+    `);
+
+    // Add is_archived column to existing subscriptions table if it doesn't exist
+    await this.db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'subscriptions' AND column_name = 'is_archived'
+        ) THEN
+          ALTER TABLE subscriptions ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+        END IF;
+      END $$;
     `);
   }
 
