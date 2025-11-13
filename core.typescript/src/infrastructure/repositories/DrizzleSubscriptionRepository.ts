@@ -68,8 +68,12 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
 
       // Insert new feature overrides
       if (subscription.props.featureOverrides.length > 0) {
+        if (savedSubscriptionId === undefined) {
+          throw new Error('Subscription ID is undefined during update');
+        }
+
         const overrideRecords = subscription.props.featureOverrides.map(override => ({
-          subscription_id: subscription.id,
+          subscription_id: savedSubscriptionId,
           feature_id: override.featureId,
           value: override.value,
           override_type: override.type,

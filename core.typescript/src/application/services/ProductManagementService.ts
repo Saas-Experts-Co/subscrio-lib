@@ -127,10 +127,8 @@ export class ProductManagementService {
       );
     }
 
-    if (product.id === undefined) {
-      throw new Error('Product ID is undefined');
-    }
-    await this.productRepository.delete(product.id);
+    // Product from repository always has ID (BIGSERIAL PRIMARY KEY)
+    await this.productRepository.delete(product.id!);
   }
 
   async archiveProduct(key: string): Promise<ProductDto> {
@@ -168,7 +166,8 @@ export class ProductManagementService {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
     }
 
-    await this.productRepository.associateFeature(product.id, feature.id);
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
+    await this.productRepository.associateFeature(product.id!, feature.id!);
   }
 
   async dissociateFeature(productKey: string, featureKey: string): Promise<void> {
@@ -182,7 +181,8 @@ export class ProductManagementService {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
     }
 
-    await this.productRepository.dissociateFeature(product.id, feature.id);
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
+    await this.productRepository.dissociateFeature(product.id!, feature.id!);
   }
 }
 

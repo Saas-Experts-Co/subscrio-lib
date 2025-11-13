@@ -18,7 +18,8 @@ export class FeatureValueResolver {
     subscription: Subscription | null
   ): string {
     // STEP 1: Check subscription override
-    if (subscription) {
+    // Note: Features passed to resolver come from repositories, so feature.id is always defined
+    if (subscription && feature.id !== undefined) {
       const override = subscription.getFeatureOverride(feature.id);
       if (override !== null) {
         return override.value;
@@ -26,7 +27,8 @@ export class FeatureValueResolver {
     }
 
     // STEP 2: Check plan value
-    if (plan) {
+    // Note: Features passed to resolver come from repositories, so feature.id is always defined
+    if (plan && feature.id !== undefined) {
       const planValue = plan.getFeatureValue(feature.id);
       if (planValue !== null) {
         return planValue;
@@ -42,7 +44,7 @@ export class FeatureValueResolver {
    */
   resolveAll(
     features: Feature[],
-    plans: Map<string, Plan>,
+    plans: Map<number, Plan>,
     subscriptions: Subscription[]
   ): Map<string, string> {
     const resolved = new Map<string, string>();
@@ -55,14 +57,15 @@ export class FeatureValueResolver {
         const plan = plans.get(subscription.planId);
         const resolvedValue = this.resolve(feature, plan || null, subscription);
         
+        // Features passed to resolver come from repositories, so feature.id is always defined
         // If subscription has override, it takes precedence
-        if (subscription.getFeatureOverride(feature.id)) {
+        if (feature.id !== undefined && subscription.getFeatureOverride(feature.id)) {
           value = resolvedValue;
           break;  // Override found, stop checking
         }
         
         // Otherwise, if plan has value and we don't have one yet
-        if (plan?.getFeatureValue(feature.id) && value === feature.defaultValue) {
+        if (feature.id !== undefined && plan?.getFeatureValue(feature.id) && value === feature.defaultValue) {
           value = resolvedValue;
         }
       }

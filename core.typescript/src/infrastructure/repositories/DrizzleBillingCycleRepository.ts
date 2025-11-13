@@ -21,7 +21,7 @@ export class DrizzleBillingCycleRepository implements IBillingCycleRepository {
         .returning({ id: billing_cycles.id });
       
       // Update entity with generated ID
-      return new BillingCycle(billingCycle.props, inserted.id);
+      return new BillingCycle(billingCycle.props, inserted.id as number);
     } else {
       // Update existing entity
       await this.db

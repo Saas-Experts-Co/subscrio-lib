@@ -42,7 +42,8 @@ export const plans = pgTable('plans', {
   display_name: text('display_name').notNull(),
   description: text('description'),
   status: text('status').notNull(),
-  on_expire_transition_to_billing_cycle_id: bigint('on_expire_transition_to_billing_cycle_id', { mode: 'number' }).references(() => billing_cycles.id),
+  // Note: on_expire_transition_to_billing_cycle_id FK is added manually in installer.ts to handle circular dependency
+  on_expire_transition_to_billing_cycle_id: bigint('on_expire_transition_to_billing_cycle_id', { mode: 'number' }),
   metadata: jsonb('metadata'),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().defaultNow()

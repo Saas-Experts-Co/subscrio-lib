@@ -94,8 +94,9 @@ export class FeatureCheckerService {
       throw new NotFoundError(`Product with key '${plan.productKey}' not found`);
     }
 
+    // Product from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Get all features for the product
-    const features = await this.featureRepository.findByProduct(product.id);
+    const features = await this.featureRepository.findByProduct(product.id!);
 
     // Resolve features for this specific subscription
     const resolved = new Map<string, string>();
@@ -141,16 +142,17 @@ export class FeatureCheckerService {
       return defaultValue ?? null;
     }
 
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
     // Get active subscriptions for this customer
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
+      customer.id!,
       { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
     // Batch load all plans to avoid N+1 queries
     const planIds = subscriptions.map(s => s.planId);
     const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
+    const planMap = new Map(plans.filter(p => p.id !== undefined).map(p => [p.id!, p]));
 
     // Filter subscriptions for this product using in-memory map
     const productSubscriptions = subscriptions.filter(subscription => {
@@ -172,8 +174,9 @@ export class FeatureCheckerService {
       const plan = planMap.get(subscription.planId);
       const value = this.resolver.resolve(feature, plan ?? null, subscription);
       
+      // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
       // If this subscription has an override, use it immediately
-      if (subscription.getFeatureOverride(feature.id)) {
+      if (subscription.getFeatureOverride(feature.id!)) {
         resolvedValue = value;
         break;
       }
@@ -217,19 +220,21 @@ export class FeatureCheckerService {
       return new Map();
     }
 
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
     // Get all features for the product
-    const features = await this.featureRepository.findByProduct(product.id);
+    const features = await this.featureRepository.findByProduct(product.id!);
 
+    // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Get active subscriptions for this customer
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
+      customer.id!,
       { limit: MAX_SUBSCRIPTIONS_PER_CUSTOMER, offset: 0 }
     );
 
     // Batch load all plans to avoid N+1 queries
     const planIds = subscriptions.map(s => s.planId);
     const plans = await this.planRepository.findByIds(planIds);
-    const planMap = new Map(plans.map(p => [p.id, p]));
+    const planMap = new Map(plans.filter(p => p.id !== undefined).map(p => [p.id!, p]));
 
     // Filter subscriptions for this product using in-memory map
     const productSubscriptions = subscriptions.filter(subscription => {
@@ -275,13 +280,14 @@ export class FeatureCheckerService {
       return false;
     }
 
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
+      customer.id!,
       { limit: 100, offset: 0 }
     );
 
     return subscriptions.some(s => 
-      s.planId === plan.id && 
+      s.planId === plan.id! && 
       (s.status === SubscriptionStatus.Active || s.status === SubscriptionStatus.Trial)
     );
   }
@@ -295,8 +301,9 @@ export class FeatureCheckerService {
       return [];
     }
 
+    // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
     const subscriptions = await this.subscriptionRepository.findByCustomerId(
-      customer.id,
+      customer.id!,
       { limit: 100, offset: 0 }
     );
 
@@ -321,8 +328,9 @@ export class FeatureCheckerService {
     textFeatures: Map<string, string>;
   }> {
     const customer = await this.customerRepository.findByKey(customerKey);
-    const activeSubscriptions = customer 
-      ? (await this.subscriptionRepository.findByCustomerId(customer.id, { limit: 100, offset: 0 })).length
+    // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const activeSubscriptions = customer
+      ? (await this.subscriptionRepository.findByCustomerId(customer.id!, { limit: 100, offset: 0 })).length
       : 0;
 
     const allFeatures = await this.getAllFeaturesForCustomer(customerKey, productKey);
@@ -333,9 +341,19 @@ export class FeatureCheckerService {
     const textFeatures = new Map<string, string>();
 
     // Get all features to determine their types
-    const features = await this.featureRepository.findByProduct(
-      (await this.productRepository.findByKey(productKey))?.id || ''
-    );
+    const product = await this.productRepository.findByKey(productKey);
+    if (!product) {
+      return {
+        activeSubscriptions,
+        enabledFeatures,
+        disabledFeatures,
+        numericFeatures,
+        textFeatures
+      };
+    }
+
+    // Product from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const features = await this.featureRepository.findByProduct(product.id!);
     const featureTypeMap = new Map(features.map(f => [f.key, f.valueType]));
 
     for (const [featureKey, value] of allFeatures) {

@@ -161,12 +161,9 @@ export class FeatureManagementService {
       );
     }
 
-    if (feature.id === undefined) {
-      throw new Error('Feature ID is undefined');
-    }
-
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Check for product associations
-    const hasProductAssociations = await this.featureRepository.hasProductAssociations(feature.id);
+    const hasProductAssociations = await this.featureRepository.hasProductAssociations(feature.id!);
     if (hasProductAssociations) {
       throw new DomainError(
         `Cannot delete feature '${feature.key}'. Feature is associated with products. Please dissociate from all products first.`
@@ -174,7 +171,7 @@ export class FeatureManagementService {
     }
 
     // Check for plan feature values
-    const hasPlanFeatureValues = await this.featureRepository.hasPlanFeatureValues(feature.id);
+    const hasPlanFeatureValues = await this.featureRepository.hasPlanFeatureValues(feature.id!);
     if (hasPlanFeatureValues) {
       throw new DomainError(
         `Cannot delete feature '${feature.key}'. Feature is used in plan feature values. Please remove from all plans first.`
@@ -182,14 +179,14 @@ export class FeatureManagementService {
     }
 
     // Check for subscription overrides
-    const hasSubscriptionOverrides = await this.featureRepository.hasSubscriptionOverrides(feature.id);
+    const hasSubscriptionOverrides = await this.featureRepository.hasSubscriptionOverrides(feature.id!);
     if (hasSubscriptionOverrides) {
       throw new DomainError(
         `Cannot delete feature '${feature.key}'. Feature has subscription overrides. Please remove all subscription overrides first.`
       );
     }
 
-    await this.featureRepository.delete(feature.id);
+    await this.featureRepository.delete(feature.id!);
   }
 
   async getFeaturesByProduct(productKey: string): Promise<FeatureDto[]> {
@@ -199,7 +196,8 @@ export class FeatureManagementService {
       throw new NotFoundError(`Product with key '${productKey}' not found`);
     }
 
-    const features = await this.featureRepository.findByProduct(product.id);
+    // Product from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const features = await this.featureRepository.findByProduct(product.id!);
     return features.map(FeatureMapper.toDto);
   }
 

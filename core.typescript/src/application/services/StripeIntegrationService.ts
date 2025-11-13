@@ -243,18 +243,15 @@ export class StripeIntegrationService {
       throw new NotFoundError(`Billing cycle with key '${billingCycleKey}' not found`);
     }
 
-    if (customer.id === undefined || plan.id === undefined || billingCycle.id === undefined) {
-      throw new Error('Customer, plan, or billing cycle ID is undefined');
-    }
-
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
     // This would integrate with Stripe SDK to create the subscription
     // For now, creating a placeholder subscription
     // Create domain entity (no ID - database will generate)
     const subscription = new Subscription({
       key: generateKey('sub'),  // Auto-generate key for Stripe subscriptions
-      customerId: customer.id,
-      planId: plan.id,
-      billingCycleId: billingCycle.id,
+      customerId: customer.id!,
+      planId: plan.id!,
+      billingCycleId: billingCycle.id!,
       status: SubscriptionStatus.Active,  // Default status
       isArchived: false,
       activationDate: now(),

@@ -158,9 +158,7 @@ export class CustomerManagementService {
       );
     }
 
-    if (customer.id === undefined) {
-      throw new Error('Customer ID is undefined');
-    }
-    await this.customerRepository.delete(customer.id);
+    // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
+    await this.customerRepository.delete(customer.id!);
   }
 }

@@ -218,12 +218,9 @@ export class PlanManagementService {
       );
     }
 
-    if (plan.id === undefined) {
-      throw new Error('Plan ID is undefined');
-    }
-
+    // Plan from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Check for subscriptions before deletion (more critical than billing cycles)
-    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForPlan(plan.id);
+    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForPlan(plan.id!);
     if (hasSubscriptions) {
       throw new DomainError(
         `Cannot delete plan '${plan.key}'. Plan has active subscriptions. Please cancel or expire all subscriptions first.`
@@ -231,14 +228,14 @@ export class PlanManagementService {
     }
 
     // Check for billing cycles before deletion
-    const hasBillingCycles = await this.planRepository.hasBillingCycles(plan.id);
+    const hasBillingCycles = await this.planRepository.hasBillingCycles(plan.id!);
     if (hasBillingCycles) {
       throw new DomainError(
         `Cannot delete plan '${plan.key}'. Plan has associated billing cycles. Please delete or archive all billing cycles first.`
       );
     }
 
-    await this.planRepository.delete(plan.id);
+    await this.planRepository.delete(plan.id!);
   }
 
   async setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void> {
@@ -255,7 +252,8 @@ export class PlanManagementService {
     // Validate value against feature type
     FeatureValueValidator.validate(value, feature.props.valueType);
 
-    plan.setFeatureValue(feature.id, value);
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
+    plan.setFeatureValue(feature.id!, value);
     await this.planRepository.save(plan);
   }
 
@@ -270,7 +268,8 @@ export class PlanManagementService {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
     }
 
-    plan.removeFeatureValue(feature.id);
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
+    plan.removeFeatureValue(feature.id!);
     await this.planRepository.save(plan);
   }
 
@@ -285,7 +284,8 @@ export class PlanManagementService {
       return null;
     }
 
-    return plan.getFeatureValue(feature.id);
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
+    return plan.getFeatureValue(feature.id!);
   }
 
   async getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: string }>> {

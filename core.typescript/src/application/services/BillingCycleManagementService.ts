@@ -72,13 +72,10 @@ export class BillingCycleManagementService {
       }
     }
 
-    if (plan.id === undefined) {
-      throw new Error('Plan ID is undefined');
-    }
-
+    // Plan from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Create domain entity (no ID - database will generate)
     const billingCycle = new BillingCycle({
-      planId: plan.id,
+      planId: plan.id!,
       key: validatedDto.key,
       displayName: validatedDto.displayName,
       description: validatedDto.description,
@@ -167,7 +164,8 @@ export class BillingCycleManagementService {
       throw new NotFoundError(`Plan with key '${planKey}' not found`);
     }
 
-    const billingCycles = await this.billingCycleRepository.findByPlan(plan.id);
+    // Plan from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const billingCycles = await this.billingCycleRepository.findByPlan(plan.id!);
     return billingCycles.map(bc => BillingCycleMapper.toDto(bc, plan.productKey, plan.key));
   }
 
@@ -231,12 +229,9 @@ export class BillingCycleManagementService {
       );
     }
 
-    if (billingCycle.id === undefined) {
-      throw new Error('Billing cycle ID is undefined');
-    }
-
+    // Billing cycle from repository always has ID (BIGSERIAL PRIMARY KEY)
     // Check for subscriptions before deletion
-    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForBillingCycle(billingCycle.id);
+    const hasSubscriptions = await this.subscriptionRepository.hasSubscriptionsForBillingCycle(billingCycle.id!);
     if (hasSubscriptions) {
       throw new DomainError(
         `Cannot delete billing cycle '${billingCycle.key}'. Billing cycle has active subscriptions. Please cancel or expire all subscriptions first.`
@@ -251,7 +246,7 @@ export class BillingCycleManagementService {
       );
     }
 
-    await this.billingCycleRepository.delete(billingCycle.id);
+    await this.billingCycleRepository.delete(billingCycle.id!);
   }
 
   /**

@@ -34,7 +34,11 @@ export class DrizzlePlanRepository implements IPlanRepository {
         throw new Error(`Billing cycle with key '${plan.props.onExpireTransitionToBillingCycleKey}' not found`);
       }
       
-      billingCycleId = billingCycle.id;
+      billingCycleId = billingCycle.id as number;
+    }
+
+    if (product.id === undefined) {
+      throw new Error('Product ID is undefined');
     }
 
     const record = PlanMapper.toPersistence(plan, product.id, billingCycleId);
@@ -87,8 +91,12 @@ export class DrizzlePlanRepository implements IPlanRepository {
 
       // Insert new feature values
       if (plan.props.featureValues.length > 0) {
+        if (savedPlanId === undefined) {
+          throw new Error('Plan ID is undefined after insert');
+        }
+
         const featureValueRecords = plan.props.featureValues.map(fv => ({
-          plan_id: plan.id,
+          plan_id: savedPlanId,
           feature_id: fv.featureId,
           value: fv.value,
           created_at: fv.createdAt,
@@ -313,7 +321,7 @@ export class DrizzlePlanRepository implements IPlanRepository {
     if (!billingCycle) return null;
     
     // Use findById which already has all the necessary joins
-    return this.findById(billingCycle.plan_id);
+    return this.findById(billingCycle.plan_id as number);
   }
 
   async delete(id: number): Promise<void> {
@@ -353,7 +361,7 @@ export class DrizzlePlanRepository implements IPlanRepository {
     const [record] = await this.db
       .select({ id: plans.id })
       .from(plans)
-      .where(eq(plans.on_expire_transition_to_billing_cycle_id, billingCycle.id))
+      .where(eq(plans.on_expire_transition_to_billing_cycle_id, billingCycle.id as number))
       .limit(1);
 
     return !!record;

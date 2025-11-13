@@ -145,10 +145,8 @@ export class APIKeyManagementService {
       );
     }
 
-    if (apiKey.id === undefined) {
-      throw new Error('API key ID is undefined');
-    }
-    await this.apiKeyRepository.delete(apiKey.id);
+    // API key from repository always has ID (BIGSERIAL PRIMARY KEY)
+    await this.apiKeyRepository.delete(apiKey.id!);
   }
 
   /**

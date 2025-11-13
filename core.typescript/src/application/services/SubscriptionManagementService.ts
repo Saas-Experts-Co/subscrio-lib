@@ -116,7 +116,8 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Product not found for plan '${plan.key}'`);
     }
 
-    const billingCycleId = billingCycle.id;
+    // Billing cycle from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const billingCycleId = billingCycle.id!;
 
     // Check for duplicate subscription key
     const existingKey = await this.subscriptionRepository.findByKey(validatedDto.key);
@@ -132,10 +133,8 @@ export class SubscriptionManagementService {
       }
     }
 
-    if (customer.id === undefined || plan.id === undefined || billingCycleId === undefined) {
-      throw new Error('Customer, plan, or billing cycle ID is undefined');
-    }
-
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
+    // billingCycleId comes from findByKey lookup, so it's guaranteed to have an ID if billingCycle exists
     const trialEndDate = validatedDto.trialEndDate ? new Date(validatedDto.trialEndDate) : undefined;
     
     // Calculate currentPeriodEnd based on billing cycle duration
@@ -148,9 +147,9 @@ export class SubscriptionManagementService {
     // Create domain entity (no ID - database will generate)
     const subscription = new Subscription({
       key: validatedDto.key,  // User-supplied key
-      customerId: customer.id,
-      planId: plan.id,
-      billingCycleId,
+      customerId: customer.id!,
+      planId: plan.id!,
+      billingCycleId: billingCycleId!,
       status: SubscriptionStatus.Active,  // Default status, will be calculated dynamically
       isArchived: false,
       activationDate: validatedDto.activationDate ? new Date(validatedDto.activationDate) : now(),
@@ -235,7 +234,9 @@ export class SubscriptionManagementService {
       if (!billingCycle) {
         throw new NotFoundError(`Billing cycle with key '${validatedDto.billingCycleKey}' not found`);
       }
-      subscription.props.billingCycleId = billingCycle.id;
+
+      // Billing cycle from repository always has ID (BIGSERIAL PRIMARY KEY)
+      subscription.props.billingCycleId = billingCycle.id!;
       subscription.props.planId = billingCycle.props.planId; // Update plan ID to match new billing cycle
     }
 
@@ -278,7 +279,8 @@ export class SubscriptionManagementService {
         // Customer not found - return null to indicate empty result
         return null;
       }
-      resolved.customerId = customer.id;
+      // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
+      resolved.customerId = customer.id!;
     }
 
     // Resolve planKey and/or productKey to planIds
@@ -290,14 +292,16 @@ export class SubscriptionManagementService {
           // Plan not found or doesn't belong to product - return null to indicate empty result
           return null;
         }
-        resolved.planId = plan.id;
+        // Plan from repository always has ID (BIGSERIAL PRIMARY KEY)
+        resolved.planId = plan.id!;
       } else {
         // Only planKey - plan keys are globally unique, so findByKey is sufficient
         const plan = await this.planRepository.findByKey(filters.planKey);
         if (!plan) {
           return null;
         }
-        resolved.planId = plan.id;
+        // Plan from repository always has ID (BIGSERIAL PRIMARY KEY)
+        resolved.planId = plan.id!;
       }
     } else if (filters.productKey) {
       // Only productKey - find all plans for this product
@@ -309,7 +313,8 @@ export class SubscriptionManagementService {
       if (plans.length === 0) {
         return { planIds: [] };
       }
-      resolved.planIds = plans.map(p => p.id);
+      // Plans from repository always have IDs (BIGSERIAL PRIMARY KEY)
+      resolved.planIds = plans.map(p => p.id!);
     }
 
     // Resolve billingCycleKey to billingCycleId (only for DetailedSubscriptionFilterDto)
@@ -318,7 +323,8 @@ export class SubscriptionManagementService {
       if (!billingCycle) {
         return null;
       }
-      resolved.billingCycleId = billingCycle.id;
+      // Billing cycle from repository always has ID (BIGSERIAL PRIMARY KEY)
+      resolved.billingCycleId = billingCycle.id!;
     }
 
     // Copy other filter properties (date ranges, etc.)
@@ -468,7 +474,8 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Customer with key '${customerKey}' not found`);
     }
 
-    const subscriptions = await this.subscriptionRepository.findByCustomerId(customer.id);
+    // Customer from repository always has ID (BIGSERIAL PRIMARY KEY)
+    const subscriptions = await this.subscriptionRepository.findByCustomerId(customer.id!);
     
     const dtos: SubscriptionDto[] = [];
     for (const subscription of subscriptions) {
@@ -510,8 +517,9 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Subscription with key '${subscriptionKey}' not found`);
     }
 
+    // Subscription from repository always has ID (BIGSERIAL PRIMARY KEY)
     // No deletion constraint - subscriptions can be deleted regardless of status
-    await this.subscriptionRepository.delete(subscription.id);
+    await this.subscriptionRepository.delete(subscription.id!);
   }
 
   async addFeatureOverride(
@@ -541,7 +549,8 @@ export class SubscriptionManagementService {
     // Validate value against feature type
     FeatureValueValidator.validate(value, feature.props.valueType);
 
-    subscription.addFeatureOverride(feature.id, value, overrideType);
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
+    subscription.addFeatureOverride(feature.id!, value, overrideType);
     subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
@@ -565,7 +574,8 @@ export class SubscriptionManagementService {
       throw new NotFoundError(`Feature with key '${featureKey}' not found`);
     }
 
-    subscription.removeFeatureOverride(feature.id);
+    // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
+    subscription.removeFeatureOverride(feature.id!);
     subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
@@ -698,8 +708,9 @@ export class SubscriptionManagementService {
       );
     }
 
+    // Entities from repository always have IDs (BIGSERIAL PRIMARY KEY)
     // Find the target plan (should be the same product)
-    const targetPlan = await this.planRepository.findByBillingCycleId(targetBillingCycle.id);
+    const targetPlan = await this.planRepository.findByBillingCycleId(targetBillingCycle.id!);
     if (!targetPlan) {
       throw new NotFoundError(
         `Target plan for billing cycle ${plan.props.onExpireTransitionToBillingCycleKey} not found`
@@ -707,8 +718,8 @@ export class SubscriptionManagementService {
     }
 
     // Update the existing subscription to the target plan
-    subscription.props.planId = targetPlan.id;
-    subscription.props.billingCycleId = targetBillingCycle.id;
+    subscription.props.planId = targetPlan.id!;
+    subscription.props.billingCycleId = targetBillingCycle.id!;
     subscription.props.activationDate = now();
     subscription.props.currentPeriodStart = now();
     subscription.props.currentPeriodEnd = targetBillingCycle.calculateNextPeriodEnd(now());
