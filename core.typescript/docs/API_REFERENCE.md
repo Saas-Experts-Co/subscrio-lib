@@ -4,8 +4,11 @@ Complete documentation of all data structures and methods exposed by `@subscrio/
 
 ## Table of Contents
 - [Main Class](#main-class)
-- [Data Structures (DTOs)](#data-structures-dtos)
 - [Service Methods](#service-methods)
+- [Data Structures (DTOs)](#data-structures-dtos)
+- [Key Relationships](#key-relationships)
+- [Feature Resolution Hierarchy](#feature-resolution-hierarchy)
+- [Important Notes](#important-notes)
 
 ---
 
@@ -37,217 +40,8 @@ const subscrio = new Subscrio({
 **Instance Methods:**
 - `await subscrio.installSchema(adminPassphrase?): Promise<void>` - Install database schema
 - `await subscrio.verifySchema(): Promise<boolean>` - Check if schema is installed
+- `await subscrio.dropSchema(): Promise<void>` - Drop all database tables (WARNING: Destructive!)
 - `await subscrio.close(): Promise<void>` - Close database connections
-
----
-
-## Data Structures (DTOs)
-
-### Product
-
-**CreateProductDto:**
-```typescript
-{
-  key: string;                    // lowercase-with-hyphens, unique
-  displayName: string;            // 1-255 chars
-  description?: string;           // max 1000 chars
-  displayOrder?: number;          // integer >= 0
-  metadata?: Record<string, unknown>;
-}
-```
-
-**ProductDto (Output):**
-```typescript
-{
-  key: string;
-  displayName: string;
-  description?: string;
-  status: string;                 // 'active' | 'archived'
-  metadata?: Record<string, unknown>;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
-### Feature
-
-**CreateFeatureDto:**
-```typescript
-{
-  key: string;                    // alphanumeric-with-hyphens, globally unique
-  displayName: string;            // 1-255 chars
-  description?: string;           // max 1000 chars
-  valueType: 'toggle' | 'numeric' | 'text';
-  defaultValue: string;           // required
-  groupName?: string;             // max 255 chars
-  displayOrder?: number;          // integer >= 0
-  validator?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-}
-```
-
-**FeatureDto (Output):**
-```typescript
-{
-  key: string;
-  displayName: string;
-  description?: string;
-  valueType: string;              // 'toggle' | 'numeric' | 'text'
-  defaultValue: string;
-  groupName?: string;
-  status: string;                 // 'active' | 'archived'
-  validator?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
-### Plan
-
-**CreatePlanDto:**
-```typescript
-{
-  productKey: string;             // Key of the product
-  key: string;                    // lowercase-with-hyphens, unique within product
-  displayName: string;            // 1-255 chars
-  description?: string;           // max 1000 chars
-  onExpireTransitionToPlanKey?: string; // Key of plan to transition to
-  metadata?: Record<string, unknown>;
-}
-```
-
-**PlanDto (Output):**
-```typescript
-{
-  productKey: string;             // Product key
-  key: string;
-  displayName: string;
-  description?: string;
-  status: string;                 // 'active' | 'archived'
-  onExpireTransitionToPlanKey?: string; // Plan key
-  metadata?: Record<string, unknown>;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
-### BillingCycle
-
-**CreateBillingCycleDto:**
-```typescript
-{
-  productKey: string;             // Key of the product
-  planKey: string;                // Key of the plan
-  key: string;                    // lowercase-with-hyphens, unique within plan
-  displayName: string;            // 1-255 chars
-  description?: string;           // max 1000 chars
-  durationValue: number;          // integer >= 1
-  durationUnit: 'days' | 'weeks' | 'months' | 'years';
-  externalProductId?: string;     // max 255 chars (e.g., Stripe price ID)
-}
-```
-
-**BillingCycleDto (Output):**
-```typescript
-{
-  productKey: string;             // Product key
-  planKey: string;                // Plan key
-  key: string;
-  displayName: string;
-  description?: string;
-  durationValue: number;
-  durationUnit: string;           // 'days' | 'weeks' | 'months' | 'years'
-  externalProductId?: string;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
-### Customer
-
-**CreateCustomerDto:**
-```typescript
-{
-  key: string;                    // 1-255 chars, unique (your user ID)
-  displayName?: string;           // max 255 chars
-  email?: string;                 // valid email
-  externalBillingId?: string;     // max 255 chars (e.g., Stripe customer ID)
-  metadata?: Record<string, unknown>;
-}
-```
-
-**CustomerDto (Output):**
-```typescript
-{
-  key: string;
-  displayName?: string;
-  email?: string;
-  externalBillingId?: string;
-  status: string;                 // 'active' | 'suspended' | 'deleted'
-  metadata?: Record<string, unknown>;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
-### Subscription
-
-**CreateSubscriptionDto:**
-```typescript
-{
-  key: string;                    // Unique subscription key
-  customerKey: string;            // Customer's key
-  productKey: string;             // Product key
-  planKey: string;                // Plan key
-  billingCycleKey: string;        // Billing cycle key (required)
-  activationDate?: Date | string; // ISO datetime
-  expirationDate?: Date | string; // ISO datetime
-  cancellationDate?: Date | string; // ISO datetime
-  trialEndDate?: Date | string;   // ISO datetime
-  currentPeriodStart?: Date | string; // ISO datetime
-  currentPeriodEnd?: Date | string;   // ISO datetime
-  autoRenew?: boolean;            // default true
-  stripeSubscriptionId?: string;
-  metadata?: Record<string, unknown>;
-}
-```
-
-**SubscriptionDto (Output):**
-```typescript
-{
-  key: string;                    // Subscription key
-  customerKey: string;            // Customer key
-  productKey: string;             // Product key
-  planKey: string;                // Plan key
-  billingCycleKey: string;        // Billing cycle key
-  status: string;                 // 'pending' | 'active' | 'trial' | 'cancelled' | 'expired' | 'suspended' (calculated dynamically)
-  activationDate?: string;        // ISO 8601
-  expirationDate?: string;        // ISO 8601
-  cancellationDate?: string;      // ISO 8601
-  trialEndDate?: string;          // ISO 8601
-  currentPeriodStart?: string;    // ISO 8601
-  currentPeriodEnd?: string;      // ISO 8601
-  autoRenew: boolean;
-  stripeSubscriptionId?: string;
-  metadata?: Record<string, unknown>;
-  createdAt: string;              // ISO 8601
-  updatedAt: string;              // ISO 8601
-}
-```
-
----
-
-## Subscription Status Calculation
-
-Subscription status is calculated dynamically based on the current state of the subscription:
-
-1. **'cancelled'** - If `cancellationDate` is set and has passed
-2. **'expired'** - If `expirationDate` is set and has passed  
-3. **'trial'** - If `trialEndDate` is set and is in the future
-4. **'active'** - Default status if none of the above conditions apply
-
-The status is recalculated every time the subscription is accessed, ensuring it always reflects the current state based on dates and other properties.
 
 ---
 
@@ -265,8 +59,8 @@ listProducts(filters?: ProductFilterDto): Promise<ProductDto[]>
 
 // Update
 updateProduct(key: string, dto: UpdateProductDto): Promise<ProductDto>
-activateProduct(key: string): Promise<ProductDto>
 archiveProduct(key: string): Promise<ProductDto>
+unarchiveProduct(key: string): Promise<ProductDto>
 
 // Delete
 deleteProduct(key: string): Promise<void>
@@ -303,22 +97,21 @@ deleteFeature(key: string): Promise<void>
 createPlan(dto: CreatePlanDto): Promise<PlanDto>
 
 // Read
-getPlan(productKey: string, planKey: string): Promise<PlanDto | null>
+getPlan(planKey: string): Promise<PlanDto | null>
 listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
 getPlansByProduct(productKey: string): Promise<PlanDto[]>
-getPlanFeatures(productKey: string, planKey: string): Promise<Array<{ featureKey: string; value: string }>>
-getFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<string | null>
+getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: string }>>
+getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 
 // Update
-updatePlan(productKey: string, planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
-activatePlan(productKey: string, planKey: string): Promise<void>
-deactivatePlan(productKey: string, planKey: string): Promise<void>
-archivePlan(productKey: string, planKey: string): Promise<void>
-setFeatureValue(productKey: string, planKey: string, featureKey: string, value: string): Promise<void>
-removeFeatureValue(productKey: string, planKey: string, featureKey: string): Promise<void>
+updatePlan(planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
+archivePlan(planKey: string): Promise<void>
+unarchivePlan(planKey: string): Promise<void>
+setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void>
+removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 
 // Delete
-deletePlan(productKey: string, planKey: string): Promise<void>
+deletePlan(planKey: string): Promise<void>
 ```
 
 ### BillingCycleManagementService (`subscrio.billingCycles`)
@@ -328,20 +121,22 @@ deletePlan(productKey: string, planKey: string): Promise<void>
 createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 
 // Read
-getBillingCycle(productKey: string, planKey: string, key: string): Promise<BillingCycleDto | null>
-getBillingCyclesByPlan(productKey: string, planKey: string): Promise<BillingCycleDto[]>
+getBillingCycle(key: string): Promise<BillingCycleDto | null>
+getBillingCyclesByPlan(planKey: string): Promise<BillingCycleDto[]>
 listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
-getBillingCyclesByDurationUnit(durationUnit: DurationUnit): Promise<BillingCycleDto[]>
+getBillingCyclesByDurationUnit(durationUnit: 'days' | 'weeks' | 'months' | 'years' | 'forever'): Promise<BillingCycleDto[]>
 getDefaultBillingCycles(): Promise<BillingCycleDto[]>
 
 // Update
-updateBillingCycle(productKey: string, planKey: string, key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto>
+updateBillingCycle(key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto>
+archiveBillingCycle(key: string): Promise<void>
+unarchiveBillingCycle(key: string): Promise<void>
 
 // Delete
-deleteBillingCycle(productKey: string, planKey: string, key: string): Promise<void>
+deleteBillingCycle(key: string): Promise<void>
 
 // Utility
-calculateNextPeriodEnd(billingCycleId: string, currentPeriodEnd: Date): Promise<Date>
+calculateNextPeriodEnd(billingCycleKey: string, currentPeriodEnd: Date): Promise<Date | null>
 ```
 
 ### CustomerManagementService (`subscrio.customers`)
@@ -351,17 +146,39 @@ calculateNextPeriodEnd(billingCycleId: string, currentPeriodEnd: Date): Promise<
 createCustomer(dto: CreateCustomerDto): Promise<CustomerDto>
 
 // Read
-getCustomer(externalId: string): Promise<CustomerDto | null>
+getCustomer(key: string): Promise<CustomerDto | null>
 listCustomers(filters?: CustomerFilterDto): Promise<CustomerDto[]>
 
 // Update
-updateCustomer(externalId: string, dto: UpdateCustomerDto): Promise<CustomerDto>
-activateCustomer(externalId: string): Promise<void>
-suspendCustomer(externalId: string): Promise<void>
-markCustomerDeleted(externalId: string): Promise<void>
+updateCustomer(key: string, dto: UpdateCustomerDto): Promise<CustomerDto>
+archiveCustomer(key: string): Promise<void>
+unarchiveCustomer(key: string): Promise<void>
 
 // Delete
-deleteCustomer(externalId: string): Promise<void>
+deleteCustomer(key: string): Promise<void>
+```
+
+### APIKeyManagementService (`subscrio.apiKeys`)
+
+```typescript
+// Create
+createAPIKey(dto: CreateAPIKeyDto): Promise<APIKeyWithPlaintextDto>  // Returns plaintext key (only time available)
+
+// Update
+updateAPIKey(key: string, dto: UpdateAPIKeyDto): Promise<APIKeyDto>
+archiveAPIKey(key: string): Promise<void>
+unarchiveAPIKey(key: string): Promise<void>
+
+// Delete
+deleteAPIKey(key: string): Promise<void>
+
+// Validation
+validateAPIKey(
+  plaintextKey: string,
+  requiredScope?: 'admin' | 'readonly',
+  clientIp?: string
+): Promise<boolean>
+getAPIKeyByPlaintext(plaintextKey: string): Promise<APIKeyDto | null>
 ```
 
 ### SubscriptionManagementService (`subscrio.subscriptions`)
@@ -389,10 +206,14 @@ addFeatureOverride(
   subscriptionKey: string,
   featureKey: string,
   value: string,
-  type: 'permanent' | 'temporary'
+  type?: 'permanent' | 'temporary'  // Defaults to 'permanent'
 ): Promise<void>
 removeFeatureOverride(subscriptionKey: string, featureKey: string): Promise<void>
 clearTemporaryOverrides(subscriptionKey: string): Promise<void>
+
+// Utility
+processAutomaticTransitions(): Promise<number>  // Process expired subscriptions with transition config
+syncSubscriptionStatuses(limit?: number): Promise<number>  // Sync stored statuses with computed statuses
 ```
 
 ### FeatureCheckerService (`subscrio.featureChecker`)
@@ -418,38 +239,38 @@ getAllFeaturesForSubscription(
 
 // Customer + Product-based methods
 getValueForCustomer<T = string>(
-  customerExternalId: string,
+  customerKey: string,
   productKey: string,
   featureKey: string,
   defaultValue?: T
 ): Promise<T | null>
 
 isEnabledForCustomer(
-  customerExternalId: string,
+  customerKey: string,
   productKey: string,
   featureKey: string
 ): Promise<boolean>
 
 getAllFeaturesForCustomer(
-  customerExternalId: string,
+  customerKey: string,
   productKey: string
 ): Promise<Map<string, string>>
 
 // Check if customer has access to a plan
 hasPlanAccess(
-  customerExternalId: string,
+  customerKey: string,
   productKey: string,
   planKey: string
 ): Promise<boolean>
 
 // Get active plan keys for customer
 getActivePlans(
-  customerExternalId: string
+  customerKey: string
 ): Promise<string[]>
 
 // Get usage summary for a specific product
 getFeatureUsageSummary(
-  customerExternalId: string,
+  customerKey: string,
   productKey: string
 ): Promise<{
   activeSubscriptions: number;
@@ -468,12 +289,346 @@ processStripeEvent(event: Stripe.Event): Promise<void>
 
 // Create Stripe subscription
 createStripeSubscription(
-  customerExternalId: string,
-  planId: string,
-  billingCycleId: string,
+  customerKey: string,
+  planKey: string,
+  billingCycleKey: string,
   stripePriceId: string
 ): Promise<Subscription>
 ```
+
+---
+
+## Data Structures (DTOs)
+
+### Product
+
+**CreateProductDto:**
+```typescript
+{
+  key: string;                    // lowercase-with-hyphens, unique
+  displayName: string;            // 1-255 chars
+  description?: string;           // max 1000 chars
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdateProductDto:**
+```typescript
+{
+  displayName?: string;           // 1-255 chars
+  description?: string;           // max 1000 chars
+  metadata?: Record<string, unknown>;
+  // Note: key is immutable
+}
+```
+
+**ProductDto (Output):**
+```typescript
+{
+  key: string;
+  displayName: string;
+  description?: string | null;
+  status: string;                 // 'active' | 'archived'
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+### Feature
+
+**CreateFeatureDto:**
+```typescript
+{
+  key: string;                    // alphanumeric-with-hyphens/underscores, globally unique
+  displayName: string;            // 1-255 chars
+  description?: string;           // max 1000 chars
+  valueType: 'toggle' | 'numeric' | 'text';
+  defaultValue: string;           // required, validated based on valueType
+  groupName?: string;             // max 255 chars
+  validator?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdateFeatureDto:**
+```typescript
+{
+  displayName?: string;           // 1-255 chars
+  description?: string;           // max 1000 chars
+  valueType?: 'toggle' | 'numeric' | 'text';
+  defaultValue?: string;          // validated based on valueType if provided
+  groupName?: string;             // max 255 chars
+  validator?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  // Note: key is immutable
+}
+```
+
+**FeatureDto (Output):**
+```typescript
+{
+  key: string;
+  displayName: string;
+  description?: string | null;
+  valueType: string;              // 'toggle' | 'numeric' | 'text'
+  defaultValue: string;
+  groupName?: string | null;
+  status: string;                 // 'active' | 'archived'
+  validator?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+### Plan
+
+**CreatePlanDto:**
+```typescript
+{
+  productKey: string;             // Key of the product
+  key: string;                    // lowercase-with-hyphens, globally unique
+  displayName: string;            // 1-255 chars
+  description?: string;           // max 1000 chars
+  onExpireTransitionToBillingCycleKey?: string; // Key of billing cycle to transition to
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdatePlanDto:**
+```typescript
+{
+  displayName?: string;           // 1-255 chars
+  description?: string;           // max 1000 chars
+  onExpireTransitionToBillingCycleKey?: string;
+  metadata?: Record<string, unknown>;
+  // Note: key and productKey are immutable
+}
+```
+
+**PlanDto (Output):**
+```typescript
+{
+  productKey: string;             // Product key
+  key: string;
+  displayName: string;
+  description?: string | null;
+  status: string;                 // 'active' | 'archived'
+  onExpireTransitionToBillingCycleKey?: string | null; // Billing cycle key
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+### BillingCycle
+
+**CreateBillingCycleDto:**
+```typescript
+{
+  planKey: string;                // Key of the plan
+  key: string;                    // lowercase-with-hyphens, globally unique
+  displayName: string;            // 1-255 chars
+  description?: string;           // max 1000 chars
+  durationValue?: number;         // integer >= 1 (required unless durationUnit is 'forever')
+  durationUnit: 'days' | 'weeks' | 'months' | 'years' | 'forever';
+  externalProductId?: string;     // max 255 chars (e.g., Stripe price ID)
+}
+```
+
+**UpdateBillingCycleDto:**
+```typescript
+{
+  displayName?: string;           // 1-255 chars
+  description?: string;           // max 1000 chars
+  durationValue?: number;         // integer >= 1 (required if durationUnit is not 'forever')
+  durationUnit?: 'days' | 'weeks' | 'months' | 'years' | 'forever';
+  externalProductId?: string;     // max 255 chars
+  // Note: key and planKey are immutable
+}
+```
+
+**BillingCycleDto (Output):**
+```typescript
+{
+  productKey: string | null;      // Product key (resolved from plan)
+  planKey: string | null;         // Plan key (resolved from plan)
+  key: string;
+  displayName: string;
+  description?: string | null;
+  status: string;                 // 'active' | 'archived'
+  durationValue?: number | null;  // null for 'forever' duration
+  durationUnit: string;           // 'days' | 'weeks' | 'months' | 'years' | 'forever'
+  externalProductId?: string | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+### Customer
+
+**CreateCustomerDto:**
+```typescript
+{
+  key: string;                    // 1-255 chars, unique (your user ID)
+  displayName?: string;           // max 255 chars
+  email?: string;                 // valid email
+  externalBillingId?: string;     // max 255 chars (e.g., Stripe customer ID)
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdateCustomerDto:**
+```typescript
+{
+  displayName?: string;           // max 255 chars
+  email?: string;                 // valid email
+  externalBillingId?: string;     // max 255 chars
+  metadata?: Record<string, unknown>;
+  // Note: key is immutable
+}
+```
+
+**CustomerDto (Output):**
+```typescript
+{
+  key: string;
+  displayName?: string | null;
+  email?: string | null;
+  externalBillingId?: string | null;
+  status: string;                 // 'active' | 'suspended' | 'archived' | 'deleted'
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+### APIKey
+
+**CreateAPIKeyDto:**
+```typescript
+{
+  displayName: string;            // 1-255 chars
+  description?: string;           // max 1000 chars
+  scope: 'admin' | 'readonly';
+  expiresAt?: string | Date;     // ISO datetime
+  ipWhitelist?: string[];        // Array of IP addresses
+  createdBy?: string;            // max 255 chars
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdateAPIKeyDto:**
+```typescript
+{
+  displayName?: string;           // 1-255 chars
+  description?: string;           // max 1000 chars
+  scope?: 'admin' | 'readonly';
+  expiresAt?: string | Date;     // ISO datetime
+  ipWhitelist?: string[];        // Array of IP addresses
+  createdBy?: string;            // max 255 chars
+  metadata?: Record<string, unknown>;
+  // Note: key is immutable
+}
+```
+
+**APIKeyDto (Output):**
+```typescript
+{
+  key: string;                    // API key reference key
+  displayName: string;
+  description?: string | null;
+  status: string;                 // 'active' | 'revoked'
+  scope: string;                  // 'admin' | 'readonly'
+  expiresAt?: string | null;      // ISO 8601
+  lastUsedAt?: string | null;     // ISO 8601
+  ipWhitelist?: string[] | null;
+  createdBy?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+**APIKeyWithPlaintextDto (Returned only from createAPIKey):**
+```typescript
+{
+  ...APIKeyDto;
+  plaintextKey: string;           // Plaintext API key (only available at creation)
+}
+```
+
+### Subscription
+
+**CreateSubscriptionDto:**
+```typescript
+{
+  key: string;                    // Unique subscription key (alphanumeric with hyphens/underscores)
+  customerKey: string;            // Customer's key
+  billingCycleKey: string;        // Billing cycle key (required, product/plan derived from billing cycle)
+  activationDate?: Date | string; // ISO datetime
+  expirationDate?: Date | string; // ISO datetime
+  cancellationDate?: Date | string; // ISO datetime
+  trialEndDate?: Date | string;   // ISO datetime
+  currentPeriodStart?: Date | string; // ISO datetime
+  currentPeriodEnd?: Date | string;   // ISO datetime
+  stripeSubscriptionId?: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+**UpdateSubscriptionDto:**
+```typescript
+{
+  billingCycleKey?: string;       // Can change billing cycle (updates plan automatically)
+  expirationDate?: Date | string | null; // ISO datetime (null to clear)
+  cancellationDate?: Date | string | null; // ISO datetime (null to clear)
+  trialEndDate?: Date | string | null; // ISO datetime (null to clear)
+  currentPeriodStart?: Date | string; // ISO datetime
+  currentPeriodEnd?: Date | string; // ISO datetime
+  stripeSubscriptionId?: string;
+  metadata?: Record<string, unknown>;
+  // Note: key, customerKey, and activationDate are immutable
+}
+```
+
+**SubscriptionDto (Output):**
+```typescript
+{
+  key: string;                    // Subscription key (immutable)
+  customerKey: string;            // Customer key (immutable)
+  productKey: string;             // Product key (resolved from plan)
+  planKey: string;                // Plan key (resolved from billing cycle)
+  billingCycleKey: string;        // Billing cycle key
+  status: string;                 // 'pending' | 'active' | 'trial' | 'cancelled' | 'cancellation_pending' | 'expired' | 'suspended' (calculated dynamically)
+  activationDate?: string;        // ISO 8601 (immutable)
+  expirationDate?: string;        // ISO 8601
+  cancellationDate?: string;      // ISO 8601
+  trialEndDate?: string;          // ISO 8601
+  currentPeriodStart?: string;    // ISO 8601
+  currentPeriodEnd?: string;      // ISO 8601
+  stripeSubscriptionId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;              // ISO 8601
+  updatedAt: string;              // ISO 8601
+}
+```
+
+---
+
+## Subscription Status Calculation
+
+Subscription status is calculated dynamically based on the current state of the subscription:
+
+1. **'cancelled'** - If `cancellationDate` is set
+2. **'expired'** - If `expirationDate` is set and has passed  
+3. **'trial'** - If `trialEndDate` is set and is in the future
+4. **'cancellation_pending'** - If `cancellationDate` is set but period hasn't ended
+5. **'suspended'** - If subscription is suspended (e.g., payment failed)
+6. **'active'** - Default status if none of the above conditions apply
+
+The status is recalculated every time the subscription is accessed, ensuring it always reflects the current state based on dates and other properties. Use `syncSubscriptionStatuses()` to batch update stored statuses.
 
 ---
 
@@ -487,7 +642,7 @@ createStripeSubscription(
 ### Product → Plans (One-to-Many)
 - Plans **belong to a Product** (via `productKey`)
 - Product can have multiple plans
-- Plans are unique by `key` within a product
+- Plans are globally unique by `key` (not scoped to product)
 
 ### Plan → Features (via Feature Values)
 - Plans set values for their product's features
@@ -496,8 +651,9 @@ createStripeSubscription(
 
 ### Plan → BillingCycle (One-to-Many)
 - Plans can have multiple billing cycles
-- Billing cycles are unique by `key` within a plan
+- Billing cycles are globally unique by `key` (not scoped to plan)
 - Billing cycles can reference external product IDs (e.g., Stripe price IDs)
+- Product and plan keys are resolved from the billing cycle's plan relationship
 
 ### Customer → Subscriptions (One-to-Many)
 - Customers identified by `key` (your user ID)
@@ -538,11 +694,11 @@ When checking feature values via `featureChecker`:
 
 ### Customer Keys
 - Always use **your application's user/customer ID** as `key`
-- Feature checker uses `customerExternalId` (your key, not Subscrio's internal ID)
+- Feature checker uses `customerKey` (your key, not Subscrio's internal ID)
+- All customer methods use `key` parameter, not `externalId`
 
 ### Stripe Integration
 - Optional
 - You verify webhook signatures
 - Pass verified events to `processStripeEvent()`
-- Price mapping via `setStripePriceForCycle()`
-
+- Price mapping via billing cycle `externalProductId` field

@@ -41,12 +41,13 @@ const subscrio = new Subscrio({
 // Install database schema (first time only)
 await subscrio.installSchema();
 
-// Create a product with features
+// Create a product
 const product = await subscrio.products.createProduct({
   key: 'my-saas',
   displayName: 'My SaaS Product'
 });
 
+// Create a feature
 const feature = await subscrio.features.createFeature({
   key: 'max-users',
   displayName: 'Maximum Users',
@@ -54,32 +55,45 @@ const feature = await subscrio.features.createFeature({
   defaultValue: '10'
 });
 
-// Associate feature with product
-await subscrio.products.associateFeature(product.id, feature.id);
+// Associate feature with product (using keys, not IDs)
+await subscrio.products.associateFeature(product.key, feature.key);
 
-// Create a plan with feature values
+// Create a plan (using productKey, not productId)
 const plan = await subscrio.plans.createPlan({
-  productId: product.id,
+  productKey: product.key,
   key: 'pro-plan',
   displayName: 'Pro Plan'
 });
 
-await subscrio.plans.setFeatureValue(plan.id, feature.id, '100');
+// Set feature value on plan (using keys, not IDs)
+await subscrio.plans.setFeatureValue(plan.key, feature.key, '100');
 
-// Create a customer and subscription
+// Create a billing cycle for the plan (required for subscriptions)
+const billingCycle = await subscrio.billingCycles.createBillingCycle({
+  planKey: plan.key,
+  key: 'monthly',
+  displayName: 'Monthly',
+  durationValue: 1,
+  durationUnit: 'months'
+});
+
+// Create a customer (using key, not externalId)
 const customer = await subscrio.customers.createCustomer({
-  externalId: 'customer-123',
+  key: 'customer-123',
   displayName: 'Acme Corp'
 });
 
+// Create a subscription (using keys and billingCycleKey, not IDs)
 const subscription = await subscrio.subscriptions.createSubscription({
-  customerExternalId: customer.externalId,
-  planId: plan.id
+  key: 'sub-001',
+  customerKey: customer.key,
+  billingCycleKey: billingCycle.key
 });
 
-// Check feature access
-const maxUsers = await subscrio.featureChecker.getValue(
-  customer.externalId,
+// Check feature access (requires customerKey, productKey, and featureKey)
+const maxUsers = await subscrio.featureChecker.getValueForCustomer(
+  customer.key,
+  product.key,
   'max-users'
 );
 console.log(`Customer can have ${maxUsers} users`); // "100"
@@ -92,10 +106,19 @@ console.log(`Customer can have ${maxUsers} users`); // "100"
 - **`subscrio.products`** - Product management
 - **`subscrio.features`** - Feature flag management  
 - **`subscrio.plans`** - Subscription plan management
+- **`subscrio.billingCycles`** - Billing cycle management
 - **`subscrio.customers`** - Customer management
 - **`subscrio.subscriptions`** - Subscription lifecycle
 - **`subscrio.featureChecker`** - Feature access checking
+- **`subscrio.apiKeys`** - API key management
 - **`subscrio.stripe`** - Stripe integration
+
+### Instance Methods
+
+- **`installSchema(adminPassphrase?)`** - Install database schema
+- **`verifySchema()`** - Check if schema is installed
+- **`dropSchema()`** - Drop all database tables (destructive)
+- **`close()`** - Close database connections
 
 ## Configuration
 
@@ -104,10 +127,16 @@ import { Subscrio } from '@saas-experts/subscrio';
 
 const subscrio = new Subscrio({
   database: {
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_SSL === 'true',  // Optional
+    poolSize: parseInt(process.env.DATABASE_POOL_SIZE || '10')  // Optional
   },
+  adminPassphrase: process.env.ADMIN_PASSPHRASE,  // Optional, min 8 chars
   stripe: {
-    secretKey: process.env.STRIPE_SECRET_KEY // Optional
+    secretKey: process.env.STRIPE_SECRET_KEY  // Optional
+  },
+  logging: {
+    level: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info'  // Optional
   }
 });
 ```
@@ -121,16 +150,24 @@ Subscrio uses a smart hierarchy for feature values:
 3. **Feature Default** (fallback)
 
 ```typescript
-// Check if feature is enabled
-const isEnabled = await subscrio.featureChecker.isEnabled(
-  'customer-123',
-  'advanced-analytics'
+// Check if feature is enabled for a customer in a product
+const isEnabled = await subscrio.featureChecker.isEnabledForCustomer(
+  'customer-123',  // customerKey
+  'my-saas',       // productKey
+  'advanced-analytics'  // featureKey
 );
 
-// Get feature value
-const maxProjects = await subscrio.featureChecker.getValue(
-  'customer-123', 
-  'max-projects'
+// Get feature value for a customer in a product
+const maxProjects = await subscrio.featureChecker.getValueForCustomer(
+  'customer-123',  // customerKey
+  'my-saas',       // productKey
+  'max-projects'   // featureKey
+);
+
+// Get feature value for a specific subscription
+const value = await subscrio.featureChecker.getValueForSubscription(
+  'sub-001',       // subscriptionKey
+  'max-projects'   // featureKey
 );
 ```
 
@@ -152,10 +189,19 @@ Full TypeScript support with comprehensive type definitions:
 ```typescript
 import { 
   Subscrio, 
+  SubscrioConfig,
   CreateProductDto, 
   ProductDto,
-  FeatureValueType,
-  SubscriptionStatus 
+  CreateFeatureDto,
+  FeatureDto,
+  CreatePlanDto,
+  PlanDto,
+  CreateBillingCycleDto,
+  BillingCycleDto,
+  CreateCustomerDto,
+  CustomerDto,
+  CreateSubscriptionDto,
+  SubscriptionDto
 } from '@saas-experts/subscrio';
 
 // All APIs are fully typed
@@ -164,6 +210,19 @@ const product: ProductDto = await subscrio.products.createProduct({
   displayName: 'My Product'
 });
 ```
+
+### Key Concepts
+
+**Keys vs IDs**: All public APIs use **keys** (string identifiers like `'my-product'`) rather than internal IDs. Keys are:
+- Human-readable and memorable
+- Globally unique within their scope
+- Immutable once created
+- Used in all method calls and references
+
+**DTOs**: All create/update operations use DTOs (Data Transfer Objects) with Zod validation:
+- `CreateProductDto`, `CreateFeatureDto`, `CreatePlanDto`, etc.
+- All fields are validated before processing
+- Type-safe with full TypeScript inference
 
 ## License
 
