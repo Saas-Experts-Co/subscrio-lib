@@ -1,0 +1,70 @@
+site_name: Mkdocs NextJS Drop-In
+site_description: Drop-In Replacement for MKDocs using Nextjs
+site_author: Thomas Wiesner
+site_url: https://ethereum-blockchain-developer.com
+copyright: Copyright &copy; 2016 - 2022 | <a href="/terms">Terms</a> | <a href="/000-privacy">Privacy &amp; Imprint</a> | <a href="/cookie">Cookie Policy</a>
+
+theme:
+  name: "material"
+  logo: "images/owl_only.png"
+  favicon: "images/logo_only.png"
+  custom_dir: overrides
+  features:
+    - search.suggest
+    - search.highlight
+    #- navigation.instant
+    - navigation.tabs
+    #- toc.integrate
+
+#   palette:
+#     - scheme: slate
+#   font:
+#     text: Lato
+
+extra:
+  social:
+    - icon: material/home
+      link: https://ethereum-blockchain-developer.com
+    - icon: material/brain
+      link: https://vomtom.at
+    - icon: material/video
+      link: https://thinkingassets.com
+
+plugins:
+  - search
+  # - with-pdf:
+  #         cover_subtitle: The Guide for Learning Ethereum Blockchain Development with Labs and Explanations
+  #         output_path: ethereum-blockchain-developer.pdf
+  #         enabled_if_env: ENABLE_PDF_EXPORT
+  - git-revision-date-localized:
+      fallback_to_build_date: true
+  - redirects:
+      redirect_maps:
+        "030-shared-wallet-project/00-overview.md": "040-shared-wallet-project/00-overview.md"
+        "latest-shared-wallet.md": "040-shared-wallet-project/00-overview.md"
+        "latest-supply-chain.md": "050-supply-chain-project/00-overview.md"
+        "latest-tokenization.md": "060-tokenization/00-overview.md"
+        "002-first-smart-contract/00-overview.md": "003-first-smart-contract/00-overview.md"
+
+
+nav:
+  - "Home": "/"
+  - "Setup":
+      - "Getting Started": "setup/gettingstarted.md"
+      - "Updating": "setup/updating.md"
+  - "Reference":
+      - "Admonitions": "reference/admonitions.md"
+      - "Code": "reference/code.md"
+      - "Footnotes": "reference/footnotes.md"
+      - "Images": "reference/images.md"
+      - "Navigation": "reference/navigation.md"
+      - "Search": "reference/search.md"
+      - "Tables": "reference/tables.md"
+      - "Versioning": "reference/versioning.md"
+  - "Blog": 
+      - "2025-04-20 MkDocs-Material to Nextra 4": "blog/20250420.md"
+      - "2025-02-16 GitHub Flavored Markdown and Tables": "blog/20250216.md"
+      - "2025-02-08 Remark Plugins": "blog/20250208.md"
+  - "About": "about/mkdocs-shadcn.md"
+
+      
