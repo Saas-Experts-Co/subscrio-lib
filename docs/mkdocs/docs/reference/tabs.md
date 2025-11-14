@@ -1,1 +1,0 @@
-# Tabs functionality (todo to describe)

@@ -1,1 +1,0 @@
-https://squidfunk.github.io/mkdocs-material/tutorials/social/basic/
