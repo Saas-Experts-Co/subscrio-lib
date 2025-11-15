@@ -1,14 +1,15 @@
 ### setFeatureValue
 
-**Description**: Sets a plan-level override for a feature.
+#### Description
+ Sets a plan-level override for a feature.
 
-**Signature**
+#### Signature
 
 ```typescript
 setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -16,78 +17,79 @@ setFeatureValue(planKey: string, featureKey: string, value: string): Promise<voi
 | `featureKey` | `string` | Yes | Feature to set. |
 | `value` | `string` | Yes | Stored string value validated against feature type. |
 
-**Input Properties**
+#### Input Properties
 
 - `value` – must satisfy the feature’s `valueType` and validation settings (see [`FeatureDto`](./features.md#featuredto)).
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Confirms plan and feature exist.
 - Validates `value` via `FeatureValueValidator`.
 - Adds or updates feature value on the plan and saves.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Plan or feature missing. |
 | `ValidationError` | Value fails validator. |
 
-**Example**
+#### Example
 
 ```typescript
 await plans.setFeatureValue('annual-pro', 'max-projects', '100');
 ```
 ### updatePlan
 
-**Description**: Updates description, display name, transition target, or metadata.
+#### Description
+ Updates description, display name, transition target, or metadata.
 
-**Signature**
+#### Signature
 
 ```typescript
 updatePlan(planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan to mutate. |
 | `dto` | [`UpdatePlanDto`](#updateplandto) | Yes | Partial update. |
 
-**Input Properties**
+#### Input Properties
 
 - [`UpdatePlanDto`](#updateplandto) – optional fields mirroring `CreatePlanDto`.
 
-**Returns**
+#### Returns
 
 Updated [`PlanDto`](#plandto).
 
-**Return Properties**
+#### Return Properties
 
 - [`PlanDto`](#plandto) – plan snapshot after saving.
 
-**Expected Results**
+#### Expected Results
 
 - Validates DTO.
 - Loads plan, mutates allowed properties, persists.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid. |
 | `NotFoundError` | Plan missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await plans.updatePlan('annual-pro', {
@@ -96,40 +98,41 @@ await plans.updatePlan('annual-pro', {
 ```
 ### createPlan
 
-**Description**: Validates DTO, ensures product exists, and writes a new plan.
+#### Description
+ Validates DTO, ensures product exists, and writes a new plan.
 
-**Signature**
+#### Signature
 
 ```typescript
 createPlan(dto: CreatePlanDto): Promise<PlanDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | [`CreatePlanDto`](#createplandto) | Yes | Contains productKey, plan key, display name, description, optional transition billing cycle key, metadata. |
 
-**Input Properties**
+#### Input Properties
 
 - [`CreatePlanDto`](#createplandto) – full list of plan creation fields, constraints, and defaults.
 
-**Returns**
+#### Returns
 
 Persisted [`PlanDto`](#plandto) with `status: 'active'`.
 
-**Return Properties**
+#### Return Properties
 
 - [`PlanDto`](#plandto) – serialized plan including feature values.
 
-**Expected Results**
+#### Expected Results
 
 - Validates DTO.
 - Finds the product by key.
 - Fails if the plan key already exists.
 - Persists plan with default `featureValues` array.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -137,7 +140,7 @@ Persisted [`PlanDto`](#plandto) with `status: 'active'`.
 | `NotFoundError` | Product missing. |
 | `ConflictError` | Plan key already taken. |
 
-**Example**
+#### Example
 
 ```typescript
 await plans.createPlan({
@@ -165,7 +168,9 @@ const plans = subscrio.plans;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `createPlan` | Creates a plan tied to an existing product | `Promise<[PlanDto](#plandto)>` |
 | `updatePlan` | Updates mutable plan fields | `Promise<[PlanDto](#plandto)>` |
@@ -186,42 +191,43 @@ const plans = subscrio.plans;
 
 ### getPlan
 
-**Description**: Retrieves a plan by key or returns `null`.
+#### Description
+ Retrieves a plan by key or returns `null`.
 
-**Signature**
+#### Signature
 
 ```typescript
 getPlan(planKey: string): Promise<PlanDto | null>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan key to fetch. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key.
 
-**Returns**
+#### Returns
 
 `Promise<PlanDto | null>`
 
-**Return Properties**
+#### Return Properties
 
 - [`PlanDto`](#plandto) – when plan exists.
 - `null` – when missing.
 
-**Expected Results**
+#### Expected Results
 
 - Loads plan from repository and maps to DTO.
 
-**Potential Errors**
+#### Potential Errors
 
 - None.
 
-**Example**
+#### Example
 
 ```typescript
 const plan = await plans.getPlan('annual-pro');
@@ -229,43 +235,44 @@ const plan = await plans.getPlan('annual-pro');
 
 ### listPlans
 
-**Description**: Lists plans with filters.
+#### Description
+ Lists plans with filters.
 
-**Signature**
+#### Signature
 
 ```typescript
 listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters` | [`PlanFilterDto`](#planfilterdto) | No | Status, product key, pagination, etc. |
 
-**Input Properties**
+#### Input Properties
 
 - [`PlanFilterDto`](#planfilterdto) – governs filtering and pagination.
 
-**Returns**
+#### Returns
 
 `Promise<PlanDto[]>`
 
-**Return Properties**
+#### Return Properties
 
 - [`PlanDto`](#plandto)[] – DTO list satisfying filters.
 
-**Expected Results**
+#### Expected Results
 
 - Validates filters and queries repository.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters invalid. |
 
-**Example**
+#### Example
 
 ```typescript
 const archivedPlans = await plans.listPlans({ status: 'archived' });
@@ -273,43 +280,44 @@ const archivedPlans = await plans.listPlans({ status: 'archived' });
 
 ### getPlansByProduct
 
-**Description**: Lists plans belonging to a product.
+#### Description
+ Lists plans belonging to a product.
 
-**Signature**
+#### Signature
 
 ```typescript
 getPlansByProduct(productKey: string): Promise<PlanDto[]>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `productKey` | `string` | Yes | Product owning the plans. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 `Promise<PlanDto[]>`
 
-**Return Properties**
+#### Return Properties
 
 - [`PlanDto`](#plandto)[] – each plan tied to the product.
 
-**Expected Results**
+#### Expected Results
 
 - Ensures product exists, then queries repository for plans.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Product missing. |
 
-**Example**
+#### Example
 
 ```typescript
 const proPlans = await plans.getPlansByProduct('pro-suite');
@@ -317,37 +325,38 @@ const proPlans = await plans.getPlansByProduct('pro-suite');
 
 ### archivePlan
 
-**Description**: Sets a plan’s status to `archived`.
+#### Description
+ Sets a plan’s status to `archived`.
 
-**Signature**
+#### Signature
 
 ```typescript
 archivePlan(planKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan key to archive. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Loads plan, calls `archive()`, persists.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -355,37 +364,38 @@ archivePlan(planKey: string): Promise<void>
 
 ### unarchivePlan
 
-**Description**: Reactivates a plan.
+#### Description
+ Reactivates a plan.
 
-**Signature**
+#### Signature
 
 ```typescript
 unarchivePlan(planKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Archived plan key. |
 
-**Input Properties**
+#### Input Properties
 
 - None.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Loads plan, calls `unarchive()`, saves.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -393,40 +403,41 @@ unarchivePlan(planKey: string): Promise<void>
 
 ### deletePlan
 
-**Description**: Deletes a plan only when it is archived and unused.
+#### Description
+ Deletes a plan only when it is archived and unused.
 
-**Signature**
+#### Signature
 
 ```typescript
 deletePlan(planKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan to delete. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Verifies plan exists and `plan.canDelete()`.
 - Ensures there are no subscriptions for the plan.
 - Ensures there are no billing cycles referencing the plan.
 - Deletes record.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -436,38 +447,39 @@ deletePlan(planKey: string): Promise<void>
 
 ### removeFeatureValue
 
-**Description**: Removes an existing plan feature override.
+#### Description
+ Removes an existing plan feature override.
 
-**Signature**
+#### Signature
 
 ```typescript
 removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan losing the override. |
 | `featureKey` | `string` | Yes | Feature key to remove. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the keys.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Ensures plan and feature exist, then removes stored value if present.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -475,39 +487,42 @@ removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 
 ### getFeatureValue
 
-**Description**: Returns a plan’s value for a feature (or `null` if unset).
+#### Description
 
-**Signature**
+ #### Returns
+ a plan’s value for a feature (or `null` if unset).
+
+#### Signature
 
 ```typescript
 getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan to inspect. |
 | `featureKey` | `string` | Yes | Feature key. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the keys.
 
-**Returns**
+#### Returns
 
 `Promise<string | null>`
 
-**Return Properties**
+#### Return Properties
 
 - `string` – stored value (string representation) when present.
 - `null` – when value is absent.
 
-**Expected Results**
+#### Expected Results
 
 - Loads plan and returns the stored feature value if present.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -515,37 +530,38 @@ getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 
 ### getPlanFeatures
 
-**Description**: Lists every feature value pair defined on the plan.
+#### Description
+ Lists every feature value pair defined on the plan.
 
-**Signature**
+#### Signature
 
 ```typescript
 getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: string }>>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan to inspect. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key.
 
-**Returns**
+#### Returns
 
 `Promise<Array<{ featureKey: string; value: string }>>`
 
-**Return Properties**
+#### Return Properties
 
 - Array of objects with `featureKey` and string `value`.
 
-**Expected Results**
+#### Expected Results
 
 - Loads plan, iterates feature values, enriches with feature keys, returns array.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
@@ -594,4 +610,3 @@ All fields optional: `displayName`, `description`, `onExpireTransitionToBillingC
 - Plans require the product to exist first (`ProductManagementService`).
 - A plan cannot be deleted while billing cycles (`BillingCycleManagementService`) or subscriptions (`SubscriptionManagementService`) reference it.
 - Plan feature values feed into the feature resolution order used by `FeatureCheckerService`.
-

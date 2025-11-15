@@ -16,7 +16,7 @@ export interface SubscriptionProps {
   customerId: number;
   planId: number;
   billingCycleId: number;
-  status: SubscriptionStatus; // Stored status (should match computed status)
+  status: SubscriptionStatus;
   isArchived: boolean; // Archive flag - blocks updates but doesn't affect status calculation
   activationDate?: Date;
   expirationDate?: Date;
@@ -45,35 +45,7 @@ export class Subscription extends Entity<SubscriptionProps> {
   }
 
   get status(): SubscriptionStatus {
-    const currentTime = now();
-    
-    // If cancellation is set, check if it's immediate or pending
-    if (this.props.cancellationDate) {
-      // If cancellation date is in the future, it's pending
-      if (this.props.cancellationDate > currentTime) {
-        return SubscriptionStatus.CancellationPending;
-      }
-      // If cancellation date is in the past, it's cancelled
-      return SubscriptionStatus.Cancelled;
-    }
-    
-    // If expired, return expired
-    if (this.props.expirationDate && this.props.expirationDate <= currentTime) {
-      return SubscriptionStatus.Expired;
-    }
-    
-    // If in trial period, return trial
-    if (this.props.trialEndDate && this.props.trialEndDate > currentTime) {
-      return SubscriptionStatus.Trial;
-    }
-    
-    // If trial ended but not yet active, return active
-    if (this.props.trialEndDate && this.props.trialEndDate <= currentTime) {
-      return SubscriptionStatus.Active;
-    }
-    
-    // Default to active if no trial period
-    return SubscriptionStatus.Active;
+    return this.props.status;
   }
 
   activate(): void {
@@ -174,35 +146,5 @@ export class Subscription extends Entity<SubscriptionProps> {
     return true;
   }
 
-  /**
-   * Syncs the stored status with the computed status based on dates
-   * This should be called before saving to ensure database status matches computed status
-   * Note: This method computes status from dates and stores it, separate from the getter
-   */
-  syncStatus(): void {
-    const currentTime = now();
-    let computedStatus: SubscriptionStatus;
-    
-    // Compute status from dates (same logic as getter but without using the getter to avoid recursion)
-    if (this.props.cancellationDate) {
-      if (this.props.cancellationDate > currentTime) {
-        computedStatus = SubscriptionStatus.CancellationPending;
-      } else {
-        computedStatus = SubscriptionStatus.Cancelled;
-      }
-    } else if (this.props.expirationDate && this.props.expirationDate <= currentTime) {
-      computedStatus = SubscriptionStatus.Expired;
-    } else if (this.props.trialEndDate && this.props.trialEndDate > currentTime) {
-      computedStatus = SubscriptionStatus.Trial;
-    } else {
-      computedStatus = SubscriptionStatus.Active;
-    }
-    
-    // Update stored status only if it differs from computed status
-    if (this.props.status !== computedStatus) {
-      this.props.status = computedStatus;
-      this.props.updatedAt = now();
-    }
-  }
 }
 

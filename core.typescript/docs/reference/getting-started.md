@@ -18,45 +18,46 @@ const subscrio = new Subscrio({
 
 ### Constructor
 
-**Description**: Instantiates the core library, initializes the database connection, and wires every repository and service so callers can use Subscrio synchronously after construction.
+#### Description
+ Instantiates the core library, initializes the database connection, and wires every repository and service so callers can use Subscrio synchronously after construction.
 
-**Signature**
+#### Signature
 
 ```typescript
 new Subscrio(config: SubscrioConfig)
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `config` | [`SubscrioConfig`](#configuration-object) | Yes | Database connection plus optional passphrase, Stripe, and logging overrides. |
 
-**Input Properties**
+#### Input Properties
 
 - [`SubscrioConfig`](#configuration-object) – high-level shape that includes the `database`, `stripe`, and `logging` objects defined later in this page.
 
-**Returns**
+#### Returns
 
 Creates a new `Subscrio` instance that exposes the services listed in the “Public Services” table above.
 
-**Return Properties**
+#### Return Properties
 
 - `Subscrio` – instance with properties such as `products`, `plans`, `featureChecker`, etc.
 
-**Expected Results**
+#### Expected Results
 
 - Initializes a Postgres database connection using `config.database`.
 - Constructs repository instances and wires each service with its dependencies.
 - Keeps a shared schema installer for schema management helpers.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ConfigurationError` | Thrown downstream if `config` is invalid or a database connection cannot be established. |
 
-**Example**
+#### Example
 
 ```typescript
 const subscrio = new Subscrio({
@@ -114,45 +115,46 @@ Optional override for the admin passphrase hash stored during `installSchema()`.
 
 ### installSchema
 
-**Description**: Creates every Subscrio database table, seeds configuration rows, and optionally writes the admin passphrase hash when setting up a fresh environment.
+#### Description
+ Creates every Subscrio database table, seeds configuration rows, and optionally writes the admin passphrase hash when setting up a fresh environment.
 
-**Signature**
+#### Signature
 
 ```typescript
 installSchema(adminPassphrase?: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `adminPassphrase` | `string` | No | Optional override that supersedes `config.adminPassphrase`. |
 
-**Input Properties**
+#### Input Properties
 
 - `adminPassphrase` – plain text string that will be hashed before being stored in `system_config`.
 
-**Returns**
+#### Returns
 
 Resolves with `void` once the schema is fully installed.
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Runs the schema installer to create all tables, extensions, and seed configuration rows.
 - Stores the admin passphrase hash when provided.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ConfigurationError` | Database connection unavailable or migration prerequisites missing. |
 | `DomainError` | Passphrase validation fails the policy enforced by the installer. |
 
-**Example**
+#### Example
 
 ```typescript
 await subscrio.installSchema('super-secret-passphrase');
@@ -160,43 +162,44 @@ await subscrio.installSchema('super-secret-passphrase');
 
 ### verifySchema
 
-**Description**: Confirms whether the Subscrio schema is already installed so callers can decide to run `installSchema()` or proceed with normal operations.
+#### Description
+ Confirms whether the Subscrio schema is already installed so callers can decide to run `installSchema()` or proceed with normal operations.
 
-**Signature**
+#### Signature
 
 ```typescript
 verifySchema(): Promise<boolean>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | _None_ |  |  |  |
 
-**Input Properties**
+#### Input Properties
 
 - None.
 
-**Returns**
+#### Returns
 
 `Promise<boolean>` that resolves to `true` when every required table/index exists; `false` otherwise.
 
-**Return Properties**
+#### Return Properties
 
 - `boolean` – indicates whether the schema is ready for use.
 
-**Expected Results**
+#### Expected Results
 
 - Executes lightweight checks on required tables and indexes via the schema installer.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ConfigurationError` | Database connection is unavailable. |
 
-**Example**
+#### Example
 
 ```typescript
 const ready = await subscrio.verifySchema();
@@ -207,43 +210,44 @@ if (!ready) {
 
 ### dropSchema
 
-**Description**: Removes every table created by Subscrio. Intended for local development resets or automated tests.
+#### Description
+ Removes every table created by Subscrio. Intended for local development resets or automated tests.
 
-**Signature**
+#### Signature
 
 ```typescript
 dropSchema(): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | _None_ |  |  |  |
 
-**Input Properties**
+#### Input Properties
 
 - None.
 
-**Returns**
+#### Returns
 
 Resolves with `void` after the installer drops all managed tables.
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Drops every Subscrio-owned table via the installer. This is destructive and meant for local resets/tests.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ConfigurationError` | Database refuses the drop (permissions, locks). |
 
-**Example**
+#### Example
 
 ```typescript
 if (process.env.NODE_ENV === 'test') {
@@ -253,43 +257,44 @@ if (process.env.NODE_ENV === 'test') {
 
 ### close
 
-**Description**: Closes the shared Drizzle/pg connection pool so Node processes can exit cleanly.
+#### Description
+ Closes the shared Drizzle/pg connection pool so Node processes can exit cleanly.
 
-**Signature**
+#### Signature
 
 ```typescript
 close(): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | _None_ |  |  |  |
 
-**Input Properties**
+#### Input Properties
 
 - None.
 
-**Returns**
+#### Returns
 
 Resolves with `void` after all connections are closed.
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Closes pg pool connections and disposes of Drizzle resources.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ConfigurationError` | Database connection has already been torn down unexpectedly. |
 
-**Example**
+#### Example
 
 ```typescript
 await subscrio.close();
@@ -317,7 +322,7 @@ All service-level documentation now lives in dedicated markdown files so each me
 
 ## Additional Reference Guides
 
-- `subscriptions.md` covers CRUD APIs, DTOs, overrides, and maintenance helpers such as `syncSubscriptionStatuses()`.
+- `subscriptions.md` covers CRUD APIs, DTOs, overrides, and lifecycle automation APIs.
 - `subscription-lifecycle.md` fully documents how each status is calculated (with diagrams) and how transitions work.
 - `relationships.md` centralizes the product/plan/feature/billing-cycle/customer relationships, the feature resolution hierarchy, and the customer key conventions.
 - `products.md`, `plans.md`, `features.md`, and `billing-cycles.md` document CRUD flows, DTOs, and association helpers for each domain surface.

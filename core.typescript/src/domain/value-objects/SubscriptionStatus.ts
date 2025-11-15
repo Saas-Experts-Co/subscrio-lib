@@ -4,7 +4,6 @@ export enum SubscriptionStatus {
   Trial = 'trial',
   Cancelled = 'cancelled',
   CancellationPending = 'cancellation_pending',
-  Expired = 'expired',
-  Suspended = 'suspended'
+  Expired = 'expired'
 }
 

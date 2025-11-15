@@ -17,7 +17,9 @@ const featureChecker = subscrio.featureChecker;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `getValueForSubscription` | Resolves a feature for a specific subscription | `Promise<T \| null>` |
 | `isEnabledForSubscription` | Boolean helper for toggle features | `Promise<boolean>` |
@@ -32,9 +34,11 @@ const featureChecker = subscrio.featureChecker;
 ## Method Reference
 
 ### getValueForSubscription
-**Description**: Resolves a feature value for a subscription using override → plan value → feature default order.
 
-**Signature**
+#### Description
+ Resolves a feature value for a subscription using override → plan value → feature default order.
+
+#### Signature
 ```typescript
 getValueForSubscription<T = string>(
   subscriptionKey: string,
@@ -43,24 +47,25 @@ getValueForSubscription<T = string>(
 ): Promise<T | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `subscriptionKey` | `string` | Yes | Subscription identifier. |
 | `featureKey` | `string` | Yes | Feature key to resolve. |
 | `defaultValue` | `T` | No | Fallback when subscription/plan/feature missing. |
 
-**Returns**
+#### Returns
 `Promise<T | null>` – resolved value (converted to `T` when provided) or fallback.
 
-**Expected Results**
+#### Expected Results
 - Loads subscription, plan, and feature.
 - Applies override/plan/default order; when any entity missing returns `defaultValue ?? null`.
 
-**Potential Errors**
+#### Potential Errors
 - None (missing data results in fallback).
 
-**Example**
+#### Example
 ```typescript
 const seats = await featureChecker.getValueForSubscription<number>(
   'sub_1001',
@@ -70,45 +75,53 @@ const seats = await featureChecker.getValueForSubscription<number>(
 ```
 
 ### isEnabledForSubscription
-**Description**: Convenience boolean check for toggle features on a subscription.
 
-**Signature**
+#### Description
+ Convenience boolean check for toggle features on a subscription.
+
+#### Signature
 ```typescript
 isEnabledForSubscription(subscriptionKey: string, featureKey: string): Promise<boolean>
 ```
 
-**Returns**
+#### Returns
 `Promise<boolean>` – `true` when resolved value equals `'true'` (case-insensitive).
 
 ### getAllFeaturesForSubscription
-**Description**: Resolves every feature associated with the subscription’s product, returning a `Map<featureKey, string>`.
 
-**Signature**
+#### Description
+ Resolves every feature associated with the subscription’s product, returning a `Map<featureKey, string>`.
+
+#### Signature
 ```typescript
 getAllFeaturesForSubscription(subscriptionKey: string): Promise<Map<string, string>>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `subscriptionKey` | `string` | Yes | Subscription identifier. |
 
-**Returns**
+#### Returns
 `Promise<Map<string, string>>`
 
-**Expected Results**
+#### Expected Results
 - Loads subscription, plan, product, and all features linked to the product.
 - Resolves each feature using override/plan/default order and populates the map.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Subscription missing or product cannot be resolved. (Missing plan results in empty map rather than error.) |
 
 ### getValueForCustomer
-**Description**: Resolves a feature value for a customer/product pair across their active/trial subscriptions.
 
-**Signature**
+#### Description
+ Resolves a feature value for a customer/product pair across their active/trial subscriptions.
+
+#### Signature
 ```typescript
 getValueForCustomer<T = string>(
   customerKey: string,
@@ -118,7 +131,8 @@ getValueForCustomer<T = string>(
 ): Promise<T | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `customerKey` | `string` | Yes | Customer identifier. |
@@ -126,24 +140,26 @@ getValueForCustomer<T = string>(
 | `featureKey` | `string` | Yes | Feature to resolve. |
 | `defaultValue` | `T` | No | Optional fallback. |
 
-**Returns**
+#### Returns
 `Promise<T | null>`
 
-**Expected Results**
+#### Expected Results
 - Loads customer, product, and feature; returns fallback if any missing.
 - Fetches up to `MAX_SUBSCRIPTIONS_PER_CUSTOMER` subscriptions, filters to active/trial for the product.
 - Applies resolver for each subscription, honoring override precedence when multiple subscriptions exist.
 
-**Potential Errors**
+#### Potential Errors
 - None (missing entities fall back to default).
 
 ### isEnabledForCustomer
 Boolean helper built on `getValueForCustomer`, returning whether the resolved value equals `'true'`.
 
 ### getAllFeaturesForCustomer
-**Description**: Resolves every feature for a customer/product combination by aggregating across active/trial subscriptions.
 
-**Signature**
+#### Description
+ Resolves every feature for a customer/product combination by aggregating across active/trial subscriptions.
+
+#### Signature
 ```typescript
 getAllFeaturesForCustomer(
   customerKey: string,
@@ -151,13 +167,15 @@ getAllFeaturesForCustomer(
 ): Promise<Map<string, string>>
 ```
 
-**Returns**
+#### Returns
 `Promise<Map<string, string>>` – empty map when customer/product missing or no active subscriptions.
 
 ### hasPlanAccess
-**Description**: Determines whether a customer currently has an active/trial subscription to a specific plan.
 
-**Signature**
+#### Description
+ Determines whether a customer currently has an active/trial subscription to a specific plan.
+
+#### Signature
 ```typescript
 hasPlanAccess(
   customerKey: string,
@@ -166,26 +184,31 @@ hasPlanAccess(
 ): Promise<boolean>
 ```
 
-**Expected Results**
+#### Expected Results
 - Validates customer, product, and plan exist.
 - Loads subscriptions for the customer and checks for an active/trial subscription referencing `planKey`.
-- Returns `false` if any prerequisite entity is missing.
+- #### Returns
+ `false` if any prerequisite entity is missing.
 
 ### getActivePlans
-**Description**: Lists plan keys for all active/trial subscriptions belonging to a customer (not filtered by product).
 
-**Signature**
+#### Description
+ Lists plan keys for all active/trial subscriptions belonging to a customer (not filtered by product).
+
+#### Signature
 ```typescript
 getActivePlans(customerKey: string): Promise<string[]>
 ```
 
-**Returns**
+#### Returns
 `Promise<string[]>` – empty array when customer missing or no active subscriptions.
 
 ### getFeatureUsageSummary
-**Description**: Provides a rollup of feature states (enabled/disabled/numeric/text) for a customer/product pair plus subscription counts.
 
-**Signature**
+#### Description
+ Provides a rollup of feature states (enabled/disabled/numeric/text) for a customer/product pair plus subscription counts.
+
+#### Signature
 ```typescript
 getFeatureUsageSummary(
   customerKey: string,
@@ -193,7 +216,8 @@ getFeatureUsageSummary(
 ): Promise<FeatureUsageSummary>
 ```
 
-**Return Properties**
+#### Return Properties
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `activeSubscriptions` | `number` | Count of subscriptions retrieved for the customer (regardless of product filter). |
@@ -202,15 +226,14 @@ getFeatureUsageSummary(
 | `numericFeatures` | `Map<string, number>` | Parsed numeric values keyed by feature key. |
 | `textFeatures` | `Map<string, string>` | Text values keyed by feature key. |
 
-**Expected Results**
+#### Expected Results
 - Loads customer/product; missing entities yield empty lists/maps and `activeSubscriptions = 0`.
 - Retrieves all active/trial subscriptions for the product, resolves each feature, and classifies values by `FeatureDto.valueType`.
 
-**Potential Errors**
+#### Potential Errors
 - None (missing data results in empty structures).
 
 ## Related Workflows
 - Ensure products associate features and plans set feature values; otherwise resolution falls back to feature defaults.
 - Subscription overrides are managed via `SubscriptionManagementService.addFeatureOverride`.
 - Consider caching results from `getAllFeaturesForCustomer` to reduce repeated resolver work in high-traffic scenarios.
-

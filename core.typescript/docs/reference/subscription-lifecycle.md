@@ -28,7 +28,7 @@ If two conditions could apply simultaneously, whichever appears earlier in the l
 | `expired` | `expirationDate` exists and is in the past, **and** there is no cancellation. Used for time-bound subscriptions that simply reach their expiration. | Fixed-term offers or promotional subscriptions that lapse automatically. |
 | `suspended` | Subscription has been explicitly suspended via `suspend()` (e.g., payment failure or manual enforcement). This state only applies when none of the higher-priority rules match. | Temporary service pause until the issue is resolved. |
 
-> **Important**: `cancellation_pending` and `cancelled` always win over `trial`, `active`, `suspended`, and `pending`. This ensures cancellation intent is honored regardless of trial or suspension status.
+> **Important `cancellation_pending` and `cancelled` always win over `trial`, `active`, and `pending`. This ensures cancellation intent is honored regardless of trial or activation timing.
 
 ## Status Flow Diagram
 
@@ -37,8 +37,6 @@ flowchart LR
     Pending["pending\n(no activation yet)"] -->|activationDate reached| Trial
     Pending -->|activationDate reached| Active
     Trial["trial\n(trialEndDate in future)"] -->|trialEndDate passed| Active
-    Active -->|suspend()| Suspended
-    Suspended["suspended\n(manual suspension)"] -->|resume()| Active
     Active -->|set cancellationDate in future| CancelPending
     Trial -->|set cancellationDate in future| CancelPending
     CancelPending["cancellation_pending\n(cancellationDate in future)"] -->|cancellationDate reached| Cancelled
@@ -59,4 +57,3 @@ The diagram illustrates common flows but does not represent every edge case (e.g
 - `suspended` is only set via explicit service calls (e.g., billing failure automation). Once you call `resume()`, the entity recomputes to whichever status applies next (`active`, `trial`, etc.).
 
 Refer back to `subscriptions.md` for lifecycle-related APIs (`archiveSubscription`, `processAutomaticTransitions`, etc.), and to `feature-checker.md` for how these statuses affect runtime feature access.
-

@@ -1,4 +1,5 @@
-import { pgTable, text, integer, timestamp, jsonb, boolean, unique, bigserial, bigint } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, jsonb, boolean, unique, bigserial, bigint, pgView } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const products = pgTable('products', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
@@ -98,19 +99,51 @@ export const subscriptions = pgTable('subscriptions', {
   customer_id: bigint('customer_id', { mode: 'number' }).notNull().references(() => customers.id, { onDelete: 'cascade' }),
   plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
   billing_cycle_id: bigint('billing_cycle_id', { mode: 'number' }).notNull().references(() => billing_cycles.id, { onDelete: 'cascade' }),
-  activation_date: timestamp('activation_date'),
-  expiration_date: timestamp('expiration_date'),
-  cancellation_date: timestamp('cancellation_date'),
-  trial_end_date: timestamp('trial_end_date'),
-  current_period_start: timestamp('current_period_start'),
-  current_period_end: timestamp('current_period_end'),
+  activation_date: timestamp('activation_date', { withTimezone: true }),
+  expiration_date: timestamp('expiration_date', { withTimezone: true }),
+  cancellation_date: timestamp('cancellation_date', { withTimezone: true }),
+  trial_end_date: timestamp('trial_end_date', { withTimezone: true }),
+  current_period_start: timestamp('current_period_start', { withTimezone: true }),
+  current_period_end: timestamp('current_period_end', { withTimezone: true }),
   stripe_subscription_id: text('stripe_subscription_id').unique(),
   metadata: jsonb('metadata'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').notNull().defaultNow(),
-  status: text('status').notNull().default('active'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   is_archived: boolean('is_archived').notNull().default(false)
 });
+
+export const subscriptionStatusView = pgView('subscription_status_view').as((qb) =>
+  qb
+    .select({
+      id: subscriptions.id,
+      key: subscriptions.key,
+      customer_id: subscriptions.customer_id,
+      plan_id: subscriptions.plan_id,
+      billing_cycle_id: subscriptions.billing_cycle_id,
+      activation_date: subscriptions.activation_date,
+      expiration_date: subscriptions.expiration_date,
+      cancellation_date: subscriptions.cancellation_date,
+      trial_end_date: subscriptions.trial_end_date,
+      current_period_start: subscriptions.current_period_start,
+      current_period_end: subscriptions.current_period_end,
+      stripe_subscription_id: subscriptions.stripe_subscription_id,
+      metadata: subscriptions.metadata,
+      created_at: subscriptions.created_at,
+      updated_at: subscriptions.updated_at,
+      is_archived: subscriptions.is_archived,
+      computed_status: sql<string>`
+        CASE
+          WHEN ${subscriptions.cancellation_date} IS NOT NULL AND ${subscriptions.cancellation_date} > NOW() THEN 'cancellation_pending'
+          WHEN ${subscriptions.cancellation_date} IS NOT NULL AND ${subscriptions.cancellation_date} <= NOW() THEN 'cancelled'
+          WHEN ${subscriptions.expiration_date} IS NOT NULL AND ${subscriptions.expiration_date} <= NOW() THEN 'expired'
+          WHEN ${subscriptions.activation_date} IS NOT NULL AND ${subscriptions.activation_date} > NOW() THEN 'pending'
+          WHEN ${subscriptions.trial_end_date} IS NOT NULL AND ${subscriptions.trial_end_date} > NOW() THEN 'trial'
+          ELSE 'active'
+        END
+      `.as('computed_status')
+    })
+    .from(subscriptions)
+);
 
 export const subscription_feature_overrides = pgTable('subscription_feature_overrides', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),

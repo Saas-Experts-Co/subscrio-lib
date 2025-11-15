@@ -41,4 +41,3 @@ If a subscription has multiple overrides for the same feature, the latest write 
 - Customer management methods (`customers.md`) use `key` consistently across create/update/list APIs.
 
 Maintaining consistent customer keys ensures migrations and feature checks remain predictable when you sync data from your source-of-truth system.
-

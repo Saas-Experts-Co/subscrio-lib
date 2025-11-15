@@ -16,6 +16,7 @@ const apiKeys = subscrio.apiKeys;
 ```
 
 ## Method Catalog
+
 | Method | Description | Returns |
 | --- | --- | --- |
 | `createAPIKey` | Issues a new API key and returns plaintext once | `Promise<APIKeyWithPlaintextDto>` |
@@ -29,60 +30,62 @@ const apiKeys = subscrio.apiKeys;
 ## Method Reference
 
 ### createAPIKey
-**Description**: Generates a secure plaintext key, stores its hash, and returns the plaintext exactly once.
 
-**Signature**
+#### Description
+ Generates a secure plaintext key, stores its hash, and returns the plaintext exactly once.
+
+#### Signature
 ```typescript
 createAPIKey(dto: CreateAPIKeyDto): Promise<APIKeyWithPlaintextDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | `CreateAPIKeyDto` | Yes | Payload describing the key being issued. |
 
-**Input Properties**
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `displayName` | `string` | Yes | 1–255 char label shown in admin UI. |
-| `description` | `string` | No | ≤1000 char description. |
-| `scope` | `'admin' \| 'readonly'` | Yes | Determines accessible endpoints. |
-| `expiresAt` | `string \| Date` | No | Optional expiration (ISO string or `Date`). |
-| `ipWhitelist` | `string[]` | No | IPv4/IPv6 addresses allowed to use the key. |
-| `createdBy` | `string` | No | Identifier of issuer (≤255 chars). |
-| `metadata` | `Record<string, unknown>` | No | Additional JSON-safe context. |
+#### Input Properties
+- `displayName` (`string`, required): 1–255 char label shown in the admin UI.
+- `description` (`string`, optional): up to 1000 characters.
+- `scope` (`'admin' | 'readonly'`, required): determines accessible endpoints.
+- `expiresAt` (`string | Date`, optional): optional expiration (ISO string or `Date`).
+- `ipWhitelist` (`string[]`, optional): IPv4/IPv6 addresses allowed to use the key.
+- `createdBy` (`string`, optional): identifier of issuer (≤255 chars).
+- `metadata` (`Record<string, unknown>`, optional): additional JSON-safe context.
 
-**Returns**
+#### Returns
+
 `Promise<APIKeyWithPlaintextDto>` – the persisted DTO plus plaintext.
 
-**Return Properties**
-| Field | Type | Description |
-| --- | --- | --- |
-| `plaintextKey` | `string` | Only returned now—store securely. |
-| `key` | `string` | Public identifier (e.g., `ak_live_xxx`). |
-| `displayName` | `string` | Display label. |
-| `description` | `string \| null` | Optional description. |
-| `status` | `string` | `active`, `archived`, or `revoked`. |
-| `scope` | `string` | `'admin'` or `'readonly'`. |
-| `expiresAt` | `string \| null` | ISO timestamp if set. |
-| `lastUsedAt` | `string \| null` | Updated whenever validation succeeds. |
-| `ipWhitelist` | `string[] \| null` | Stored IP restrictions. |
-| `createdBy` | `string \| null` | Issuer metadata. |
-| `metadata` | `Record<string, unknown> \| null` | Additional metadata. |
-| `createdAt` | `string` | ISO timestamp. |
-| `updatedAt` | `string` | ISO timestamp. |
+#### Return Properties
 
-**Expected Results**
+- `plaintextKey` (`string`): only returned now—store securely.
+- `key` (`string`): public identifier (e.g., `ak_live_xxx`).
+- `displayName` (`string`): display label.
+- `description` (`string | null`): optional description.
+- `status` (`string`): `active`, `archived`, or `revoked`.
+- `scope` (`string`): `'admin'` or `'readonly'`.
+- `expiresAt` (`string | null`): ISO timestamp if set.
+- `lastUsedAt` (`string | null`): updated whenever validation succeeds.
+- `ipWhitelist` (`string[] | null`): stored IP restrictions.
+- `createdBy` (`string | null`): issuer metadata.
+- `metadata` (`Record<string, unknown> | null`): additional metadata.
+- `createdAt` (`string`): ISO timestamp.
+- `updatedAt` (`string`): ISO timestamp.
+
+#### Expected Results
 - Validates DTO.
 - Generates random plaintext, hashes it with SHA-256, ensures no hash collision.
 - Persists API key with status `active` and returns DTO + plaintext.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid. |
 
-**Example**
+#### Example
 ```typescript
 const issued = await apiKeys.createAPIKey({
   displayName: 'Admin CLI',
@@ -93,43 +96,51 @@ console.log(issued.plaintextKey); // write to secret vault immediately
 ```
 
 ### updateAPIKey
-**Description**: Updates mutable fields for an existing key (display name, metadata, scope, expiry, IP rules, etc.).
 
-**Signature**
+#### Description
+ Updates mutable fields for an existing key (display name, metadata, scope, expiry, IP rules, etc.).
+
+#### Signature
 ```typescript
 updateAPIKey(key: string, dto: UpdateAPIKeyDto): Promise<APIKeyDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Public identifier (e.g., `ak_xxx`). |
 | `dto` | `UpdateAPIKeyDto` | Yes | Partial object describing new values. |
 
-**Input Properties**
-All fields are optional:
-- `displayName`: `string`
-- `description`: `string`
-- `scope`: `'admin' | 'readonly'`
-- `expiresAt`: `string | Date`
-- `ipWhitelist`: `string[]`
-- `createdBy`: `string`
-- `metadata`: `Record<string, unknown>`
+#### Input Properties
+- `displayName` (`string`, optional): updated label (1–255 chars).
+- `description` (`string`, optional): up to 1000 characters.
+- `scope` (`'admin' | 'readonly'`, optional): new scope for the key.
+- `expiresAt` (`string | Date`, optional): override expiration.
+- `ipWhitelist` (`string[]`, optional): replace whitelist values.
+- `createdBy` (`string`, optional): issuer metadata.
+- `metadata` (`Record<string, unknown>`, optional): arbitrary context.
 
-**Returns**
+#### Returns
+
 `Promise<APIKeyDto>` – updated key snapshot (same fields as above minus plaintext).
 
-**Expected Results**
+#### Return Properties
+
+- Same shape as `APIKeyDto` (see `createAPIKey` return properties).
+
+#### Expected Results
 - Validates DTO.
 - Loads API key, applies allowed updates, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid. |
 | `NotFoundError` | Key missing. |
 
-**Example**
+#### Example
 ```typescript
 await apiKeys.updateAPIKey('ak_live_123', {
   displayName: 'Admin CLI (2025)',
@@ -138,98 +149,124 @@ await apiKeys.updateAPIKey('ak_live_123', {
 ```
 
 ### archiveAPIKey
-**Description**: Temporarily disables a key without deleting it.
 
-**Signature**
+#### Description
+ Temporarily disables a key without deleting it.
+
+#### Signature
 ```typescript
 archiveAPIKey(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Key to archive. |
 
-**Returns**
+#### Returns
+
 `Promise<void>`
 
-**Expected Results**
+#### Return Properties
+- None.
+
+#### Expected Results
 - Loads key, sets status to `archived`, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Key missing. |
 
-**Example**
+#### Example
 ```typescript
 await apiKeys.archiveAPIKey('ak_temp_001');
 ```
 
 ### unarchiveAPIKey
-**Description**: Restores an archived key to active.
 
-**Signature**
+#### Description
+ Restores an archived key to active.
+
+#### Signature
 ```typescript
 unarchiveAPIKey(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Archived key to restore. |
 
-**Returns**
+#### Returns
+
 `Promise<void>`
 
-**Expected Results**
+#### Return Properties
+- None.
+
+#### Expected Results
 - Loads key, sets status to `active`, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Key missing. |
 
-**Example**
+#### Example
 ```typescript
 await apiKeys.unarchiveAPIKey('ak_temp_001');
 ```
 
 ### deleteAPIKey
-**Description**: Permanently deletes a key that has already been revoked/archived.
 
-**Signature**
+#### Description
+ Permanently deletes a key that has already been revoked/archived.
+
+#### Signature
 ```typescript
 deleteAPIKey(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Key scheduled for deletion. |
 
-**Returns**
+#### Returns
+
 `Promise<void>`
 
-**Expected Results**
+#### Return Properties
+- None.
+
+#### Expected Results
 - Loads key and confirms `apiKey.canDelete()` (typically requires `revoked` status).
 - Deletes record via repository.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Key missing. |
 | `DomainError` | Key not revoked/eligible for deletion. |
 
-**Example**
+#### Example
 ```typescript
 await apiKeys.deleteAPIKey('ak_revoked_42');
 ```
 
 ### validateAPIKey
-**Description**: Validates a plaintext key plus optional required scope and client IP, updating `lastUsedAt` on success.
 
-**Signature**
+#### Description
+ Validates a plaintext key plus optional required scope and client IP, updating `lastUsedAt` on success.
+
+#### Signature
 ```typescript
 validateAPIKey(
   plaintextKey: string,
@@ -238,27 +275,33 @@ validateAPIKey(
 ): Promise<boolean>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `plaintextKey` | `string` | Yes | Key value provided by client. |
 | `requiredScope` | `'admin' \| 'readonly'` | No | Ensures key meets/exceeds this scope. |
 | `clientIp` | `string` | No | Optional IP to match against whitelist. |
 
-**Returns**
+#### Returns
+
 `Promise<boolean>` – `true` when validation passes (side effect: updates `lastUsedAt`).
 
-**Expected Results**
+#### Return Properties
+- None (primitive boolean result).
+
+#### Expected Results
 - Hashes plaintext, loads key, ensures it exists and is neither revoked nor expired.
 - Validates scope hierarchy and IP whitelist (if provided).
 - Calls `apiKey.updateLastUsed()` and saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `AuthError` | Key missing, revoked, expired, insufficient scope, or IP mismatch. |
 
-**Example**
+#### Example
 ```typescript
 await apiKeys.validateAPIKey(
   request.headers['x-api-key'],
@@ -268,28 +311,36 @@ await apiKeys.validateAPIKey(
 ```
 
 ### getAPIKeyByPlaintext
-**Description**: Administrative helper to resolve a plaintext key to its DTO (useful for scripts or migrations).
 
-**Signature**
+#### Description
+ Administrative helper to resolve a plaintext key to its DTO (useful for scripts or migrations).
+
+#### Signature
 ```typescript
 getAPIKeyByPlaintext(plaintextKey: string): Promise<APIKeyDto | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `plaintextKey` | `string` | Yes | Key string to resolve. |
 
-**Returns**
+#### Returns
+
 `Promise<APIKeyDto | null>`
 
-**Expected Results**
+#### Return Properties
+- `APIKeyDto` shape when found (see `createAPIKey` return properties).
+- `null` when the hashed key cannot be found.
+
+#### Expected Results
 - Hashes plaintext, looks up the hashed record, and returns DTO or `null`.
 
-**Potential Errors**
-- None (missing keys return `null`).
+#### Potential Errors
+- None.
 
-**Example**
+#### Example
 ```typescript
 const key = await apiKeys.getAPIKeyByPlaintext('ak_live_example');
 ```
@@ -298,4 +349,3 @@ const key = await apiKeys.getAPIKeyByPlaintext('ak_live_example');
 - Use `validateAPIKey` in REST middleware to enforce scopes/IPs and update audit fields.
 - Archive keys for temporary suspension; revoke/delete only after confirming the key should never be used again.
 - The plaintext key is irrecoverable after creation—store it in your secret manager immediately.
-

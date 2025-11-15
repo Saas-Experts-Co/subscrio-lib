@@ -1,7 +1,8 @@
 # Stripe Integration Service Reference
 
 ## Service Overview
-The Stripe Integration Service synchronizes verified Stripe webhook events with Subscrio subscriptions. Signature verification happens outside of Subscrio (your webhook endpoint must verify before calling `processStripeEvent`). The service currently focuses on subscription lifecycle handling, payment status updates, and scaffolding for plan/billing-cycle mapping.
+The Stripe Integration Service synchronizes verified Stripe webhook events with Subscrio subscriptions. #### Signature
+ verification happens outside of Subscrio (your webhook endpoint must verify before calling `processStripeEvent`). The service currently focuses on subscription lifecycle handling, payment status updates, and scaffolding for plan/billing-cycle mapping.
 
 - Store Stripe customer IDs in `Customer.externalBillingId` so events can resolve the correct customer.
 - Store Stripe price IDs in `BillingCycle.externalProductId` to map to plan/billing cycle combinations.
@@ -16,7 +17,9 @@ const stripeService = subscrio.stripe;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `processStripeEvent` | Entrypoint for verified Stripe webhook events | `Promise<void>` |
 | `createStripeSubscription` | Helper to create a placeholder Subscrio subscription tied to Stripe | `Promise<Subscription>` |
@@ -26,22 +29,25 @@ const stripeService = subscrio.stripe;
 ## Method Reference
 
 ### processStripeEvent
-**Description**: Consumes a verified `Stripe.Event` and routes it to the appropriate handler.
 
-**Signature**
+#### Description
+ Consumes a verified `Stripe.Event` and routes it to the appropriate handler.
+
+#### Signature
 ```typescript
 processStripeEvent(event: Stripe.Event): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `event` | `Stripe.Event` | Yes | Fully verified Stripe webhook payload. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Switches on `event.type` and handles:
   - `customer.subscription.created`
   - `customer.subscription.updated`
@@ -51,7 +57,8 @@ processStripeEvent(event: Stripe.Event): Promise<void>
   - `invoice.payment_failed`
 - Unhandled event types are ignored (logged for observability).
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Handler cannot resolve required Subscrio entities (customer, plan, billing cycle, subscription). |
@@ -72,9 +79,11 @@ processStripeEvent(event: Stripe.Event): Promise<void>
   - Hook for sending notifications or triggering workflows.
 
 ### createStripeSubscription
-**Description**: Helper for implementations that need to bootstrap a Subscrio subscription tied to a Stripe customer/price before full automation is built.
 
-**Signature**
+#### Description
+ Helper for implementations that need to bootstrap a Subscrio subscription tied to a Stripe customer/price before full automation is built.
+
+#### Signature
 ```typescript
 createStripeSubscription(
   customerKey: string,
@@ -84,7 +93,8 @@ createStripeSubscription(
 ): Promise<Subscription>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `customerKey` | `string` | Yes | Customer in Subscrio (must have `externalBillingId`). |
@@ -92,21 +102,22 @@ createStripeSubscription(
 | `billingCycleKey` | `string` | Yes | Billing cycle governing cadence. |
 | `stripePriceId` | `string` | Yes | Stripe price ID (currently stored for reference). |
 
-**Returns**
+#### Returns
 `Promise<Subscription>` – domain subscription entity (with placeholder Stripe subscription ID).
 
-**Expected Results**
+#### Expected Results
 - Ensures customer exists and has `externalBillingId`.
 - Ensures plan and billing cycle exist.
 - Generates a subscription key, sets activation/current period dates, and saves the subscription with a placeholder `stripeSubscriptionId`.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Customer, plan, or billing cycle missing. |
 | `ValidationError` | Customer lacks `externalBillingId`. |
 
-**Example**
+#### Example
 ```typescript
 const sub = await stripeService.createStripeSubscription(
   'cust_123',
@@ -117,8 +128,7 @@ const sub = await stripeService.createStripeSubscription(
 ```
 
 ## Related Workflows
-- **Webhook verification**: Your HTTP endpoint must verify Stripe signatures before calling `processStripeEvent`.
-- **Customer sync**: Persist Stripe customer IDs to `Customer.externalBillingId` when provisioning users.
-- **Billing cycle mapping**: Store Stripe price IDs in `BillingCycle.externalProductId` to help resolve incoming subscription events.
-- **Extending handlers**: Customize handler logic (especially plan mapping) to align with your Stripe product/price structure.
-
+- **Webhook verification Your HTTP endpoint must verify Stripe signatures before calling `processStripeEvent`.
+- **Customer sync Persist Stripe customer IDs to `Customer.externalBillingId` when provisioning users.
+- **Billing cycle mapping Store Stripe price IDs in `BillingCycle.externalProductId` to help resolve incoming subscription events.
+- **Extending handlers Customize handler logic (especially plan mapping) to align with your Stripe product/price structure.

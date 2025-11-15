@@ -31,13 +31,13 @@ export class SubscriptionMapper {
   }
 
   static toDomain(raw: any, featureOverrides: FeatureOverride[] = []): Subscription {
-    const subscription = new Subscription(
+    return new Subscription(
       {
         key: raw.key,
         customerId: raw.customer_id as number,
         planId: raw.plan_id as number,
         billingCycleId: raw.billing_cycle_id as number,
-        status: raw.status as SubscriptionStatus || SubscriptionStatus.Active,
+        status: raw.computed_status as SubscriptionStatus,
         isArchived: raw.is_archived === true,
         activationDate: raw.activation_date ? new Date(raw.activation_date) : undefined,
         expirationDate: raw.expiration_date ? new Date(raw.expiration_date) : undefined,
@@ -53,21 +53,14 @@ export class SubscriptionMapper {
       },
       raw.id as number | undefined
     );
-    // Sync stored status with computed status
-    subscription.syncStatus();
-    return subscription;
   }
 
   static toPersistence(subscription: Subscription): any {
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
-    
     const record: any = {
       key: subscription.key,
       customer_id: subscription.customerId,
       plan_id: subscription.planId,
       billing_cycle_id: subscription.props.billingCycleId,
-      status: subscription.status, // Store the computed status
       is_archived: subscription.props.isArchived,
       activation_date: subscription.props.activationDate ?? null,
       expiration_date: subscription.props.expirationDate ?? null,

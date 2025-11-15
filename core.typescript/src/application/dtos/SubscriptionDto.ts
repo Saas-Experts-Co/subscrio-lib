@@ -73,7 +73,7 @@ export const SubscriptionFilterDtoSchema = z.object({
   customerKey: z.string().optional(),
   productKey: z.string().optional(),
   planKey: z.string().optional(),
-  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired', 'suspended']).optional(),
+  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired']).optional(),
   sortBy: z.enum(['activationDate', 'expirationDate', 'createdAt', 'updatedAt', 'currentPeriodStart', 'currentPeriodEnd']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
@@ -88,7 +88,7 @@ export const DetailedSubscriptionFilterDtoSchema = z.object({
   productKey: z.string().optional(),
   planKey: z.string().optional(),
   billingCycleKey: z.string().optional(),
-  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired', 'suspended']).optional(),
+  status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired']).optional(),
   
   // Date range filters
   activationDateFrom: z.date().optional(),

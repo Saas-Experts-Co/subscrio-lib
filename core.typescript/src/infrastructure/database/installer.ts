@@ -218,18 +218,17 @@ export class SchemaInstaller {
         customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
         plan_id BIGINT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
         billing_cycle_id BIGINT NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
-        status TEXT NOT NULL DEFAULT 'active',
         is_archived BOOLEAN NOT NULL DEFAULT FALSE,
-        activation_date TIMESTAMP,
-        expiration_date TIMESTAMP,
-        cancellation_date TIMESTAMP,
-        trial_end_date TIMESTAMP,
-        current_period_start TIMESTAMP,
-        current_period_end TIMESTAMP,
+        activation_date TIMESTAMPTZ,
+        expiration_date TIMESTAMPTZ,
+        cancellation_date TIMESTAMPTZ,
+        trial_end_date TIMESTAMPTZ,
+        current_period_start TIMESTAMPTZ,
+        current_period_end TIMESTAMPTZ,
         stripe_subscription_id TEXT UNIQUE,
         metadata JSONB,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
 
@@ -257,6 +256,36 @@ export class SchemaInstaller {
           ALTER TABLE subscriptions ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
         END IF;
       END $$;
+    `);
+
+    await this.db.execute(sql`
+      CREATE OR REPLACE VIEW subscription_status_view AS
+      SELECT
+        s.id,
+        s.key,
+        s.customer_id,
+        s.plan_id,
+        s.billing_cycle_id,
+        s.activation_date,
+        s.expiration_date,
+        s.cancellation_date,
+        s.trial_end_date,
+        s.current_period_start,
+        s.current_period_end,
+        s.stripe_subscription_id,
+        s.metadata,
+        s.created_at,
+        s.updated_at,
+        s.is_archived,
+        CASE
+          WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date > NOW() THEN 'cancellation_pending'
+          WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date <= NOW() THEN 'cancelled'
+          WHEN s.expiration_date IS NOT NULL AND s.expiration_date <= NOW() THEN 'expired'
+          WHEN s.activation_date IS NOT NULL AND s.activation_date > NOW() THEN 'pending'
+          WHEN s.trial_end_date IS NOT NULL AND s.trial_end_date > NOW() THEN 'trial'
+          ELSE 'active'
+        END AS computed_status
+      FROM subscriptions s;
     `);
   }
 
@@ -306,6 +335,8 @@ export class SchemaInstaller {
    * Drop all Subscrio tables (in reverse dependency order)
    */
   async dropAll(): Promise<void> {
+    await this.db.execute(sql`DROP VIEW IF EXISTS subscription_status_view`);
+
     // Drop tables in reverse dependency order to avoid foreign key constraint errors
     // Tables with foreign keys must be dropped before the tables they reference
     

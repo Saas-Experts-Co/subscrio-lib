@@ -16,6 +16,7 @@ const billingCycles = subscrio.billingCycles;
 ```
 
 ## Method Catalog
+
 | Method | Description | Returns |
 | --- | --- | --- |
 | `createBillingCycle` | Creates a cycle for an existing plan | `Promise<BillingCycleDto>` |
@@ -33,19 +34,23 @@ const billingCycles = subscrio.billingCycles;
 ## Method Reference
 
 ### createBillingCycle
-**Description**: Validates a new billing cycle payload, ensures the plan exists, and persists the cycle with `active` status.
 
-**Signature**
+#### Description
+ Validates a new billing cycle payload, ensures the plan exists, and persists the cycle with `active` status.
+
+#### Signature
 ```typescript
 createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | `CreateBillingCycleDto` | Yes | Cycle definition for an existing plan. |
 
-**Input Properties**
+#### Input Properties
+
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan owning the cycle (lowercase alphanumeric + `-`). |
@@ -56,10 +61,12 @@ createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 | `durationUnit` | `'days' \| 'weeks' \| 'months' \| 'years' \| 'forever'` | Yes | Renewal cadence. |
 | `externalProductId` | `string` | No | Stripe price or other external ID (≤255 chars). |
 
-**Returns**
+#### Returns
+
 `Promise<BillingCycleDto>` – persisted cycle snapshot.
 
-**Return Properties**
+#### Return Properties
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `key` | `string` | Cycle key. |
@@ -74,20 +81,21 @@ createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
-**Expected Results**
+#### Expected Results
 - Validates DTO (including duration rules).
 - Loads plan by `planKey` and fails if missing.
 - Rejects duplicate billing cycle keys.
 - Persists cycle with status `active`.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or duration config inconsistent. |
 | `NotFoundError` | Plan missing. |
 | `ConflictError` | Billing cycle key already exists. |
 
-**Example**
+#### Example
 ```typescript
 await billingCycles.createBillingCycle({
   planKey: 'annual-pro',
@@ -100,96 +108,113 @@ await billingCycles.createBillingCycle({
 ```
 
 ### updateBillingCycle
-**Description**: Updates mutable fields (display name, description, duration config, pricing metadata) on an existing cycle.
 
-**Signature**
+#### Description
+ Updates mutable fields (display name, description, duration config, pricing metadata) on an existing cycle.
+
+#### Signature
 ```typescript
 updateBillingCycle(key: string, dto: UpdateBillingCycleDto): Promise<BillingCycleDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Cycle key to update. |
 | `dto` | `UpdateBillingCycleDto` | Yes | Partial update object. |
 
-**Input Properties**
+#### Input Properties
 All fields mirror `CreateBillingCycleDto` but are optional. If `durationUnit` is set to `forever`, `durationValue` must be omitted.
 
-**Returns**
+#### Returns
+
 `Promise<BillingCycleDto>` – updated cycle snapshot.
 
-**Expected Results**
+#### Expected Results
 - Validates DTO.
 - Loads cycle, applies permissible fields, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid. |
 | `NotFoundError` | Cycle missing. |
 
 ### getBillingCycle
-**Description**: Retrieves a single billing cycle by key (returns `null` if not found).
 
-**Signature**
+#### Description
+ Retrieves a single billing cycle by key (returns `null` if not found).
+
+#### Signature
 ```typescript
 getBillingCycle(key: string): Promise<BillingCycleDto | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Cycle key. |
 
-**Returns**
+#### Returns
 `Promise<BillingCycleDto | null>`
 
-**Expected Results**
+#### Expected Results
 - Loads cycle; if stored plan reference is missing (data corruption), throws `NotFoundError`.
 
-**Potential Errors**
+#### Potential Errors
 - `NotFoundError` when record exists but plan reference cannot be resolved.
 
 ### getBillingCyclesByPlan
-**Description**: Lists all billing cycles belonging to a plan.
 
-**Signature**
+#### Description
+ Lists all billing cycles belonging to a plan.
+
+#### Signature
 ```typescript
 getBillingCyclesByPlan(planKey: string): Promise<BillingCycleDto[]>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Plan identifier. |
 
-**Returns**
+#### Returns
 `Promise<BillingCycleDto[]>`
 
-**Expected Results**
+#### Expected Results
 - Ensures plan exists.
-- Returns all cycles mapped to the plan (with derived product key).
+- #### Returns
+ all cycles mapped to the plan (with derived product key).
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Plan missing. |
 
 ### listBillingCycles
-**Description**: Paginates billing cycles with optional filters.
 
-**Signature**
+#### Description
+ Paginates billing cycles with optional filters.
+
+#### Signature
 ```typescript
 listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters` | `BillingCycleFilterDto` | No | Status, duration unit, plan key, search, pagination, sorting. |
 
-**Input Properties**
+#### Input Properties
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `planKey` | `string` | Limit to a plan. |
@@ -201,98 +226,113 @@ listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
 | `sortBy` | `'displayName' \| 'createdAt'` | Sort column. |
 | `sortOrder` | `'asc' \| 'desc'` | Sort direction, default `'asc'`. |
 
-**Returns**
+#### Returns
 `Promise<BillingCycleDto[]>`
 
-**Expected Results**
+#### Expected Results
 - Validates filters.
 - Executes query, returning DTO array (same schema as `createBillingCycle` result).
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters invalid. |
 
 ### archiveBillingCycle
-**Description**: Marks a billing cycle as archived (cannot be used for new subscriptions).
 
-**Signature**
+#### Description
+ Marks a billing cycle as archived (cannot be used for new subscriptions).
+
+#### Signature
 ```typescript
 archiveBillingCycle(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Cycle key. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Loads cycle, sets status `archived`, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
 
 ### unarchiveBillingCycle
-**Description**: Restores an archived cycle to `active`.
 
-**Signature**
+#### Description
+ Restores an archived cycle to `active`.
+
+#### Signature
 ```typescript
 unarchiveBillingCycle(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Cycle key. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Loads cycle, sets status `active`, saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
 
 ### deleteBillingCycle
-**Description**: Permanently deletes a billing cycle after ensuring it is archived and unused by subscriptions or plan transitions.
 
-**Signature**
+#### Description
+ Permanently deletes a billing cycle after ensuring it is archived and unused by subscriptions or plan transitions.
+
+#### Signature
 ```typescript
 deleteBillingCycle(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Cycle to delete. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Loads cycle, calls `billingCycle.canDelete()` (requires archived status).
 - Verifies no subscriptions reference the cycle.
 - Ensures no plan has `onExpireTransitionToBillingCycleKey` pointing to it.
 - Deletes record.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
 | `DomainError` | Cycle still active or referenced. |
 
 ### calculateNextPeriodEnd
-**Description**: Computes the next period end for a billing cycle, given the current period end.
 
-**Signature**
+#### Description
+ Computes the next period end for a billing cycle, given the current period end.
+
+#### Signature
 ```typescript
 calculateNextPeriodEnd(
   billingCycleKey: string,
@@ -300,61 +340,67 @@ calculateNextPeriodEnd(
 ): Promise<Date | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `billingCycleKey` | `string` | Yes | Cycle to use for calculation. |
 | `currentPeriodEnd` | `Date` | Yes | Current period end date. |
 
-**Returns**
+#### Returns
 `Promise<Date | null>` – `null` for `forever` cycles.
 
-**Expected Results**
+#### Expected Results
 - Loads cycle, applies duration arithmetic (e.g., add N months) or returns `null` when unit is `forever`.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
 
 ### getBillingCyclesByDurationUnit
-**Description**: Provides all cycles already stored with a specific duration unit.
 
-**Signature**
+#### Description
+ Provides all cycles already stored with a specific duration unit.
+
+#### Signature
 ```typescript
 getBillingCyclesByDurationUnit(durationUnit: DurationUnit): Promise<BillingCycleDto[]>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `durationUnit` | `DurationUnit` | Yes | `'days'`, `'weeks'`, `'months'`, `'years'`, or `'forever'`. |
 
-**Returns**
+#### Returns
 `Promise<BillingCycleDto[]>`
 
-**Expected Results**
+#### Expected Results
 - Filters existing cycles by unit (no errors thrown).
 
 ### getDefaultBillingCycles
-**Description**: Retrieves pre-installed cycles (monthly/quarterly/yearly) when present.
 
-**Signature**
+#### Description
+ Retrieves pre-installed cycles (monthly/quarterly/yearly) when present.
+
+#### Signature
 ```typescript
 getDefaultBillingCycles(): Promise<BillingCycleDto[]>
 ```
 
-**Returns**
+#### Returns
 `Promise<BillingCycleDto[]>`
 
-**Expected Results**
+#### Expected Results
 - Attempts to load keys such as `monthly`, `quarterly`, `yearly`; returns whichever exist.
 
-**Potential Errors**
+#### Potential Errors
 - None (returns empty array when defaults not installed).
 
 ## Related Workflows
 - Plans must exist before creating billing cycles (`PlanManagementService`).
 - Subscriptions reference billing cycles; deletion is blocked when subscriptions are present (`SubscriptionManagementService`).
 - Stripe integration uses `externalProductId` to map cycles to Stripe prices (`StripeIntegrationService`).
-

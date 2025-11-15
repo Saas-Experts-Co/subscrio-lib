@@ -165,9 +165,6 @@ export class SubscriptionManagementService {
       updatedAt: now()
     });
     
-    // Sync status after creation to ensure stored status matches computed status
-    subscription.syncStatus();
-
     // Save and get entity with generated ID
     const savedSubscription = await this.subscriptionRepository.save(subscription);
 
@@ -241,12 +238,11 @@ export class SubscriptionManagementService {
     }
 
     subscription.props.updatedAt = now();
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
-    await this.subscriptionRepository.save(subscription);
+
+    const updatedSubscription = await this.subscriptionRepository.save(subscription);
     
-    const keys = await this.resolveSubscriptionKeys(subscription);
-    return SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey);
+    const keys = await this.resolveSubscriptionKeys(updatedSubscription);
+    return SubscriptionMapper.toDto(updatedSubscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey);
   }
 
   async getSubscription(subscriptionKey: string): Promise<SubscriptionDto | null> {
@@ -393,21 +389,15 @@ export class SubscriptionManagementService {
       sortOrder: filters?.sortOrder,
       limit: filters?.limit,
       offset: filters?.offset,
-      status: filters?.status // Will be filtered post-fetch since it's computed
+      status: filters?.status
     };
 
     // Query repository with IDs - filtering happens in SQL
     const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
 
-    // Filter by computed status if status filter is provided (unavoidable post-fetch)
-    let filteredSubscriptions = subscriptions;
-    if (filters?.status) {
-      filteredSubscriptions = subscriptions.filter(s => s.status === filters.status);
-    }
-
     // Map to DTOs
     const dtos: SubscriptionDto[] = [];
-    for (const subscription of filteredSubscriptions) {
+    for (const subscription of subscriptions) {
       const keys = await this.resolveSubscriptionKeys(subscription);
       dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
     }
@@ -439,19 +429,14 @@ export class SubscriptionManagementService {
       sortOrder: filters.sortOrder,
       limit: filters.limit,
       offset: filters.offset,
-      status: filters.status // Will be filtered post-fetch since it's computed
+      status: filters.status
     };
 
     // Query repository with IDs - filtering happens in SQL
     const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
 
-    // Filter by computed status if status filter is provided (unavoidable post-fetch)
-    let filteredSubscriptions = subscriptions;
-    if (filters.status) {
-      filteredSubscriptions = subscriptions.filter(s => s.status === filters.status);
-    }
-
     // Filter by hasFeatureOverrides (unavoidable post-fetch since it requires loading feature overrides)
+    let filteredSubscriptions = subscriptions;
     if (filters.hasFeatureOverrides !== undefined) {
       const hasOverrides = filters.hasFeatureOverrides;
       filteredSubscriptions = filteredSubscriptions.filter(s => 
@@ -493,8 +478,6 @@ export class SubscriptionManagementService {
 
     // Archive does not change any properties - just sets the archive flag
     subscription.archive();
-    // Sync status before saving
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -506,8 +489,6 @@ export class SubscriptionManagementService {
 
     // Unarchive just clears the archive flag
     subscription.unarchive();
-    // Sync status before saving
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -551,7 +532,6 @@ export class SubscriptionManagementService {
 
     // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
     subscription.addFeatureOverride(feature.id!, value, overrideType);
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -576,7 +556,6 @@ export class SubscriptionManagementService {
 
     // Feature from repository always has ID (BIGSERIAL PRIMARY KEY)
     subscription.removeFeatureOverride(feature.id!);
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -595,7 +574,6 @@ export class SubscriptionManagementService {
     }
 
     subscription.clearTemporaryOverrides();
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -728,39 +706,8 @@ export class SubscriptionManagementService {
     subscription.props.cancellationDate = undefined; // Clear cancellation date
     subscription.props.updatedAt = now();
 
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
-
     // Save the updated subscription
     await this.subscriptionRepository.save(subscription);
   }
 
-  /**
-   * Sync subscription statuses - updates stored status to match computed status
-   * This should be called periodically to keep database status in sync with computed status
-   * @param limit Maximum number of subscriptions to process (default: 1000)
-   * @returns Number of subscriptions processed
-   */
-  async syncSubscriptionStatuses(limit: number = 1000): Promise<number> {
-    // Get all subscriptions (without status filter since we're updating them)
-    const subscriptions = await this.subscriptionRepository.findAll({
-      limit,
-      offset: 0
-    });
-
-    let syncedCount = 0;
-    for (const subscription of subscriptions) {
-      // Get current computed status
-      const computedStatus = subscription.status;
-      
-      // If stored status doesn't match computed status, update it
-      if (subscription.props.status !== computedStatus) {
-        subscription.syncStatus();
-        await this.subscriptionRepository.save(subscription);
-        syncedCount++;
-      }
-    }
-
-    return syncedCount;
-  }
 }

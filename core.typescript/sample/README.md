@@ -59,6 +59,9 @@ From the `core.typescript/sample` directory:
 # Standard mode (runs continuously)
 npm start
 
+# Force schema recreation before running
+npm start -- --recreate
+
 # Interactive mode (pauses after each step for database inspection)
 npm start -- --interactive
 # or
@@ -237,6 +240,16 @@ The demo checks if the schema exists and won't reinstall it. To start fresh:
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 ```
+
+### Full Schema Reset While Running the Sample
+
+Pass `--recreate` (or `-r`) when launching the script to drop and reinstall every Subscrio table automatically:
+
+```bash
+npm start -- --recreate
+```
+
+The flag invokes `subscrio.dropSchema()` before Phase 1, then immediately runs `subscrio.installSchema()` as part of the normal flow. Combine it with `--interactive` if needed, or fall back to the manual SQL above if you prefer handling the schema yourself.
 
 ### Permission Errors
 

@@ -16,7 +16,9 @@ const products = subscrio.products;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `createProduct` | Validates and persists a new product | `Promise<ProductDto>` |
 | `updateProduct` | Updates mutable fields on an existing product | `Promise<ProductDto>` |
@@ -32,21 +34,22 @@ const products = subscrio.products;
 
 ### createProduct
 
-**Description**: Creates a new product after validating key format, display name, and optional metadata. Rejects duplicate keys.
+#### Description
+ Creates a new product after validating key format, display name, and optional metadata. Rejects duplicate keys.
 
-**Signature**
+#### Signature
 
 ```typescript
 createProduct(dto: CreateProductDto): Promise<ProductDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | `CreateProductDto` | Yes | Contains the product key, display name, optional description, and metadata. |
 
-**Input Properties**
+#### Input Properties
 
 _CreateProductDto fields_
 
@@ -57,11 +60,11 @@ _CreateProductDto fields_
 | `description` | `string` | No | Up to 1000 chars. |
 | `metadata` | `Record<string, unknown>` | No | JSON-safe metadata blob. |
 
-**Returns**
+#### Returns
 
 Resolves with the persisted `ProductDto`, including timestamps and status (`active`).
 
-**Return Properties**
+#### Return Properties
 
 _ProductDto fields_
 
@@ -76,20 +79,20 @@ _ProductDto fields_
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
-**Expected Results**
+#### Expected Results
 
 - Validates input via Zod schema.
 - Ensures no product already exists with the provided key.
 - Creates a domain entity with status `active` and persists it.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `ValidationError` | DTO fails schema checks (bad key format, display name length, etc.). |
 | `ConflictError` | A product with the same key already exists. |
 
-**Example**
+#### Example
 
 ```typescript
 const product = await products.createProduct({
@@ -102,22 +105,23 @@ const product = await products.createProduct({
 
 ### updateProduct
 
-**Description**: Applies partial updates to display name, description, or metadata of an existing product.
+#### Description
+ Applies partial updates to display name, description, or metadata of an existing product.
 
-**Signature**
+#### Signature
 
 ```typescript
 updateProduct(key: string, dto: UpdateProductDto): Promise<ProductDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Immutable product key to update. |
 | `dto` | `UpdateProductDto` | Yes | Partial data containing new display name, description, or metadata. |
 
-**Input Properties**
+#### Input Properties
 
 _UpdateProductDto fields (all optional)_
 
@@ -127,28 +131,28 @@ _UpdateProductDto fields (all optional)_
 | `description` | `string` | Replacement description (≤1000 chars). |
 | `metadata` | `Record<string, unknown>` | Full metadata blob (overwrites stored value). |
 
-**Returns**
+#### Returns
 
 Resolves with the updated `ProductDto`.
 
-**Return Properties**
+#### Return Properties
 
 Same `ProductDto` fields listed under `createProduct`.
 
-**Expected Results**
+#### Expected Results
 
 - Validates the DTO.
 - Loads the product by key and mutates allowed fields.
 - Updates `updatedAt` and persists the entity.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `ValidationError` | DTO fields fail schema (e.g., display name too short). |
 | `NotFoundError` | Product key does not exist. |
 
-**Example**
+#### Example
 
 ```typescript
 const updated = await products.updateProduct('pro-suite', {
@@ -159,42 +163,44 @@ const updated = await products.updateProduct('pro-suite', {
 
 ### getProduct
 
-**Description**: Fetches a product snapshot by key. Returns `null` if it does not exist.
+#### Description
+ Fetches a product snapshot by key. #### Returns
+ `null` if it does not exist.
 
-**Signature**
+#### Signature
 
 ```typescript
 getProduct(key: string): Promise<ProductDto | null>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Product key to retrieve. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the raw key string.
 
-**Returns**
+#### Returns
 
 `Promise<null | ProductDto>` resolving with the matching `ProductDto` when found; otherwise `null`.
 
-**Return Properties**
+#### Return Properties
 
 - Same `ProductDto` fields listed under `createProduct`.
 - `null` – indicates the product does not exist.
 
-**Expected Results**
+#### Expected Results
 
 - Reads from the repository and maps the domain entity to DTO.
 
-**Potential Errors**
+#### Potential Errors
 
 - None; missing products yield `null`.
 
-**Example**
+#### Example
 
 ```typescript
 const product = await products.getProduct('starter');
@@ -205,21 +211,22 @@ if (!product) {
 
 ### listProducts
 
-**Description**: Lists products with status, search, and pagination controls.
+#### Description
+ Lists products with status, search, and pagination controls.
 
-**Signature**
+#### Signature
 
 ```typescript
 listProducts(filters?: ProductFilterDto): Promise<ProductDto[]>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters` | `ProductFilterDto` | No | Optional filter object; defaults applied by schema (limit 50, offset 0, sort asc). |
 
-**Input Properties**
+#### Input Properties
 
 _ProductFilterDto fields_
 
@@ -232,26 +239,26 @@ _ProductFilterDto fields_
 | `sortBy` | `'displayName' \| 'createdAt'` | Sort column. |
 | `sortOrder` | `'asc' \| 'desc'` | Sort direction; default `'asc'`. |
 
-**Returns**
+#### Returns
 
 `Promise<ProductDto[]>` containing all products matching the filters.
 
-**Return Properties**
+#### Return Properties
 
 - Each entry matches the `ProductDto` fields defined in `createProduct`.
 
-**Expected Results**
+#### Expected Results
 
 - Validates filters.
 - Delegates to repository for query and maps each entity to DTO.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `ValidationError` | Filters contain invalid values (e.g., limit > 100). |
 
-**Example**
+#### Example
 
 ```typescript
 const activeProducts = await products.listProducts({
@@ -263,47 +270,48 @@ const activeProducts = await products.listProducts({
 
 ### deleteProduct
 
-**Description**: Permanently deletes an archived product that has no associated plans.
+#### Description
+ Permanently deletes an archived product that has no associated plans.
 
-**Signature**
+#### Signature
 
 ```typescript
 deleteProduct(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Product key targeted for deletion. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the raw key string.
 
-**Returns**
+#### Returns
 
 Resolves with `void` after the product is deleted.
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Fetches product and verifies it exists.
 - Calls `product.canDelete()` (must be archived).
 - Ensures the product has zero plans before deletion.
 - Removes the product record.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `NotFoundError` | Product does not exist. |
 | `DomainError` | Product is not archived or still has plans. |
 
-**Example**
+#### Example
 
 ```typescript
 await products.archiveProduct('legacy-tier');
@@ -312,43 +320,44 @@ await products.deleteProduct('legacy-tier');
 
 ### archiveProduct
 
-**Description**: Transitions a product to the archived state.
+#### Description
+ Transitions a product to the archived state.
 
-**Signature**
+#### Signature
 
 ```typescript
 archiveProduct(key: string): Promise<ProductDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Product key to archive. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 Resolved `ProductDto` reflecting the archived status.
 
-**Return Properties**
+#### Return Properties
 
 - Same `ProductDto` fields listed under `createProduct`, with `status: 'archived'`.
 
-**Expected Results**
+#### Expected Results
 
 - Loads product, calls the entity’s `archive()` method, persists, and returns DTO.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `NotFoundError` | Product key not found. |
 
-**Example**
+#### Example
 
 ```typescript
 const archived = await products.archiveProduct('starter');
@@ -357,43 +366,44 @@ console.log(archived.status); // 'archived'
 
 ### unarchiveProduct
 
-**Description**: Reverses `archiveProduct` by calling the entity’s `unarchive()` method and restoring the product to `active`.
+#### Description
+ Reverses `archiveProduct` by calling the entity’s `unarchive()` method and restoring the product to `active`.
 
-**Signature**
+#### Signature
 
 ```typescript
 unarchiveProduct(key: string): Promise<ProductDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Product key previously archived. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 Updated `ProductDto` now active again.
 
-**Return Properties**
+#### Return Properties
 
 - Same `ProductDto` fields listed under `createProduct`, with `status: 'active'`.
 
-**Expected Results**
+#### Expected Results
 
 - Loads product, ensures it exists, calls `unarchive()`, and persists.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `NotFoundError` | Product key missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await products.unarchiveProduct('starter');
@@ -401,45 +411,46 @@ await products.unarchiveProduct('starter');
 
 ### associateFeature
 
-**Description**: Links an existing feature to a product so plans under the product can set values for it.
+#### Description
+ Links an existing feature to a product so plans under the product can set values for it.
 
-**Signature**
+#### Signature
 
 ```typescript
 associateFeature(productKey: string, featureKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `productKey` | `string` | Yes | Product to update. |
 | `featureKey` | `string` | Yes | Feature to associate. |
 
-**Input Properties**
+#### Input Properties
 
 - None; both values are raw keys.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Validates both product and feature exist.
 - Inserts association in repository layer.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `NotFoundError` | Product or feature is missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await products.associateFeature('pro-suite', 'max-users');
@@ -447,45 +458,46 @@ await products.associateFeature('pro-suite', 'max-users');
 
 ### dissociateFeature
 
-**Description**: Removes an existing feature association from a product.
+#### Description
+ Removes an existing feature association from a product.
 
-**Signature**
+#### Signature
 
 ```typescript
 dissociateFeature(productKey: string, featureKey: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `productKey` | `string` | Yes | Product losing the feature. |
 | `featureKey` | `string` | Yes | Feature to remove. |
 
-**Input Properties**
+#### Input Properties
 
 - None; both parameters are raw keys.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Validates both entities exist.
 - Deletes the join row if present.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When it is thrown |
 | --- | --- |
 | `NotFoundError` | Product or feature missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await products.dissociateFeature('pro-suite', 'legacy-flag');
@@ -495,4 +507,3 @@ await products.dissociateFeature('pro-suite', 'legacy-flag');
 - Products must exist before you create plans (`PlanManagementService` references `productKey`).
 - Deleting a product requires archival and removal of all plans to avoid `DomainError`.
 - Feature associations determine which features plans under the product can set values for—coordinate with `FeatureManagementService`.
-

@@ -5,7 +5,7 @@ Subscriptions tie customers to plans and billing cycles, track lifecycle dates, 
 
 - Subscription keys are caller-supplied and immutable.
 - Billing cycles derive plan/product context; updating a subscription’s billing cycle also changes its plan.
-- Status is computed dynamically but persisted for reporting; methods like `syncSubscriptionStatuses` keep stored state aligned.
+- Status is computed dynamically via the `subscription_status_view` database view, so status filters always reflect real time.
 
 ## Accessing the Service
 ```typescript
@@ -16,7 +16,9 @@ const subscriptions = subscrio.subscriptions;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `createSubscription` | Creates a subscription for a customer + billing cycle | `Promise<SubscriptionDto>` |
 | `updateSubscription` | Updates mutable lifecycle fields, metadata, or billing cycle | `Promise<SubscriptionDto>` |
@@ -31,7 +33,6 @@ const subscriptions = subscrio.subscriptions;
 | `removeFeatureOverride` | Removes an override | `Promise<void>` |
 | `clearTemporaryOverrides` | Removes only temporary overrides | `Promise<void>` |
 | `processAutomaticTransitions` | Moves expired subscriptions to configured transition cycles | `Promise<number>` |
-| `syncSubscriptionStatuses` | Re-syncs persisted statuses up to a limit | `Promise<number>` |
 
 ## Method Reference
 
@@ -44,24 +45,26 @@ createSubscription(dto: CreateSubscriptionDto): Promise<SubscriptionDto>
 | --- | --- | --- | --- |
 | `dto` | `CreateSubscriptionDto` | Yes | Contains subscription key, customerKey, billingCycleKey, optional lifecycle dates (activation, expiration, cancellation, trial, current period), optional Stripe ID, metadata. |
 
-**Returns**: Persisted `SubscriptionDto` including derived customer, product, plan, and billing cycle keys.
+#### Returns
+ Persisted `SubscriptionDto` including derived customer, product, plan, and billing cycle keys.
 
-**Expected Results**
+#### Expected Results
 - Validates DTO.
 - Ensures customer exists.
 - Loads billing cycle, plan, and product (derived).
 - Ensures subscription key (and optional Stripe subscription ID) are unique.
 - Calculates `currentPeriodEnd` when not provided using billing cycle duration.
-- Persists subscription with default status `active`, then calls `subscription.syncStatus()`.
+- Persists subscription; status is computed by PostgreSQL when the subscription is read.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or duration calculations fail. |
 | `NotFoundError` | Customer, billing cycle, plan, or product missing. |
 | `ConflictError` | Duplicate subscription key or Stripe ID. |
 
-**Example**
+#### Example
 ```typescript
 await subscriptions.createSubscription({
   key: 'sub_1001',
@@ -82,13 +85,14 @@ updateSubscription(key: string, dto: UpdateSubscriptionDto): Promise<Subscriptio
 | `key` | `string` | Yes | Subscription key to update. |
 | `dto` | `UpdateSubscriptionDto` | Yes | Optional billingCycleKey, expiration/cancellation/trial/current period dates, Stripe ID, metadata. |
 
-**Expected Results**
+#### Expected Results
 - Validates DTO (and notes whether trial end was explicitly cleared).
 - Loads subscription; fails if archived (cannot update).
 - Updates lifecycle fields; if billing cycle changes, also updates plan ID accordingly.
-- Calls `syncStatus()` before saving.
+- Saves changes and relies on the database view to reflect the latest status.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid. |
@@ -99,19 +103,21 @@ updateSubscription(key: string, dto: UpdateSubscriptionDto): Promise<Subscriptio
 ```typescript
 getSubscription(key: string): Promise<SubscriptionDto | null>
 ```
-Returns DTO or `null`; no errors thrown.
+
+#### Returns
+ DTO or `null`; no errors thrown.
 
 ### listSubscriptions
 ```typescript
 listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]>
 ```
 
-**Expected Results**
+#### Expected Results
 - Validates filters.
 - Resolves customer/product/plan keys to internal IDs; returns `[]` if any required key is missing.
-- Queries repository and filters by computed status if provided.
+- Queries a materialized view for real-time status; status filters happen directly in SQL.
 
-**Errors**: `ValidationError` for invalid filters.
+**Errors `ValidationError` for invalid filters.
 
 ### findSubscriptions
 ```typescript
@@ -120,14 +126,14 @@ findSubscriptions(filters: DetailedSubscriptionFilterDto): Promise<SubscriptionD
 
 Extends `listSubscriptions` with date ranges, metadata filters, feature override filters, etc.
 
-**Errors**: `ValidationError` for invalid filters.
+**Errors `ValidationError` for invalid filters.
 
 ### getSubscriptionsByCustomer
 ```typescript
 getSubscriptionsByCustomer(customerKey: string): Promise<SubscriptionDto[]>
 ```
 
-**Errors**: `NotFoundError` if customer missing.
+**Errors `NotFoundError` if customer missing.
 
 ### archiveSubscription / unarchiveSubscription
 ```typescript
@@ -135,9 +141,10 @@ archiveSubscription(key: string): Promise<void>
 unarchiveSubscription(key: string): Promise<void>
 ```
 
-**Expected Results**: Loads subscription, toggles archive flag, calls `syncStatus()`, saves.
+#### Expected Results
+ Loads subscription, toggles archive flag, saves. Status automatically reflects changes via the view.
 
-**Errors**: `NotFoundError` if subscription missing.
+**Errors `NotFoundError` if subscription missing.
 
 ### deleteSubscription
 ```typescript
@@ -163,12 +170,13 @@ addFeatureOverride(
 | `value` | `string` | Yes | Stored string validated against feature type. |
 | `overrideType` | `'permanent' \| 'temporary'` | No | Defaults to `'permanent'`. |
 
-**Expected Results**
+#### Expected Results
 - Loads subscription; rejects if archived.
 - Loads feature; validates value via `FeatureValueValidator`.
-- Adds override (replacing existing for the same feature), syncs status, saves.
+- Adds override (replacing existing for the same feature) and saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Subscription or feature missing. |
@@ -180,9 +188,10 @@ addFeatureOverride(
 removeFeatureOverride(subscriptionKey: string, featureKey: string): Promise<void>
 ```
 
-**Expected Results**: Ensures subscription exists and not archived, removes override, syncs status, saves.
+#### Expected Results
+ Ensures subscription exists and not archived, removes override, saves.
 
-**Errors**: `NotFoundError`, `DomainError` (archived).
+**Errors `NotFoundError`, `DomainError` (archived).
 
 ### clearTemporaryOverrides
 ```typescript
@@ -196,34 +205,20 @@ Removes only temporary overrides; same error behavior as other override methods.
 processAutomaticTransitions(): Promise<number>
 ```
 
-**Expected Results**
+#### Expected Results
 - Scans subscriptions whose `currentPeriodEnd` has passed.
-- For subscriptions whose plan configures `onExpireTransitionToBillingCycleKey`, moves subscription to the target billing cycle/plan, resets periods, clears overrides, syncs status, saves.
-- Returns the number of processed transitions.
+- For subscriptions whose plan configures `onExpireTransitionToBillingCycleKey`, moves subscription to the target billing cycle/plan, resets periods, clears overrides, saves (status updates automatically through the view).
+- #### Returns
+ the number of processed transitions.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `DomainError` | Plan lacks transition configuration when processing (should not happen if properly configured). |
 | `NotFoundError` | Target billing cycle or plan referenced by transition is missing. |
 
 *Note*: Missing plan/cycle references log errors but may throw, depending on the path (`processSubscriptionTransition`). Ensure referential integrity.
-
-### syncSubscriptionStatuses
-```typescript
-syncSubscriptionStatuses(limit?: number): Promise<number>
-```
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `limit` | `number` | No | Defaults to 1000. Maximum number of subscriptions to evaluate. |
-
-**Expected Results**
-- Fetches subscriptions up to `limit`.
-- Compares stored status with computed getter; if mismatched, calls `syncStatus()` and saves.
-- Returns count of updated subscriptions.
-
-**Errors**: None (uses repository operations only).
 
 > Need the full explanation of how each status works? See [`subscription-lifecycle.md`](./subscription-lifecycle.md) for detailed rules, diagrams, and practical guidance.
 
@@ -255,7 +250,7 @@ Fields optional: `billingCycleKey`, `expirationDate`, `cancellationDate`, `trial
 | `productKey` | `string` | Yes | Derived from plan. |
 | `planKey` | `string` | Yes | Derived from billing cycle. |
 | `billingCycleKey` | `string` | Yes | |
-| `status` | `string` | Yes | `'pending'`, `'active'`, `'trial'`, `'cancelled'`, `'cancellation_pending'`, `'expired'`, or `'suspended'`. |
+| `status` | `string` | Yes | `'pending'`, `'active'`, `'trial'`, `'cancelled'`, `'cancellation_pending'`, or `'expired'`. |
 | `activationDate` | `string \| null` | No | |
 | `expirationDate` | `string \| null` | No | |
 | `cancellationDate` | `string \| null` | No | |
@@ -291,4 +286,3 @@ Adds:
 - `FeatureCheckerService` relies on subscription data for resolving feature access; keep overrides up to date.
 - `StripeIntegrationService` uses subscription CRUD for webhook synchronization.
 - When deleting or transitioning plans/billing cycles, ensure subscriptions point to valid entities—use `processAutomaticTransitions` to move customers between plans automatically.
-

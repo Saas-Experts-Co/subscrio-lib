@@ -17,7 +17,9 @@ const features = subscrio.features;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `createFeature` | Validates and stores a new global feature | `Promise<FeatureDto>` |
 | `updateFeature` | Updates mutable fields on an existing feature | `Promise<FeatureDto>` |
@@ -31,19 +33,23 @@ const features = subscrio.features;
 ## Method Reference
 
 ### createFeature
-**Description**: Creates a new feature and enforces validation rules determined by `valueType`.
 
-**Signature**
+#### Description
+ Creates a new feature and enforces validation rules determined by `valueType`.
+
+#### Signature
 ```typescript
 createFeature(dto: CreateFeatureDto): Promise<FeatureDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | `CreateFeatureDto` | Yes | Payload describing the new feature. |
 
-**Input Properties**
+#### Input Properties
+
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | 1–255 chars, lowercase alphanumeric plus `-`. |
@@ -55,10 +61,11 @@ createFeature(dto: CreateFeatureDto): Promise<FeatureDto>
 | `validator` | `Record<string, unknown>` | No | Custom metadata consumed by `FeatureValueValidator`. |
 | `metadata` | `Record<string, unknown>` | No | JSON-safe metadata. |
 
-**Returns**
+#### Returns
 `Promise<FeatureDto>` – persisted feature snapshot.
 
-**Return Properties**
+#### Return Properties
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `key` | `string` | Immutable feature key. |
@@ -73,18 +80,19 @@ createFeature(dto: CreateFeatureDto): Promise<FeatureDto>
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
-**Expected Results**
+#### Expected Results
 - Validates the DTO and default value using `FeatureValueValidator`.
 - Rejects duplicate keys.
 - Persists the feature with status `active`.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or default mismatches `valueType`. |
 | `ConflictError` | Feature key already exists. |
 
-**Example**
+#### Example
 ```typescript
 await features.createFeature({
   key: 'max-projects',
@@ -95,85 +103,96 @@ await features.createFeature({
 ```
 
 ### updateFeature
-**Description**: Updates mutable fields (display name, description, default, grouping, validator, metadata).
 
-**Signature**
+#### Description
+ Updates mutable fields (display name, description, default, grouping, validator, metadata).
+
+#### Signature
 ```typescript
 updateFeature(key: string, dto: UpdateFeatureDto): Promise<FeatureDto>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key to mutate. |
 | `dto` | `UpdateFeatureDto` | Yes | Partial payload of fields to change. |
 
-**Input Properties**
+#### Input Properties
 All fields mirror `CreateFeatureDto` but are optional. When both `valueType` and `defaultValue` are supplied they must remain compatible.
 
-**Returns**
+#### Returns
 Updated `FeatureDto` (same shape as above).
 
-**Expected Results**
+#### Expected Results
 - Validates provided fields.
 - Loads feature, applies updates, re-validates default when present, and saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or default fails validation. |
 | `NotFoundError` | Feature key not found. |
 
-**Example**
+#### Example
 ```typescript
 await features.updateFeature('max-projects', { defaultValue: '25' });
 ```
 
 ### getFeature
-**Description**: Retrieves a feature by key; returns `null` when not found.
 
-**Signature**
+#### Description
+ Retrieves a feature by key; returns `null` when not found.
+
+#### Signature
 ```typescript
 getFeature(key: string): Promise<FeatureDto | null>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature identifier. |
 
-**Returns**
+#### Returns
 `Promise<FeatureDto | null>` – feature snapshot when found.
 
-**Return Properties**
+#### Return Properties
 - `FeatureDto` fields described under `createFeature`.
 - `null` when the feature is missing.
 
-**Expected Results**
+#### Expected Results
 - Queries repository and maps to DTO.
 
-**Potential Errors**
+#### Potential Errors
 - None (missing features return `null`).
 
-**Example**
+#### Example
 ```typescript
 const feature = await features.getFeature('gantt-charts');
 ```
 
 ### listFeatures
-**Description**: Lists features with pagination, filtering, and sorting.
 
-**Signature**
+#### Description
+ Lists features with pagination, filtering, and sorting.
+
+#### Signature
 ```typescript
 listFeatures(filters?: FeatureFilterDto): Promise<FeatureDto[]>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters` | `FeatureFilterDto` | No | Optional filters and pagination controls. |
 
-**Input Properties**
+#### Input Properties
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `status` | `'active' \| 'archived'` | Filter by lifecycle state. |
@@ -185,141 +204,158 @@ listFeatures(filters?: FeatureFilterDto): Promise<FeatureDto[]>
 | `sortBy` | `'displayName' \| 'createdAt'` | Sort column. |
 | `sortOrder` | `'asc' \| 'desc'` | Sort direction, default `'asc'`. |
 
-**Returns**
+#### Returns
 `Promise<FeatureDto[]>`
 
-**Return Properties**
+#### Return Properties
 - Array of `FeatureDto` entries.
 
-**Expected Results**
+#### Expected Results
 - Validates filters, executes query, maps results to DTOs.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters contain invalid values. |
 
-**Example**
+#### Example
 ```typescript
 const toggles = await features.listFeatures({ valueType: 'toggle', status: 'active' });
 ```
 
 ### archiveFeature
-**Description**: Marks a feature as archived.
 
-**Signature**
+#### Description
+ Marks a feature as archived.
+
+#### Signature
 ```typescript
 archiveFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key to archive. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Loads feature, calls the entity’s `archive()` method, and saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature key missing. |
 
-**Example**
+#### Example
 ```typescript
 await features.archiveFeature('legacy-beta');
 ```
 
 ### unarchiveFeature
-**Description**: Restores an archived feature to `active`.
 
-**Signature**
+#### Description
+ Restores an archived feature to `active`.
+
+#### Signature
 ```typescript
 unarchiveFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key previously archived. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Loads feature, calls `unarchive()`, and saves.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature key missing. |
 
-**Example**
+#### Example
 ```typescript
 await features.unarchiveFeature('legacy-beta');
 ```
 
 ### deleteFeature
-**Description**: Permanently removes a feature that is archived and unused.
 
-**Signature**
+#### Description
+ Permanently removes a feature that is archived and unused.
+
+#### Signature
 ```typescript
 deleteFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key targeted for deletion. |
 
-**Returns**
+#### Returns
 `Promise<void>`
 
-**Expected Results**
+#### Expected Results
 - Validates the feature exists and `feature.canDelete()` (must be archived).
 - Verifies no product associations, plan feature values, or subscription overrides remain.
 - Deletes the feature record.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature missing. |
 | `DomainError` | Feature still referenced or not archived. |
 
-**Example**
+#### Example
 ```typescript
 await features.deleteFeature('sunset-flag');
 ```
 
 ### getFeaturesByProduct
-**Description**: Lists the features currently linked to a product.
 
-**Signature**
+#### Description
+ Lists the features currently linked to a product.
+
+#### Signature
 ```typescript
 getFeaturesByProduct(productKey: string): Promise<FeatureDto[]>
 ```
 
-**Inputs**
+#### Inputs
+
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `productKey` | `string` | Yes | Product key to inspect. |
 
-**Returns**
+#### Returns
 `Promise<FeatureDto[]>`
 
-**Expected Results**
+#### Expected Results
 - Ensures the product exists.
 - Queries repository for all features associated with the product.
 
-**Potential Errors**
+#### Potential Errors
+
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Product missing. |
 
-**Example**
+#### Example
 ```typescript
 const featureList = await features.getFeaturesByProduct('pro-suite');
 ```
@@ -330,133 +366,136 @@ const featureList = await features.getFeaturesByProduct('pro-suite');
 - Subscription overrides from `SubscriptionManagementService.addFeatureOverride` have the highest priority during feature resolution.
 ### getFeaturesByProduct
 
-**Description**: Lists features currently associated with a product.
+#### Description
+ Lists features currently associated with a product.
 
-**Signature**
+#### Signature
 
 ```typescript
 getFeaturesByProduct(productKey: string): Promise<FeatureDto[]>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `productKey` | `string` | Yes | Product key to inspect. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 `Promise<FeatureDto[]>`
 
-**Return Properties**
+#### Return Properties
 
 - [`FeatureDto`](#featuredto)[] – DTOs linked to the specified product.
 
-**Expected Results**
+#### Expected Results
 
 - Ensures product exists.
 - Queries repository via product ID and maps results.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Product missing. |
 
-**Example**
+#### Example
 
 ```typescript
 const featureList = await features.getFeaturesByProduct('pro-suite');
 ```
 ### deleteFeature
 
-**Description**: Permanently deletes a feature after ensuring no active relationships.
+#### Description
+ Permanently deletes a feature after ensuring no active relationships.
 
-**Signature**
+#### Signature
 
 ```typescript
 deleteFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key targeted for deletion. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Requires feature to exist and be archived (`feature.canDelete()`).
 - Verifies there are no product associations, plan feature values, or subscription overrides.
 - Removes the feature record.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature missing. |
 | `DomainError` | Feature not archived or still in use. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.deleteFeature('sunset-flag');
 ```
 ### listFeatures
 
-**Description**: Lists features with pagination/filters.
+#### Description
+ Lists features with pagination/filters.
 
-**Signature**
+#### Signature
 
 ```typescript
 listFeatures(filters?: FeatureFilterDto): Promise<FeatureDto[]>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters` | [`FeatureFilterDto`](#featurefilterdto) | No | Status, value type, group, search, pagination, sorting. |
 
-**Input Properties**
+#### Input Properties
 
 - [`FeatureFilterDto`](#featurefilterdto) – limits status, value type, search, and pagination options.
 
-**Returns**
+#### Returns
 
 `Promise<FeatureDto[]>`
 
-**Return Properties**
+#### Return Properties
 
 - [`FeatureDto`](#featuredto)[] – DTOs for each feature returned.
 
-**Expected Results**
+#### Expected Results
 
 - Validates filters, queries repository, maps to DTOs.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters contain invalid values. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.listFeatures({ valueType: 'toggle', status: 'active' });
@@ -479,7 +518,9 @@ const features = subscrio.features;
 ```
 
 ## Method Catalog
-| Method | Description | Returns |
+
+| Method | Description |
+ | Returns
 | --- | --- | --- |
 | `createFeature` | Validates and stores a new global feature | `Promise<FeatureDto>` |
 | `updateFeature` | Updates mutable fields on an existing feature | `Promise<FeatureDto>` |
@@ -494,47 +535,48 @@ const features = subscrio.features;
 
 ### createFeature
 
-**Description**: Creates a new feature and enforces default value constraints based on `valueType`.
+#### Description
+ Creates a new feature and enforces default value constraints based on `valueType`.
 
-**Signature**
+#### Signature
 
 ```typescript
 createFeature(dto: CreateFeatureDto): Promise<FeatureDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dto` | [`CreateFeatureDto`](#createfeaturedto) | Yes | Includes key, displayName, description, `valueType`, `defaultValue`, optional grouping, validator, metadata. |
 
-**Input Properties**
+#### Input Properties
 
 - [`CreateFeatureDto`](#createfeaturedto) – defines required fields plus optional metadata and validation descriptors.
 
-**Returns**
+#### Returns
 
 Persisted [`FeatureDto`](#featuredto).
 
-**Return Properties**
+#### Return Properties
 
 - [`FeatureDto`](#featuredto) – serialized feature with timestamps and status.
 
-**Expected Results**
+#### Expected Results
 
 - Validates DTO.
 - Rejects duplicate keys.
 - Calls `FeatureValueValidator.validate` for the default value.
 - Persists a new feature with status `active`.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or default value incompatible with type. |
 | `ConflictError` | Key already exists. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.createFeature({
@@ -547,47 +589,48 @@ await features.createFeature({
 
 ### updateFeature
 
-**Description**: Updates mutable fields and optionally sets a new default value (validated again).
+#### Description
+ Updates mutable fields and optionally sets a new default value (validated again).
 
-**Signature**
+#### Signature
 
 ```typescript
 updateFeature(key: string, dto: UpdateFeatureDto): Promise<FeatureDto>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Immutable feature key. |
 | `dto` | [`UpdateFeatureDto`](#updatefeaturedto) | Yes | Partial update object. |
 
-**Input Properties**
+#### Input Properties
 
 - [`UpdateFeatureDto`](#updatefeaturedto) – optional fields mirroring create with relaxed requirements.
 
-**Returns**
+#### Returns
 
 Updated [`FeatureDto`](#featuredto).
 
-**Return Properties**
+#### Return Properties
 
 - [`FeatureDto`](#featuredto) – reflects all persisted changes.
 
-**Expected Results**
+#### Expected Results
 
 - Validates DTO.
 - Loads feature; updates display name, description, default value, group, validator, metadata.
 - Re-validates default when provided.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `ValidationError` | DTO invalid or default fails validation. |
 | `NotFoundError` | Feature missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.updateFeature('max-projects', { defaultValue: '25' });
@@ -595,42 +638,43 @@ await features.updateFeature('max-projects', { defaultValue: '25' });
 
 ### getFeature
 
-**Description**: Fetches a feature by key or returns `null`.
+#### Description
+ Fetches a feature by key or returns `null`.
 
-**Signature**
+#### Signature
 
 ```typescript
 getFeature(key: string): Promise<FeatureDto | null>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 `Promise<FeatureDto | null>` – resolves with [`FeatureDto`](#featuredto) when found; `null` otherwise.
 
-**Return Properties**
+#### Return Properties
 
 - [`FeatureDto`](#featuredto) – populated when key exists.
 - `null` – indicates missing feature.
 
-**Expected Results**
+#### Expected Results
 
 - Queries repository and maps to DTO.
 
-**Potential Errors**
+#### Potential Errors
 
 - None.
 
-**Example**
+#### Example
 
 ```typescript
 const feature = await features.getFeature('gantt-charts');
@@ -639,43 +683,44 @@ const feature = await features.getFeature('gantt-charts');
 
 ### archiveFeature
 
-**Description**: Sets a feature’s status to `archived`.
+#### Description
+ Sets a feature’s status to `archived`.
 
-**Signature**
+#### Signature
 
 ```typescript
 archiveFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key to archive. |
 
-**Input Properties**
+#### Input Properties
 
 - None beyond the key string.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Loads feature, calls the entity’s `archive()` method, and saves.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature key missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.archiveFeature('legacy-beta');
@@ -683,43 +728,44 @@ await features.archiveFeature('legacy-beta');
 
 ### unarchiveFeature
 
-**Description**: Restores an archived feature to `active`.
+#### Description
+ Restores an archived feature to `active`.
 
-**Signature**
+#### Signature
 
 ```typescript
 unarchiveFeature(key: string): Promise<void>
 ```
 
-**Inputs**
+#### Inputs
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Feature key previously archived. |
 
-**Input Properties**
+#### Input Properties
 
 - None.
 
-**Returns**
+#### Returns
 
 `Promise<void>`
 
-**Return Properties**
+#### Return Properties
 
 - `void`
 
-**Expected Results**
+#### Expected Results
 
 - Loads feature, calls `unarchive()`, and saves.
 
-**Potential Errors**
+#### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Feature key missing. |
 
-**Example**
+#### Example
 
 ```typescript
 await features.unarchiveFeature('legacy-beta');
@@ -775,4 +821,3 @@ Same fields as create but all optional; when both `valueType` and `defaultValue`
 - Products must explicitly associate features before plans can set values (`ProductManagementService.associateFeature`).
 - Feature defaults are used as the final fallback in the feature resolution hierarchy (`FeatureCheckerService`).
 - Deleting a feature requires removing plan values and subscription overrides that reference it.
-

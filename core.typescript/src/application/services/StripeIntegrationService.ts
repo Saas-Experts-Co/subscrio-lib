@@ -129,9 +129,6 @@ export class StripeIntegrationService {
 
     subscription.props.updatedAt = now();
     
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
-
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -146,8 +143,6 @@ export class StripeIntegrationService {
     }
 
     subscription.expire();
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -165,8 +160,6 @@ export class StripeIntegrationService {
       return; // Subscription not found
     }
 
-    // Status is now calculated dynamically, but sync to ensure database is up to date
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -184,10 +177,7 @@ export class StripeIntegrationService {
       return; // Subscription not found
     }
 
-    // Suspend subscription for failed payment - status is calculated dynamically
     subscription.props.updatedAt = now();
-    // Sync status before saving to ensure database status matches computed status
-    subscription.syncStatus();
     await this.subscriptionRepository.save(subscription);
   }
 
@@ -262,9 +252,6 @@ export class StripeIntegrationService {
       createdAt: now(),
       updatedAt: now()
     });
-
-    // Sync status after creation to ensure stored status matches computed status
-    subscription.syncStatus();
 
     // Save and get entity with generated ID
     const savedSubscription = await this.subscriptionRepository.save(subscription);
