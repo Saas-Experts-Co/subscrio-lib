@@ -26,6 +26,11 @@ export class Customer extends Entity<CustomerProps> {
     return this.props.externalBillingId;
   }
 
+  setExternalBillingId(externalBillingId: string | undefined): void {
+    this.props.externalBillingId = externalBillingId;
+    this.props.updatedAt = now();
+  }
+
   archive(): void {
     this.props.status = CustomerStatus.Archived;
     this.props.updatedAt = now();

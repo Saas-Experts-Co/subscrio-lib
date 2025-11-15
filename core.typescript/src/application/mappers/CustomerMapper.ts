@@ -37,7 +37,7 @@ export class CustomerMapper {
       key: customer.key,
       display_name: customer.props.displayName,
       email: customer.props.email,
-      external_billing_id: customer.externalBillingId,
+      external_billing_id: customer.externalBillingId ?? null,
       status: customer.status,
       metadata: customer.props.metadata,
       created_at: customer.props.createdAt,
