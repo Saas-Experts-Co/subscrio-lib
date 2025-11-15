@@ -21,13 +21,13 @@ const billingCycles = subscrio.billingCycles;
 | --- | --- | --- |
 | `createBillingCycle` | Creates a cycle for an existing plan | `Promise<BillingCycleDto>` |
 | `updateBillingCycle` | Updates mutable fields on a cycle | `Promise<BillingCycleDto>` |
-| `getBillingCycle` | Retrieves a cycle by key | `Promise<BillingCycleDto \| null>` |
+| `getBillingCycle` | Retrieves a cycle by key | Promise&lt;BillingCycleDto or null&gt; |
 | `getBillingCyclesByPlan` | Lists cycles for a plan | `Promise<BillingCycleDto[]>` |
 | `listBillingCycles` | Lists cycles with filters/pagination | `Promise<BillingCycleDto[]>` |
 | `archiveBillingCycle` | Archives a cycle | `Promise<void>` |
 | `unarchiveBillingCycle` | Reactivates an archived cycle | `Promise<void>` |
 | `deleteBillingCycle` | Deletes an archived, unused cycle | `Promise<void>` |
-| `calculateNextPeriodEnd` | Computes next renewal end date | `Promise<Date \| null>` |
+| `calculateNextPeriodEnd` | Computes next renewal end date | Promise&lt;Date or null&gt; |
 | `getBillingCyclesByDurationUnit` | Filters cycles by duration unit | `Promise<BillingCycleDto[]>` |
 | `getDefaultBillingCycles` | Loads pre-installed defaults (monthly/quarterly/yearly) | `Promise<BillingCycleDto[]>` |
 
@@ -58,7 +58,7 @@ createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 | `displayName` | `string` | Yes | 1–255 char label. |
 | `description` | `string` | No | ≤1000 chars. |
 | `durationValue` | `number` | Conditional | Required unless `durationUnit` is `forever`; positive integer. |
-| `durationUnit` | `'days' \| 'weeks' \| 'months' \| 'years' \| 'forever'` | Yes | Renewal cadence. |
+| `durationUnit` | `'days', 'weeks', 'months', 'years', 'forever'` | Yes | Renewal cadence. |
 | `externalProductId` | `string` | No | Stripe price or other external ID (≤255 chars). |
 
 #### Returns
@@ -73,11 +73,11 @@ createBillingCycle(dto: CreateBillingCycleDto): Promise<BillingCycleDto>
 | `planKey` | `string` | Owning plan key. |
 | `productKey` | `string` | Derived from plan. |
 | `displayName` | `string` | Display label. |
-| `description` | `string \| null` | Optional description. |
+| `description` | `string` or `null` | Optional description. |
 | `status` | `string` | `active` or `archived`. |
-| `durationValue` | `number \| null` | `null` when unit is `forever`. |
+| `durationValue` | `number` or `null` | `null` when unit is `forever`. |
 | `durationUnit` | `string` | Duration unit. |
-| `externalProductId` | `string \| null` | Payment processor price ID. |
+| `externalProductId` | `string` or `null` | Payment processor price ID. |
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
@@ -131,9 +131,20 @@ All fields mirror `CreateBillingCycleDto` but are optional. If `durationUnit` is
 
 `Promise<BillingCycleDto>` – updated cycle snapshot.
 
+#### Return Properties
+- Same `BillingCycleDto` fields described in `createBillingCycle`.
+
 #### Expected Results
 - Validates DTO.
 - Loads cycle, applies permissible fields, saves.
+
+#### Example
+```typescript
+await billingCycles.updateBillingCycle('annual-pro-12m', {
+  displayName: 'Annual Plan (12 months)',
+  externalProductId: 'price_UPDATED'
+});
+```
 
 #### Potential Errors
 
@@ -159,13 +170,25 @@ getBillingCycle(key: string): Promise<BillingCycleDto | null>
 | `key` | `string` | Yes | Cycle key. |
 
 #### Returns
+
 `Promise<BillingCycleDto | null>`
+
+#### Return Properties
+- `BillingCycleDto` shape (see `createBillingCycle`) or `null` when not found.
 
 #### Expected Results
 - Loads cycle; if stored plan reference is missing (data corruption), throws `NotFoundError`.
 
 #### Potential Errors
-- `NotFoundError` when record exists but plan reference cannot be resolved.
+
+| Error | When |
+| --- | --- |
+| `NotFoundError` | Cycle missing or plan reference cannot be resolved. |
+
+#### Example
+```typescript
+const cycle = await billingCycles.getBillingCycle('annual-pro-12m');
+```
 
 ### getBillingCyclesByPlan
 
@@ -184,18 +207,26 @@ getBillingCyclesByPlan(planKey: string): Promise<BillingCycleDto[]>
 | `planKey` | `string` | Yes | Plan identifier. |
 
 #### Returns
+
 `Promise<BillingCycleDto[]>`
+
+#### Return Properties
+- Array of `BillingCycleDto` entries scoped to the plan.
 
 #### Expected Results
 - Ensures plan exists.
-- #### Returns
- all cycles mapped to the plan (with derived product key).
+- Returns all cycles mapped to the plan (with derived product key).
 
 #### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Plan missing. |
+
+#### Example
+```typescript
+const cycles = await billingCycles.getBillingCyclesByPlan('annual-pro');
+```
 
 ### listBillingCycles
 
@@ -218,16 +249,20 @@ listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
 | Field | Type | Description |
 | --- | --- | --- |
 | `planKey` | `string` | Limit to a plan. |
-| `status` | `'active' \| 'archived'` | Filter by state. |
-| `durationUnit` | `'days' \| 'weeks' \| 'months' \| 'years' \| 'forever'` | Filter by unit. |
+| `status` | `'active'` or `'archived'` | Filter by state. |
+| `durationUnit` | `'days', 'weeks', 'months', 'years', 'forever'` | Filter by unit. |
 | `search` | `string` | Text search across key/display name. |
 | `limit` | `number` | 1–100 (default 50). |
 | `offset` | `number` | ≥0 (default 0). |
-| `sortBy` | `'displayName' \| 'createdAt'` | Sort column. |
-| `sortOrder` | `'asc' \| 'desc'` | Sort direction, default `'asc'`. |
+| `sortBy` | `'displayName'` or `'createdAt'` | Sort column. |
+| `sortOrder` | `'asc'` or `'desc'` | Sort direction, default `'asc'`. |
 
 #### Returns
+
 `Promise<BillingCycleDto[]>`
+
+#### Return Properties
+- Array of `BillingCycleDto` entries respecting the supplied filters.
 
 #### Expected Results
 - Validates filters.
@@ -238,6 +273,15 @@ listBillingCycles(filters?: BillingCycleFilterDto): Promise<BillingCycleDto[]>
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters invalid. |
+
+#### Example
+```typescript
+const paged = await billingCycles.listBillingCycles({
+  status: 'active',
+  durationUnit: 'months',
+  limit: 20
+});
+```
 
 ### archiveBillingCycle
 
@@ -256,7 +300,11 @@ archiveBillingCycle(key: string): Promise<void>
 | `key` | `string` | Yes | Cycle key. |
 
 #### Returns
+
 `Promise<void>`
+
+#### Return Properties
+- None.
 
 #### Expected Results
 - Loads cycle, sets status `archived`, saves.
@@ -266,6 +314,11 @@ archiveBillingCycle(key: string): Promise<void>
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
+
+#### Example
+```typescript
+await billingCycles.archiveBillingCycle('annual-pro-12m');
+```
 
 ### unarchiveBillingCycle
 
@@ -284,7 +337,11 @@ unarchiveBillingCycle(key: string): Promise<void>
 | `key` | `string` | Yes | Cycle key. |
 
 #### Returns
+
 `Promise<void>`
+
+#### Return Properties
+- None.
 
 #### Expected Results
 - Loads cycle, sets status `active`, saves.
@@ -294,6 +351,11 @@ unarchiveBillingCycle(key: string): Promise<void>
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
+
+#### Example
+```typescript
+await billingCycles.unarchiveBillingCycle('annual-pro-12m');
+```
 
 ### deleteBillingCycle
 
@@ -312,7 +374,11 @@ deleteBillingCycle(key: string): Promise<void>
 | `key` | `string` | Yes | Cycle to delete. |
 
 #### Returns
+
 `Promise<void>`
+
+#### Return Properties
+- None.
 
 #### Expected Results
 - Loads cycle, calls `billingCycle.canDelete()` (requires archived status).
@@ -326,6 +392,11 @@ deleteBillingCycle(key: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
 | `DomainError` | Cycle still active or referenced. |
+
+#### Example
+```typescript
+await billingCycles.deleteBillingCycle('legacy-quarterly');
+```
 
 ### calculateNextPeriodEnd
 
@@ -348,7 +419,12 @@ calculateNextPeriodEnd(
 | `currentPeriodEnd` | `Date` | Yes | Current period end date. |
 
 #### Returns
+
 `Promise<Date | null>` – `null` for `forever` cycles.
+
+#### Return Properties
+- `Date`: calculated next period end.
+- `null`: returned when the cycle duration unit is `forever`.
 
 #### Expected Results
 - Loads cycle, applies duration arithmetic (e.g., add N months) or returns `null` when unit is `forever`.
@@ -358,6 +434,14 @@ calculateNextPeriodEnd(
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Cycle missing. |
+
+#### Example
+```typescript
+const nextEnd = await billingCycles.calculateNextPeriodEnd(
+  'annual-pro-12m',
+  new Date('2025-01-01T00:00:00Z')
+);
+```
 
 ### getBillingCyclesByDurationUnit
 
@@ -376,10 +460,19 @@ getBillingCyclesByDurationUnit(durationUnit: DurationUnit): Promise<BillingCycle
 | `durationUnit` | `DurationUnit` | Yes | `'days'`, `'weeks'`, `'months'`, `'years'`, or `'forever'`. |
 
 #### Returns
+
 `Promise<BillingCycleDto[]>`
+
+#### Return Properties
+- Array of `BillingCycleDto` entries limited to the requested duration unit.
 
 #### Expected Results
 - Filters existing cycles by unit (no errors thrown).
+
+#### Example
+```typescript
+const monthlyCycles = await billingCycles.getBillingCyclesByDurationUnit('months');
+```
 
 ### getDefaultBillingCycles
 
@@ -392,13 +485,22 @@ getDefaultBillingCycles(): Promise<BillingCycleDto[]>
 ```
 
 #### Returns
+
 `Promise<BillingCycleDto[]>`
+
+#### Return Properties
+- Array of default `BillingCycleDto` entries that were seeded (or empty array).
 
 #### Expected Results
 - Attempts to load keys such as `monthly`, `quarterly`, `yearly`; returns whichever exist.
 
 #### Potential Errors
 - None (returns empty array when defaults not installed).
+
+#### Example
+```typescript
+const defaults = await billingCycles.getDefaultBillingCycles();
+```
 
 ## Related Workflows
 - Plans must exist before creating billing cycles (`PlanManagementService`).
