@@ -17,12 +17,11 @@ const customers = subscrio.customers;
 
 ## Method Catalog
 
-| Method | Description |
- | Returns
+| Method | Description | Returns |
 | --- | --- | --- |
 | `createCustomer` | Creates a new customer record | `Promise<CustomerDto>` |
 | `updateCustomer` | Updates mutable fields | `Promise<CustomerDto>` |
-| `getCustomer` | Retrieves a customer by key | `Promise<CustomerDto \| null>` |
+| `getCustomer` | Retrieves a customer by key | `Promise<CustomerDto | null>` |
 | `listCustomers` | Lists customers with filters | `Promise<CustomerDto[]>` |
 | `archiveCustomer` | Archives a customer | `Promise<void>` |
 | `unarchiveCustomer` | Reactivates an archived customer | `Promise<void>` |
@@ -64,11 +63,11 @@ createCustomer(dto: CreateCustomerDto): Promise<CustomerDto>
 | Field | Type | Description |
 | --- | --- | --- |
 | `key` | `string` | Customer key. |
-| `displayName` | `string \| null` | Display label. |
-| `email` | `string \| null` | Billing email. |
-| `externalBillingId` | `string \| null` | Stripe/processor customer ID. |
+| `displayName` | `string | null` | Display label. |
+| `email` | `string | null` | Billing email. |
+| `externalBillingId` | `string | null` | Stripe/processor customer ID. |
 | `status` | `string` | `active`, `archived`, etc. |
-| `metadata` | `Record<string, unknown> \| null` | Stored metadata. |
+| `metadata` | `Record<string, unknown> | null` | Stored metadata. |
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
@@ -111,11 +110,13 @@ updateCustomer(key: string, dto: UpdateCustomerDto): Promise<CustomerDto>
 | `dto` | `UpdateCustomerDto` | Yes | Partial update payload. |
 
 #### Input Properties
-All fields optional:
-- `displayName`: `string`
-- `email`: `string`
-- `externalBillingId`: `string`
-- `metadata`: `Record<string, unknown>`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `displayName` | `string` | No | Updated label (≤255 chars). |
+| `email` | `string` | No | Valid email address. |
+| `externalBillingId` | `string` | No | Unique processor/customer ID. |
+| `metadata` | `Record<string, unknown>` | No | Replaces stored metadata blob. |
 
 #### Returns
 `Promise<CustomerDto>` – updated snapshot (same fields as above).
@@ -133,6 +134,14 @@ All fields optional:
 | `ValidationError` | DTO invalid. |
 | `NotFoundError` | Customer key not found. |
 | `ConflictError` | `externalBillingId` already used elsewhere. |
+
+#### Example
+```typescript
+await customers.updateCustomer('cust_123', {
+  displayName: 'Acme Corp (2025)',
+  metadata: { segment: 'enterprise' }
+});
+```
 
 ### getCustomer
 
@@ -153,11 +162,23 @@ getCustomer(key: string): Promise<CustomerDto | null>
 #### Returns
 `Promise<CustomerDto | null>`
 
+#### Return Properties
+- `CustomerDto` shape described in `createCustomer`.
+
 #### Expected Results
 - Reads from repository and returns DTO; `null` when key missing.
 
 #### Potential Errors
-- None.
+
+| Error | When |
+| --- | --- |
+| _None_ | Method returns `null` when the customer is missing. |
+
+#### Example
+```typescript
+const customer = await customers.getCustomer('cust_123');
+if (!customer) throw new Error('Missing customer');
+```
 
 ### listCustomers
 
@@ -179,15 +200,18 @@ listCustomers(filters?: CustomerFilterDto): Promise<CustomerDto[]>
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `'active' \| 'archived' \| 'suspended'` | Filter by lifecycle (default all). |
+| `status` | `'active' | 'archived' | 'suspended'` | Filter by lifecycle (default all). |
 | `search` | `string` | Matches key, displayName, or email. |
-| `sortBy` | `'displayName' \| 'key' \| 'createdAt'` | Sort column. |
-| `sortOrder` | `'asc' \| 'desc'` | Sort direction, default `'asc'`. |
+| `sortBy` | `'displayName' | 'key' | 'createdAt'` | Sort column. |
+| `sortOrder` | `'asc' | 'desc'` | Sort direction, default `'asc'`. |
 | `limit` | `number` | 1–100 (default 50). |
 | `offset` | `number` | ≥0 (default 0). |
 
 #### Returns
 `Promise<CustomerDto[]>`
+
+#### Return Properties
+- Array of `CustomerDto` entries (see `createCustomer`).
 
 #### Expected Results
 - Validates filters and returns DTO array.
@@ -197,6 +221,15 @@ listCustomers(filters?: CustomerFilterDto): Promise<CustomerDto[]>
 | Error | When |
 | --- | --- |
 | `ValidationError` | Filters invalid. |
+
+#### Example
+```typescript
+const customersPage = await customers.listCustomers({
+  status: 'active',
+  search: 'acme',
+  limit: 25
+});
+```
 
 ### archiveCustomer
 
@@ -226,6 +259,11 @@ archiveCustomer(key: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Customer missing. |
 
+#### Example
+```typescript
+await customers.archiveCustomer('cust_legacy');
+```
+
 ### unarchiveCustomer
 
 #### Description
@@ -253,6 +291,11 @@ unarchiveCustomer(key: string): Promise<void>
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Customer missing. |
+
+#### Example
+```typescript
+await customers.unarchiveCustomer('cust_legacy');
+```
 
 ### deleteCustomer
 
@@ -283,6 +326,11 @@ deleteCustomer(key: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Customer missing. |
 | `DomainError` | Customer cannot be deleted (still active or domain rule failed). |
+
+#### Example
+```typescript
+await customers.deleteCustomer('cust_retired');
+```
 
 ## Related Workflows
 - Subscriptions reference customers by ID; deleting a customer does not cascade—clean related subscriptions manually if needed.

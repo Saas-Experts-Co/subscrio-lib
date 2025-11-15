@@ -176,8 +176,8 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   await sleep(500);
 
   // Step 4: Create plans
-  printStep(4, 'Create Plans with Billing Cycles and Transitions');
-  printInfo('Create each plan with its billing cycles and automatic transition configuration', 1);
+  printStep(4, 'Create Plans with Billing Cycles');
+  printInfo('Create each plan with its billing cycles and optional transition configuration', 1);
 
   // Free Plan (with forever billing cycle for transitions)
   console.log('📥 Input: subscrio.plans.createPlan({');
@@ -195,7 +195,7 @@ async function runPhase1_SystemSetup(subscrio: Subscrio) {
   });
   printSuccess(`Created plan: ${freePlan.displayName} (${freePlan.key})`);
   
-  // Create only the forever billing cycle for free plan (for automatic transitions)
+  // Create only the forever billing cycle for free plan (used for downgrades later)
   console.log('📥 Input: subscrio.billingCycles.createBillingCycle({');
   console.log('  planKey: "free",');
   console.log('  key: "free-forever",');
@@ -731,7 +731,7 @@ async function runPhase6_SubscriptionRenewal(subscrio: Subscrio) {
 }
 
 async function runPhase7_DowngradeToFree(subscrio: Subscrio) {
-  printPhase(7, 'Customer Cancellation and Auto-Transition');
+  printPhase(7, 'Customer Cancellation and Downgrade');
   
   // Step 1: Customer cancels subscription
   printStep(1, 'Customer Cancels Subscription');
@@ -767,54 +767,36 @@ async function runPhase7_DowngradeToFree(subscrio: Subscrio) {
 
   await sleep(500);
 
-  // Step 2: Simulate period end and automatic transition
-  printStep(2, 'Period End - Automatic Transition to Free Plan');
-  printInfo('Simulating period end date passing - library automatically transitions to free plan', 1);
-  printInfo('This simulates the automatic transition configured in the professional plan', 1);
-  
-  // Simulate the period end by setting currentPeriodEnd to 1 day ago
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
-  
-  console.log('📥 Input: subscrio.subscriptions.updateSubscription("acme-subscription", {');
-  console.log('  currentPeriodEnd: "' + oneDayAgo.toISOString() + '"');
+  // Step 2: Customer opts into the free plan manually after cancellation
+  printStep(2, 'Customer Starts Free Plan');
+  printInfo('After the paid plan lapses, the customer opts into the free tier manually', 1);
+
+  console.log('📥 Input: subscrio.subscriptions.createSubscription({');
+  console.log('  customerKey: "acme-corp",');
+  console.log('  billingCycleKey: "free-forever",');
+  console.log('  key: "acme-free-subscription"');
   console.log('})');
-  
-  await subscrio.subscriptions.updateSubscription('acme-subscription', {
-    currentPeriodEnd: oneDayAgo
+
+  const freeSubscription = await subscrio.subscriptions.createSubscription({
+    customerKey: 'acme-corp',
+    billingCycleKey: 'free-forever',
+    key: 'acme-free-subscription'
   });
-  
-  printSuccess('Period end simulated - currentPeriodEnd set to before cancellation date');
-  
-  // Process automatic transitions
-  console.log('📥 Input: subscrio.subscriptions.processAutomaticTransitions()');
-  const transitionsProcessed = await subscrio.subscriptions.processAutomaticTransitions();
-  console.log('📄 Output: Transitions processed:', transitionsProcessed);
-  
-  printSuccess(`Automatic transition completed - ${transitionsProcessed} subscription(s) transitioned`);
-  
-  // Get the new free subscription (it will have a new key with -transitioned suffix)
-  console.log('📥 Input: subscrio.subscriptions.getSubscription("acme-subscription")');
-  const newSubscription = await subscrio.subscriptions.getSubscription('acme-subscription');
-  console.log('📄 Output: New Free Subscription DTO:', JSON.stringify(newSubscription, null, 2));
-  
-  // If the old subscription is still there, it means the transition didn't work properly
-  if (newSubscription && newSubscription.planKey === 'professional') {
-    printError('❌ TRANSITION FAILED: Subscription is still on professional plan!');
-    printError('The automatic transition did not create a new subscription to the free plan.');
-    return;
-  }
+  printSuccess('Free plan subscription created for the customer');
+
+  console.log('📄 Output: Free Subscription DTO:', JSON.stringify(freeSubscription, null, 2));
 
   printDivider();
-  
+
   if (isInteractiveMode) {
-    await promptForDatabaseInspection('Phase 7: Auto-Transition', 'Step 2: Automatic Transition Complete');
+    await promptForDatabaseInspection('Phase 7: Customer Downgrade', 'Step 2: Free Plan Subscription Created');
   }
 
   await sleep(500);
-
+  
   // Step 3: Check free plan feature access
   printStep(3, 'Check Free Plan Feature Access');
-  printInfo('Verify customer has access to free plan features after automatic transition', 1);
+  printInfo('Verify customer has access to free plan features after downgrading', 1);
 
   // Check actual feature values for the new free subscription
   const maxProjects = await subscrio.featureChecker.getValueForCustomer('acme-corp', 'projecthub', 'max-projects');
@@ -841,7 +823,7 @@ async function runPhase7_DowngradeToFree(subscrio: Subscrio) {
   printDivider();
   
   if (isInteractiveMode) {
-    await promptForDatabaseInspection('Phase 7: Auto-Transition', 'Step 3: Free Plan Features Verified');
+    await promptForDatabaseInspection('Phase 7: Customer Downgrade', 'Step 3: Free Plan Features Verified');
   }
 
   await sleep(500);
@@ -860,7 +842,7 @@ async function runPhase8_Summary() {
   console.log('• Plan upgrades within the same subscription');
   console.log('• Feature overrides (temporary and permanent)');
   console.log('• Subscription renewal and override lifecycle');
-  console.log('• Automatic subscription transition to free plan on cancellation');
+  console.log('• Customer-driven downgrade path back to the free plan');
   console.log('• Feature resolution hierarchy (override > plan > default)');
   console.log('• Billing cycle management');
   console.log('');
@@ -869,7 +851,6 @@ async function runPhase8_Summary() {
   console.log('• Feature overrides provide flexibility for custom needs');
   console.log('• Temporary overrides clear on renewal, permanent ones persist');
   console.log('• The API supports complete subscription lifecycle management');
-  console.log('• Plans can be configured for automatic transitions on cancellation');
   console.log('');
 }
 
@@ -1042,7 +1023,7 @@ async function cleanupDemoEntities(subscrio: Subscrio) {
   // Note: These may affect 0 rows or fail if tables don't exist (when using --recreate)
   console.log('🗑️  Deleting demo entities...');
   await safeDelete(
-    `DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-after-cancellation')`,
+    `DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-subscription')`,
     'Deleting subscriptions'
   );
   await safeDelete(`DELETE FROM customers WHERE key = 'acme-corp'`, 'Deleting customers');

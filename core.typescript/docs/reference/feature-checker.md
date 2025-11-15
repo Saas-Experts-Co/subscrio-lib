@@ -2,11 +2,11 @@
 # Feature Checker Service Reference
 
 ## Service Overview
-Feature Checker provides runtime evaluation of feature values for subscriptions and customers. It resolves values according to the invariant:
+The Feature Checker service evaluates feature values at runtime. Every method enforces the hierarchy:
 
 `subscription override → plan value → feature default`
 
-The service supports subscription-level queries, customer/product queries (across multiple active subscriptions), plan access checks, and aggregated usage summaries. All methods rely on `FeatureValueResolver` to enforce the hierarchy.
+The service answers questions at both subscription and customer levels, exposes plan-access helpers, and can summarize usage patterns. Results draw from `FeatureValueResolver`, so the hierarchy is consistent everywhere.
 
 ## Accessing the Service
 ```typescript
@@ -18,25 +18,24 @@ const featureChecker = subscrio.featureChecker;
 
 ## Method Catalog
 
-| Method | Description |
- | Returns
+| Method | Description | Returns |
 | --- | --- | --- |
-| `getValueForSubscription` | Resolves a feature for a specific subscription | `Promise<T \| null>` |
+| `getValueForSubscription` | Resolve a feature for one subscription | <code>Promise&lt;T &#124; null&gt;</code> |
 | `isEnabledForSubscription` | Boolean helper for toggle features | `Promise<boolean>` |
-| `getAllFeaturesForSubscription` | Resolves every feature for a subscription’s product | `Promise<Map<string, string>>` |
-| `getValueForCustomer` | Resolves a feature for a customer/product combination | `Promise<T \| null>` |
-| `isEnabledForCustomer` | Boolean helper for toggle features at customer level | `Promise<boolean>` |
-| `getAllFeaturesForCustomer` | Resolves all feature values for a customer/product pair | `Promise<Map<string, string>>` |
-| `hasPlanAccess` | Determines if a customer currently has an active/trial subscription to a plan | `Promise<boolean>` |
-| `getActivePlans` | Lists active plan keys for a customer | `Promise<string[]>` |
-| `getFeatureUsageSummary` | Aggregates enabled/disabled/numeric/text values for reporting | `Promise<FeatureUsageSummary>` |
+| `getAllFeaturesForSubscription` | Resolve every feature for a subscription’s product | `Promise<Map<string, string>>` |
+| `getValueForCustomer` | Resolve a feature across a customer’s active/trial subscriptions for a product | <code>Promise&lt;T &#124; null&gt;</code> |
+| `isEnabledForCustomer` | Boolean helper for customer/product queries | `Promise<boolean>` |
+| `getAllFeaturesForCustomer` | Aggregate all feature values for a customer/product pair | `Promise<Map<string, string>>` |
+| `hasPlanAccess` | Check if a customer currently has an active/trial subscription to a plan | `Promise<boolean>` |
+| `getActivePlans` | List active/trial plan keys for a customer | `Promise<string[]>` |
+| `getFeatureUsageSummary` | Summarize enabled/disabled/numeric/text states | `Promise<FeatureUsageSummary>` |
 
 ## Method Reference
 
 ### getValueForSubscription
 
 #### Description
- Resolves a feature value for a subscription using override → plan value → feature default order.
+Resolves a feature value for a single subscription using override → plan value → feature default precedence.
 
 #### Signature
 ```typescript
@@ -53,17 +52,17 @@ getValueForSubscription<T = string>(
 | --- | --- | --- | --- |
 | `subscriptionKey` | `string` | Yes | Subscription identifier. |
 | `featureKey` | `string` | Yes | Feature key to resolve. |
-| `defaultValue` | `T` | No | Fallback when subscription/plan/feature missing. |
+| `defaultValue` | `T` | No | Optional fallback when any entity is missing. |
 
 #### Returns
-`Promise<T | null>` – resolved value (converted to `T` when provided) or fallback.
+`Promise<T | null>` – resolved value (cast to `T` when provided) or `defaultValue ?? null`.
 
 #### Expected Results
 - Loads subscription, plan, and feature.
-- Applies override/plan/default order; when any entity missing returns `defaultValue ?? null`.
+- Applies resolver hierarchy; if any entity is missing returns fallback rather than throwing.
 
 #### Potential Errors
-- None (missing data results in fallback).
+- None.
 
 #### Example
 ```typescript
@@ -77,7 +76,7 @@ const seats = await featureChecker.getValueForSubscription<number>(
 ### isEnabledForSubscription
 
 #### Description
- Convenience boolean check for toggle features on a subscription.
+Convenience helper for toggle features at the subscription level.
 
 #### Signature
 ```typescript
@@ -85,12 +84,20 @@ isEnabledForSubscription(subscriptionKey: string, featureKey: string): Promise<b
 ```
 
 #### Returns
-`Promise<boolean>` – `true` when resolved value equals `'true'` (case-insensitive).
+`Promise<boolean>` – `true` when the resolved value equals `'true'` (case-insensitive).
+
+#### Example
+```typescript
+const hasBranding = await featureChecker.isEnabledForSubscription(
+  'sub_enterprise',
+  'custom-branding'
+);
+```
 
 ### getAllFeaturesForSubscription
 
 #### Description
- Resolves every feature associated with the subscription’s product, returning a `Map<featureKey, string>`.
+Resolves every feature for the subscription’s product, returning a map of `featureKey → value`.
 
 #### Signature
 ```typescript
@@ -107,19 +114,26 @@ getAllFeaturesForSubscription(subscriptionKey: string): Promise<Map<string, stri
 `Promise<Map<string, string>>`
 
 #### Expected Results
-- Loads subscription, plan, product, and all features linked to the product.
-- Resolves each feature using override/plan/default order and populates the map.
+- Loads subscription, plan, and product, then queries all product features.
+- Resolves each feature via the hierarchy and populates the map.
+- Returns empty map when the plan cannot be resolved.
 
 #### Potential Errors
 
 | Error | When |
 | --- | --- |
-| `NotFoundError` | Subscription missing or product cannot be resolved. (Missing plan results in empty map rather than error.) |
+| `NotFoundError` | Subscription missing or product cannot be resolved. |
+
+#### Example
+```typescript
+const resolved = await featureChecker.getAllFeaturesForSubscription('sub_1001');
+console.log(resolved.get('max-projects'));
+```
 
 ### getValueForCustomer
 
 #### Description
- Resolves a feature value for a customer/product pair across their active/trial subscriptions.
+Resolves a feature for a customer/product pair by scanning active/trial subscriptions (up to `MAX_SUBSCRIPTIONS_PER_CUSTOMER`).
 
 #### Signature
 ```typescript
@@ -144,20 +158,53 @@ getValueForCustomer<T = string>(
 `Promise<T | null>`
 
 #### Expected Results
-- Loads customer, product, and feature; returns fallback if any missing.
-- Fetches up to `MAX_SUBSCRIPTIONS_PER_CUSTOMER` subscriptions, filters to active/trial for the product.
-- Applies resolver for each subscription, honoring override precedence when multiple subscriptions exist.
+- Loads customer, product, and feature; returns fallback when any missing.
+- Fetches subscriptions for the customer, filters to active/trial entries for the product.
+- Applies resolver across subscriptions, honoring override precedence if multiple subscriptions exist.
 
 #### Potential Errors
-- None (missing entities fall back to default).
+- None.
+
+#### Example
+```typescript
+const maxProjects = await featureChecker.getValueForCustomer<number>(
+  'acme-corp',
+  'projecthub',
+  'max-projects',
+  0
+);
+```
 
 ### isEnabledForCustomer
-Boolean helper built on `getValueForCustomer`, returning whether the resolved value equals `'true'`.
+
+#### Description
+Boolean helper that wraps `getValueForCustomer`.
+
+#### Signature
+```typescript
+isEnabledForCustomer(
+  customerKey: string,
+  productKey: string,
+  featureKey: string
+): Promise<boolean>
+```
+
+#### Returns
+`Promise<boolean>` – `true` when the resolved value equals `'true'`.
+
+#### Example
+```typescript
+const hasApiAccess = await featureChecker.isEnabledForCustomer(
+  'acme-corp',
+  'projecthub',
+  'api-access'
+);
+```
 
 ### getAllFeaturesForCustomer
 
 #### Description
- Resolves every feature for a customer/product combination by aggregating across active/trial subscriptions.
+Aggregates every feature value for a customer/product pair by considering all active/trial subscriptions.
 
 #### Signature
 ```typescript
@@ -167,13 +214,35 @@ getAllFeaturesForCustomer(
 ): Promise<Map<string, string>>
 ```
 
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customerKey` | `string` | Yes | Customer identifier. |
+| `productKey` | `string` | Yes | Product key. |
+
 #### Returns
-`Promise<Map<string, string>>` – empty map when customer/product missing or no active subscriptions.
+`Promise<Map<string, string>>` – defaults when no matching subscriptions exist.
+
+#### Expected Results
+- Loads customer/product; returns empty map when either missing.
+- Resolves all product features using the resolver across relevant subscriptions.
+
+#### Potential Errors
+- None.
+
+#### Example
+```typescript
+const customerFeatures = await featureChecker.getAllFeaturesForCustomer(
+  'acme-corp',
+  'projecthub'
+);
+```
 
 ### hasPlanAccess
 
 #### Description
- Determines whether a customer currently has an active/trial subscription to a specific plan.
+Checks whether a customer currently holds an active or trial subscription for a given plan.
 
 #### Signature
 ```typescript
@@ -184,56 +253,100 @@ hasPlanAccess(
 ): Promise<boolean>
 ```
 
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customerKey` | `string` | Yes | Customer identifier. |
+| `productKey` | `string` | Yes | Product identifier (used to validate plan ownership). |
+| `planKey` | `string` | Yes | Plan to check. |
+
+#### Returns
+`Promise<boolean>` – `false` when customer/product/plan missing or no qualifying subscription is found.
+
 #### Expected Results
-- Validates customer, product, and plan exist.
-- Loads subscriptions for the customer and checks for an active/trial subscription referencing `planKey`.
-- #### Returns
- `false` if any prerequisite entity is missing.
+- Validates all entities exist.
+- Loads subscriptions for the customer and searches for an active/trial entry referencing the plan.
+
+#### Potential Errors
+- None.
+
+#### Example
+```typescript
+const hasPro = await featureChecker.hasPlanAccess('acme-corp', 'projecthub', 'professional');
+```
 
 ### getActivePlans
 
 #### Description
- Lists plan keys for all active/trial subscriptions belonging to a customer (not filtered by product).
+Lists plan keys for every active/trial subscription held by a customer (across all products).
 
 #### Signature
 ```typescript
 getActivePlans(customerKey: string): Promise<string[]>
 ```
 
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customerKey` | `string` | Yes | Customer identifier. |
+
 #### Returns
-`Promise<string[]>` – empty array when customer missing or no active subscriptions.
+`Promise<string[]>` – empty array when customer missing or no active/trial subscriptions exist.
+
+#### Expected Results
+- Loads customer and their subscriptions.
+- Batch-fetches plans to avoid N+1 queries and returns plan keys.
+
+#### Example
+```typescript
+const plans = await featureChecker.getActivePlans('acme-corp');
+```
 
 ### getFeatureUsageSummary
 
 #### Description
- Provides a rollup of feature states (enabled/disabled/numeric/text) for a customer/product pair plus subscription counts.
+Produces a usage rollup showing how features resolve (enabled/disabled/numeric/text) for a customer/product pair and includes the customer’s subscription count.
 
 #### Signature
 ```typescript
 getFeatureUsageSummary(
   customerKey: string,
   productKey: string
-): Promise<FeatureUsageSummary>
+): Promise<{
+  activeSubscriptions: number;
+  enabledFeatures: string[];
+  disabledFeatures: string[];
+  numericFeatures: Map<string, number>;
+  textFeatures: Map<string, string>;
+}>
 ```
 
-#### Return Properties
+#### Inputs
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `activeSubscriptions` | `number` | Count of subscriptions retrieved for the customer (regardless of product filter). |
-| `enabledFeatures` | `string[]` | Feature keys resolved to `'true'`. |
-| `disabledFeatures` | `string[]` | Feature keys resolved to `'false'`. |
-| `numericFeatures` | `Map<string, number>` | Parsed numeric values keyed by feature key. |
-| `textFeatures` | `Map<string, string>` | Text values keyed by feature key. |
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customerKey` | `string` | Yes | Customer identifier. |
+| `productKey` | `string` | Yes | Product key. |
+
+#### Returns
+Object containing counts and maps classified by feature type.
 
 #### Expected Results
-- Loads customer/product; missing entities yield empty lists/maps and `activeSubscriptions = 0`.
-- Retrieves all active/trial subscriptions for the product, resolves each feature, and classifies values by `FeatureDto.valueType`.
+- Counts the customer’s subscriptions (regardless of product filter).
+- Resolves all product features (using defaults when customer/product missing) and classifies values by `FeatureDto.valueType`.
 
 #### Potential Errors
-- None (missing data results in empty structures).
+- None.
+
+#### Example
+```typescript
+const summary = await featureChecker.getFeatureUsageSummary('acme-corp', 'projecthub');
+console.log(summary.enabledFeatures);
+```
 
 ## Related Workflows
-- Ensure products associate features and plans set feature values; otherwise resolution falls back to feature defaults.
-- Subscription overrides are managed via `SubscriptionManagementService.addFeatureOverride`.
-- Consider caching results from `getAllFeaturesForCustomer` to reduce repeated resolver work in high-traffic scenarios.
+- Products must associate features and plans must set feature values for meaningful results; otherwise values fall back to feature defaults.
+- Subscription-level overrides come from `SubscriptionManagementService.addFeatureOverride`.
+- Cache high-traffic queries such as `getAllFeaturesForCustomer` to avoid recalculating the same maps repeatedly.

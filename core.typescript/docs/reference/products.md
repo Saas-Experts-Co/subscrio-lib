@@ -1,11 +1,11 @@
 # Product Management Service Reference
 
 ## Service Overview
-The Product Management Service owns product lifecycles inside Subscrio. It creates, updates, archives, and deletes products, and manages the association between products and globally defined features.
+The Product Management Service governs product lifecycles inside Subscrio: creation, updates, archival, deletion, and feature associations. Products sit at the top of the hierarchy—plans, billing cycles, and subscriptions all reference them.
 
-- Products are the top of the plan hierarchy; plans, billing cycles, and subscriptions reference them.
 - Product keys are global, immutable identifiers.
-- Deletion is guarded by domain rules: the product must be archived and free of plans before removal.
+- Deletion is guarded by domain rules: products must be archived and free of plans before removal.
+- Features must be associated with a product before plans under it can set feature values.
 
 ## Accessing the Service
 ```typescript
@@ -17,12 +17,11 @@ const products = subscrio.products;
 
 ## Method Catalog
 
-| Method | Description |
- | Returns
+| Method | Description | Returns |
 | --- | --- | --- |
 | `createProduct` | Validates and persists a new product | `Promise<ProductDto>` |
 | `updateProduct` | Updates mutable fields on an existing product | `Promise<ProductDto>` |
-| `getProduct` | Fetches a product by key | `Promise<ProductDto \| null>` |
+| `getProduct` | Fetches a product by key | `Promise<ProductDto | null>` |
 | `listProducts` | Lists products with filter/pagination | `Promise<ProductDto[]>` |
 | `deleteProduct` | Permanently deletes an archived product without plans | `Promise<void>` |
 | `archiveProduct` | Marks a product as archived | `Promise<ProductDto>` |
@@ -51,13 +50,11 @@ createProduct(dto: CreateProductDto): Promise<ProductDto>
 
 #### Input Properties
 
-_CreateProductDto fields_
-
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `string` | Yes | 1–255 chars, lowercase alphanumeric plus hyphen. |
-| `displayName` | `string` | Yes | Human-friendly label (1–255 chars). |
-| `description` | `string` | No | Up to 1000 chars. |
+| `key` | `string` | Yes | 1–255 chars, lowercase alphanumeric plus `-`. |
+| `displayName` | `string` | Yes | 1–255 char label. |
+| `description` | `string` | No | ≤1000 chars. |
 | `metadata` | `Record<string, unknown>` | No | JSON-safe metadata blob. |
 
 #### Returns
@@ -66,16 +63,14 @@ Resolves with the persisted `ProductDto`, including timestamps and status (`acti
 
 #### Return Properties
 
-_ProductDto fields_
-
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | UUIDv7 identifier. |
 | `key` | `string` | Immutable product key. |
 | `displayName` | `string` | Display name. |
-| `description` | `string \| null` | Optional description. |
+| `description` | <code>string &#124; null</code> | Optional description. |
 | `status` | `string` | `active`, `inactive`, or `archived`. |
-| `metadata` | `Record<string, unknown> \| null` | Metadata blob. |
+| `metadata` | <code>Record&lt;string, unknown&gt; &#124; null</code> | Metadata blob. |
 | `createdAt` | `string` | ISO timestamp. |
 | `updatedAt` | `string` | ISO timestamp. |
 
@@ -123,11 +118,9 @@ updateProduct(key: string, dto: UpdateProductDto): Promise<ProductDto>
 
 #### Input Properties
 
-_UpdateProductDto fields (all optional)_
-
 | Field | Type | Description |
 | --- | --- | --- |
-| `displayName` | `string` | New display label (1–255 chars). |
+| `displayName` | `string` | Updated label (1–255 chars). |
 | `description` | `string` | Replacement description (≤1000 chars). |
 | `metadata` | `Record<string, unknown>` | Full metadata blob (overwrites stored value). |
 
@@ -164,11 +157,9 @@ const updated = await products.updateProduct('pro-suite', {
 ### getProduct
 
 #### Description
- Fetches a product snapshot by key. #### Returns
- `null` if it does not exist.
+Fetches a product snapshot by key, returning `null` when it does not exist.
 
 #### Signature
-
 ```typescript
 getProduct(key: string): Promise<ProductDto | null>
 ```
@@ -179,34 +170,25 @@ getProduct(key: string): Promise<ProductDto | null>
 | --- | --- | --- | --- |
 | `key` | `string` | Yes | Product key to retrieve. |
 
-#### Input Properties
-
-- None beyond the raw key string.
-
 #### Returns
-
-`Promise<null | ProductDto>` resolving with the matching `ProductDto` when found; otherwise `null`.
+`Promise<ProductDto | null>`
 
 #### Return Properties
-
-- Same `ProductDto` fields listed under `createProduct`.
-- `null` – indicates the product does not exist.
+- `ProductDto` fields defined under `createProduct`.
+- `null` when the product is missing.
 
 #### Expected Results
-
-- Reads from the repository and maps the domain entity to DTO.
+- Loads product by key and maps domain entity to DTO.
 
 #### Potential Errors
 
-- None; missing products yield `null`.
+| Error | When |
+| --- | --- |
+| _None_ | Method returns `null` for missing products. |
 
 #### Example
-
 ```typescript
 const product = await products.getProduct('starter');
-if (!product) {
-  throw new Error('Product missing');
-}
 ```
 
 ### listProducts
@@ -228,16 +210,14 @@ listProducts(filters?: ProductFilterDto): Promise<ProductDto[]>
 
 #### Input Properties
 
-_ProductFilterDto fields_
-
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `'active' \| 'archived'` | Filter by lifecycle state. |
+| `status` | <code>'active' &#124; 'archived'</code> | Filter by lifecycle state. |
 | `search` | `string` | Performs key/displayName search. |
 | `limit` | `number` | 1–100, default 50. |
 | `offset` | `number` | ≥0, default 0. |
-| `sortBy` | `'displayName' \| 'createdAt'` | Sort column. |
-| `sortOrder` | `'asc' \| 'desc'` | Sort direction; default `'asc'`. |
+| `sortBy` | <code>'displayName' &#124; 'createdAt'</code> | Sort column. |
+| `sortOrder` | <code>'asc' &#124; 'desc'</code> | Sort direction; default `'asc'`. |
 
 #### Returns
 
@@ -401,6 +381,7 @@ Updated `ProductDto` now active again.
 
 | Error | When it is thrown |
 | --- | --- |
+| `NotFoundError` | Product key missing. |
 | `NotFoundError` | Product key missing. |
 
 #### Example

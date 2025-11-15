@@ -56,4 +56,4 @@ The diagram illustrates common flows but does not represent every edge case (e.g
 - Removing `cancellationDate` (e.g., a customer rescinds cancellation) returns the subscription to `active` or `trial`, depending on other fields.
 - `suspended` is only set via explicit service calls (e.g., billing failure automation). Once you call `resume()`, the entity recomputes to whichever status applies next (`active`, `trial`, etc.).
 
-Refer back to `subscriptions.md` for lifecycle-related APIs (`archiveSubscription`, `processAutomaticTransitions`, etc.), and to `feature-checker.md` for how these statuses affect runtime feature access.
+Refer back to `subscriptions.md` for lifecycle-related APIs (`archiveSubscription`, `unarchiveSubscription`, `clearTemporaryOverrides`, etc.), and to `feature-checker.md` for how these statuses affect runtime feature access.

@@ -1,163 +1,11 @@
-### setFeatureValue
-
-#### Description
- Sets a plan-level override for a feature.
-
-#### Signature
-
-```typescript
-setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void>
-```
-
-#### Inputs
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Target plan. |
-| `featureKey` | `string` | Yes | Feature to set. |
-| `value` | `string` | Yes | Stored string value validated against feature type. |
-
-#### Input Properties
-
-- `value` – must satisfy the feature’s `valueType` and validation settings (see [`FeatureDto`](./features.md#featuredto)).
-
-#### Returns
-
-`Promise<void>`
-
-#### Return Properties
-
-- `void`
-
-#### Expected Results
-
-- Confirms plan and feature exist.
-- Validates `value` via `FeatureValueValidator`.
-- Adds or updates feature value on the plan and saves.
-
-#### Potential Errors
-
-| Error | When |
-| --- | --- |
-| `NotFoundError` | Plan or feature missing. |
-| `ValidationError` | Value fails validator. |
-
-#### Example
-
-```typescript
-await plans.setFeatureValue('annual-pro', 'max-projects', '100');
-```
-### updatePlan
-
-#### Description
- Updates description, display name, transition target, or metadata.
-
-#### Signature
-
-```typescript
-updatePlan(planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
-```
-
-#### Inputs
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Plan to mutate. |
-| `dto` | [`UpdatePlanDto`](#updateplandto) | Yes | Partial update. |
-
-#### Input Properties
-
-- [`UpdatePlanDto`](#updateplandto) – optional fields mirroring `CreatePlanDto`.
-
-#### Returns
-
-Updated [`PlanDto`](#plandto).
-
-#### Return Properties
-
-- [`PlanDto`](#plandto) – plan snapshot after saving.
-
-#### Expected Results
-
-- Validates DTO.
-- Loads plan, mutates allowed properties, persists.
-
-#### Potential Errors
-
-| Error | When |
-| --- | --- |
-| `ValidationError` | DTO invalid. |
-| `NotFoundError` | Plan missing. |
-
-#### Example
-
-```typescript
-await plans.updatePlan('annual-pro', {
-  onExpireTransitionToBillingCycleKey: 'monthly-pro'
-});
-```
-### createPlan
-
-#### Description
- Validates DTO, ensures product exists, and writes a new plan.
-
-#### Signature
-
-```typescript
-createPlan(dto: CreatePlanDto): Promise<PlanDto>
-```
-
-#### Inputs
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `dto` | [`CreatePlanDto`](#createplandto) | Yes | Contains productKey, plan key, display name, description, optional transition billing cycle key, metadata. |
-
-#### Input Properties
-
-- [`CreatePlanDto`](#createplandto) – full list of plan creation fields, constraints, and defaults.
-
-#### Returns
-
-Persisted [`PlanDto`](#plandto) with `status: 'active'`.
-
-#### Return Properties
-
-- [`PlanDto`](#plandto) – serialized plan including feature values.
-
-#### Expected Results
-
-- Validates DTO.
-- Finds the product by key.
-- Fails if the plan key already exists.
-- Persists plan with default `featureValues` array.
-
-#### Potential Errors
-
-| Error | When |
-| --- | --- |
-| `ValidationError` | DTO invalid. |
-| `NotFoundError` | Product missing. |
-| `ConflictError` | Plan key already taken. |
-
-#### Example
-
-```typescript
-await plans.createPlan({
-  productKey: 'pro-suite',
-  key: 'annual-pro',
-  displayName: 'Annual Pro',
-  metadata: { priceUsd: 499 }
-});
-```
 # Plan Management Service Reference
 
 ## Service Overview
-Plans represent purchasable tiers within a product. This service handles plan CRUD, feature values, and deletion constraints driven by billing cycles and subscriptions.
+The Plan Management Service manages purchasable tiers within each product. It handles plan lifecycle, feature value overrides, and transition settings that affect billing cycles and subscriptions.
 
 - Plan keys are globally unique and immutable.
-- Plans belong to a single product (via `productKey` stored on the plan entity).
-- Plans may configure automatic transitions via `onExpireTransitionToBillingCycleKey`.
+- Each plan belongs to exactly one product (`productKey`) and may define transition targets via `onExpireTransitionToBillingCycleKey`.
+- Deletion is only allowed when a plan is archived and unused by billing cycles or subscriptions.
 
 ## Accessing the Service
 ```typescript
@@ -169,33 +17,134 @@ const plans = subscrio.plans;
 
 ## Method Catalog
 
-| Method | Description |
- | Returns
+| Method | Description | Returns |
 | --- | --- | --- |
-| `createPlan` | Creates a plan tied to an existing product | `Promise<[PlanDto](#plandto)>` |
-| `updatePlan` | Updates mutable plan fields | `Promise<[PlanDto](#plandto)>` |
-| `getPlan` | Retrieves a plan by key | `Promise<[PlanDto](#plandto) \| null>` |
-| `listPlans` | Lists plans with filters | `Promise<[PlanDto](#plandto)[]>` |
-| `getPlansByProduct` | Lists plans for a product | `Promise<[PlanDto](#plandto)[]>` |
+| `createPlan` | Creates a new plan for an existing product | `Promise<PlanDto>` |
+| `updatePlan` | Updates mutable plan fields | `Promise<PlanDto>` |
+| `getPlan` | Retrieves a plan by key | `Promise<PlanDto | null>` |
+| `listPlans` | Lists plans with filters and pagination | `Promise<PlanDto[]>` |
+| `getPlansByProduct` | Lists plans for a specific product | `Promise<PlanDto[]>` |
 | `archivePlan` | Archives a plan | `Promise<void>` |
-| `unarchivePlan` | Reactivates a plan | `Promise<void>` |
-| `deletePlan` | Deletes an archived plan that has no billing cycles or subscriptions | `Promise<void>` |
-| `setFeatureValue` | Sets a plan-specific feature value | `Promise<void>` |
-| `removeFeatureValue` | Removes a feature value override | `Promise<void>` |
-| `getFeatureValue` | Reads a plan’s value for a feature | `Promise<string \| null>` |
-| `getPlanFeatures` | Lists all feature values defined on a plan | `Promise<Array<{ featureKey: string; value: string }>>` |
+| `unarchivePlan` | Reactivates an archived plan | `Promise<void>` |
+| `deletePlan` | Deletes an archived plan with no dependencies | `Promise<void>` |
+| `setFeatureValue` | Sets a plan-level feature value | `Promise<void>` |
+| `removeFeatureValue` | Removes a plan feature override | `Promise<void>` |
+| `getFeatureValue` | Gets a plan’s value for a feature | `Promise<string | null>` |
+| `getPlanFeatures` | Lists all feature values stored on a plan | `Promise<Array<{ featureKey: string; value: string }>>` |
 
 ## Method Reference
 
+### createPlan
 
+#### Description
+Validates payload, ensures the product exists, and persists a new plan with `active` status.
+
+#### Signature
+```typescript
+createPlan(dto: CreatePlanDto): Promise<PlanDto>
+```
+
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `dto` | `CreatePlanDto` | Yes | Plan definition including product and metadata. |
+
+#### Input Properties
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `productKey` | `string` | Yes | Product that owns the plan. |
+| `key` | `string` | Yes | Immutable plan key (1–255 chars). |
+| `displayName` | `string` | Yes | 1–255 char label. |
+| `description` | `string` | No | ≤1000 characters. |
+| `onExpireTransitionToBillingCycleKey` | `string` | No | Optional billing cycle key for automatic transitions. |
+| `metadata` | `Record<string, unknown>` | No | JSON-safe metadata. |
+
+#### Returns
+`Promise<PlanDto>` – persisted plan snapshot.
+
+#### Return Properties
+- See `PlanDto` in the DTO Reference.
+
+#### Expected Results
+- Validates DTO via Zod schema.
+- Ensures product exists.
+- Rejects duplicate plan keys.
+- Persists plan with empty feature values array.
+
+#### Potential Errors
+
+| Error | When |
+| --- | --- |
+| `ValidationError` | DTO invalid. |
+| `NotFoundError` | Product key not found. |
+| `ConflictError` | Plan key already exists. |
+
+#### Example
+```typescript
+await plans.createPlan({
+  productKey: 'pro-suite',
+  key: 'annual-pro',
+  displayName: 'Annual Pro',
+  metadata: { priceUsd: 499 }
+});
+```
+
+### updatePlan
+
+#### Description
+Applies partial updates such as display name, description, transition target, or metadata.
+
+#### Signature
+```typescript
+updatePlan(planKey: string, dto: UpdatePlanDto): Promise<PlanDto>
+```
+
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `planKey` | `string` | Yes | Plan to mutate. |
+| `dto` | `UpdatePlanDto` | Yes | Partial update payload. |
+
+#### Input Properties
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `displayName` | `string` | No | Updated label. |
+| `description` | `string` | No | New description. |
+| `onExpireTransitionToBillingCycleKey` | `string` | No | Replacement transition target. |
+| `metadata` | `Record<string, unknown>` | No | Replaces metadata blob. |
+
+#### Returns
+`Promise<PlanDto>` – updated plan snapshot.
+
+#### Expected Results
+- Validates provided fields.
+- Loads plan, applies updates, persists entity.
+
+#### Potential Errors
+
+| Error | When |
+| --- | --- |
+| `ValidationError` | DTO invalid. |
+| `NotFoundError` | Plan key not found. |
+
+#### Example
+```typescript
+await plans.updatePlan('annual-pro', {
+  onExpireTransitionToBillingCycleKey: 'monthly-pro',
+  metadata: { priceUsd: 399 }
+});
+```
 
 ### getPlan
 
 #### Description
- Retrieves a plan by key or returns `null`.
+Retrieves a plan by key, returning `null` when it is missing.
 
 #### Signature
-
 ```typescript
 getPlan(planKey: string): Promise<PlanDto | null>
 ```
@@ -204,31 +153,24 @@ getPlan(planKey: string): Promise<PlanDto | null>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Plan key to fetch. |
-
-#### Input Properties
-
-- None beyond the key.
+| `planKey` | `string` | Yes | Plan identifier. |
 
 #### Returns
-
 `Promise<PlanDto | null>`
 
 #### Return Properties
-
-- [`PlanDto`](#plandto) – when plan exists.
-- `null` – when missing.
+- `PlanDto` when found; `null` otherwise.
 
 #### Expected Results
-
 - Loads plan from repository and maps to DTO.
 
 #### Potential Errors
 
-- None.
+| Error | When |
+| --- | --- |
+| _None_ | Returns `null` when not found. |
 
 #### Example
-
 ```typescript
 const plan = await plans.getPlan('annual-pro');
 ```
@@ -236,10 +178,9 @@ const plan = await plans.getPlan('annual-pro');
 ### listPlans
 
 #### Description
- Lists plans with filters.
+Lists plans using optional status, product, search, and pagination filters.
 
 #### Signature
-
 ```typescript
 listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
 ```
@@ -248,23 +189,29 @@ listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `filters` | [`PlanFilterDto`](#planfilterdto) | No | Status, product key, pagination, etc. |
+| `filters` | `PlanFilterDto` | No | Optional filter and pagination controls. |
 
 #### Input Properties
 
-- [`PlanFilterDto`](#planfilterdto) – governs filtering and pagination.
+| Field | Type | Description |
+| --- | --- | --- |
+| `productKey` | `string` | Restrict to a product. |
+| `status` | `'active' | 'archived'` | Lifecycle filter. |
+| `search` | `string` | Text search across key/display name. |
+| `sortBy` | `'displayName' | 'createdAt'` | Sort column. |
+| `sortOrder` | `'asc' | 'desc'` | Sort direction (default `'asc'`). |
+| `limit` | `number` | 1–100 (default 50). |
+| `offset` | `number` | ≥0 (default 0). |
 
 #### Returns
-
 `Promise<PlanDto[]>`
 
 #### Return Properties
-
-- [`PlanDto`](#plandto)[] – DTO list satisfying filters.
+- Array of `PlanDto` entries.
 
 #### Expected Results
-
-- Validates filters and queries repository.
+- Validates filters.
+- Executes query and maps results to DTOs.
 
 #### Potential Errors
 
@@ -273,18 +220,16 @@ listPlans(filters?: PlanFilterDto): Promise<PlanDto[]>
 | `ValidationError` | Filters invalid. |
 
 #### Example
-
 ```typescript
-const archivedPlans = await plans.listPlans({ status: 'archived' });
+const archivedPlans = await plans.listPlans({ status: 'archived', limit: 20 });
 ```
 
 ### getPlansByProduct
 
 #### Description
- Lists plans belonging to a product.
+Returns all plans owned by a product.
 
 #### Signature
-
 ```typescript
 getPlansByProduct(productKey: string): Promise<PlanDto[]>
 ```
@@ -293,32 +238,25 @@ getPlansByProduct(productKey: string): Promise<PlanDto[]>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `productKey` | `string` | Yes | Product owning the plans. |
-
-#### Input Properties
-
-- None beyond the key string.
+| `productKey` | `string` | Yes | Product key to inspect. |
 
 #### Returns
-
 `Promise<PlanDto[]>`
 
 #### Return Properties
-
-- [`PlanDto`](#plandto)[] – each plan tied to the product.
+- Array of `PlanDto` entries scoped to the product.
 
 #### Expected Results
-
-- Ensures product exists, then queries repository for plans.
+- Ensures product exists.
+- Queries repository for all plans referencing the product.
 
 #### Potential Errors
 
 | Error | When |
 | --- | --- |
-| `NotFoundError` | Product missing. |
+| `NotFoundError` | Product key missing. |
 
 #### Example
-
 ```typescript
 const proPlans = await plans.getPlansByProduct('pro-suite');
 ```
@@ -326,10 +264,9 @@ const proPlans = await plans.getPlansByProduct('pro-suite');
 ### archivePlan
 
 #### Description
- Sets a plan’s status to `archived`.
+Marks a plan as archived so it cannot be sold to new customers.
 
 #### Signature
-
 ```typescript
 archivePlan(planKey: string): Promise<void>
 ```
@@ -338,23 +275,13 @@ archivePlan(planKey: string): Promise<void>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Plan key to archive. |
-
-#### Input Properties
-
-- None beyond the key.
+| `planKey` | `string` | Yes | Plan to archive. |
 
 #### Returns
-
 `Promise<void>`
 
-#### Return Properties
-
-- `void`
-
 #### Expected Results
-
-- Loads plan, calls `archive()`, persists.
+- Loads plan, calls entity `archive()`, saves.
 
 #### Potential Errors
 
@@ -362,13 +289,17 @@ archivePlan(planKey: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Plan missing. |
 
+#### Example
+```typescript
+await plans.archivePlan('legacy-tier');
+```
+
 ### unarchivePlan
 
 #### Description
- Reactivates a plan.
+Restores an archived plan to `active`.
 
 #### Signature
-
 ```typescript
 unarchivePlan(planKey: string): Promise<void>
 ```
@@ -379,21 +310,11 @@ unarchivePlan(planKey: string): Promise<void>
 | --- | --- | --- | --- |
 | `planKey` | `string` | Yes | Archived plan key. |
 
-#### Input Properties
-
-- None.
-
 #### Returns
-
 `Promise<void>`
 
-#### Return Properties
-
-- `void`
-
 #### Expected Results
-
-- Loads plan, calls `unarchive()`, saves.
+- Loads plan, calls `unarchive()`, persists change.
 
 #### Potential Errors
 
@@ -401,13 +322,17 @@ unarchivePlan(planKey: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Plan missing. |
 
+#### Example
+```typescript
+await plans.unarchivePlan('legacy-tier');
+```
+
 ### deletePlan
 
 #### Description
- Deletes a plan only when it is archived and unused.
+Deletes a plan after confirming it is archived and unused by billing cycles or subscriptions.
 
 #### Signature
-
 ```typescript
 deletePlan(planKey: string): Promise<void>
 ```
@@ -416,42 +341,76 @@ deletePlan(planKey: string): Promise<void>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Plan to delete. |
-
-#### Input Properties
-
-- None beyond the key.
+| `planKey` | `string` | Yes | Plan targeted for deletion. |
 
 #### Returns
-
 `Promise<void>`
 
-#### Return Properties
-
-- `void`
-
 #### Expected Results
-
-- Verifies plan exists and `plan.canDelete()`.
-- Ensures there are no subscriptions for the plan.
-- Ensures there are no billing cycles referencing the plan.
-- Deletes record.
+- Loads plan and checks `plan.canDelete()` (requires archived status).
+- Ensures no billing cycles reference the plan.
+- Ensures no subscriptions exist for the plan.
+- Deletes plan record.
 
 #### Potential Errors
 
 | Error | When |
 | --- | --- |
 | `NotFoundError` | Plan missing. |
-| `DomainError` | Plan is active, has subscriptions, or has billing cycles. |
+| `DomainError` | Plan still active or has dependent records. |
 
+#### Example
+```typescript
+await plans.deletePlan('legacy-tier');
+```
+
+### setFeatureValue
+
+#### Description
+Sets or updates a plan-level override for a feature.
+
+#### Signature
+```typescript
+setFeatureValue(planKey: string, featureKey: string, value: string): Promise<void>
+```
+
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `planKey` | `string` | Yes | Plan receiving the override. |
+| `featureKey` | `string` | Yes | Feature key being overridden. |
+| `value` | `string` | Yes | Stored string value validated against feature type. |
+
+#### Input Properties
+- `value` must satisfy the feature’s `valueType` and validator metadata.
+
+#### Returns
+`Promise<void>`
+
+#### Expected Results
+- Ensures plan and feature exist.
+- Validates the value via `FeatureValueValidator`.
+- Inserts or updates the plan’s feature value entry.
+
+#### Potential Errors
+
+| Error | When |
+| --- | --- |
+| `NotFoundError` | Plan or feature missing. |
+| `ValidationError` | Value fails validation rules. |
+
+#### Example
+```typescript
+await plans.setFeatureValue('annual-pro', 'max-projects', '100');
+```
 
 ### removeFeatureValue
 
 #### Description
- Removes an existing plan feature override.
+Removes a stored feature override from a plan.
 
 #### Signature
-
 ```typescript
 removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 ```
@@ -463,21 +422,12 @@ removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 | `planKey` | `string` | Yes | Plan losing the override. |
 | `featureKey` | `string` | Yes | Feature key to remove. |
 
-#### Input Properties
-
-- None beyond the keys.
-
 #### Returns
-
 `Promise<void>`
 
-#### Return Properties
-
-- `void`
-
 #### Expected Results
-
-- Ensures plan and feature exist, then removes stored value if present.
+- Ensures plan and feature exist.
+- Removes the stored value when present.
 
 #### Potential Errors
 
@@ -485,15 +435,17 @@ removeFeatureValue(planKey: string, featureKey: string): Promise<void>
 | --- | --- |
 | `NotFoundError` | Plan or feature missing. |
 
+#### Example
+```typescript
+await plans.removeFeatureValue('annual-pro', 'max-projects');
+```
+
 ### getFeatureValue
 
 #### Description
-
- #### Returns
- a plan’s value for a feature (or `null` if unset).
+Retrieves the value a plan has stored for a specific feature.
 
 #### Signature
-
 ```typescript
 getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 ```
@@ -505,21 +457,14 @@ getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 | `planKey` | `string` | Yes | Plan to inspect. |
 | `featureKey` | `string` | Yes | Feature key. |
 
-#### Input Properties
-
-- None beyond the keys.
-
 #### Returns
-
 `Promise<string | null>`
 
 #### Return Properties
-
-- `string` – stored value (string representation) when present.
-- `null` – when value is absent.
+- `string` when a stored value exists.
+- `null` when the plan has no override.
 
 #### Expected Results
-
 - Loads plan and returns the stored feature value if present.
 
 #### Potential Errors
@@ -528,13 +473,17 @@ getFeatureValue(planKey: string, featureKey: string): Promise<string | null>
 | --- | --- |
 | `NotFoundError` | Plan missing. |
 
+#### Example
+```typescript
+const value = await plans.getFeatureValue('annual-pro', 'max-projects');
+```
+
 ### getPlanFeatures
 
 #### Description
- Lists every feature value pair defined on the plan.
+Lists all feature overrides configured on a plan.
 
 #### Signature
-
 ```typescript
 getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: string }>>
 ```
@@ -543,23 +492,16 @@ getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: str
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `planKey` | `string` | Yes | Plan to inspect. |
-
-#### Input Properties
-
-- None beyond the key.
+| `planKey` | `string` | Yes | Plan identifier. |
 
 #### Returns
-
 `Promise<Array<{ featureKey: string; value: string }>>`
 
 #### Return Properties
-
-- Array of objects with `featureKey` and string `value`.
+- Array of `{ featureKey, value }` pairs for overrides stored on the plan.
 
 #### Expected Results
-
-- Loads plan, iterates feature values, enriches with feature keys, returns array.
+- Loads plan and returns all feature value entries.
 
 #### Potential Errors
 
@@ -567,46 +509,54 @@ getPlanFeatures(planKey: string): Promise<Array<{ featureKey: string; value: str
 | --- | --- |
 | `NotFoundError` | Plan missing. |
 
+#### Example
+```typescript
+const overrides = await plans.getPlanFeatures('annual-pro');
+```
+
 ## DTO Reference
 
 ### CreatePlanDto
+
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `productKey` | `string` | Yes | Lowercase alphanumeric-with-hyphen. |
+| `productKey` | `string` | Yes | Existing product key. |
 | `key` | `string` | Yes | Unique plan identifier. |
-| `displayName` | `string` | Yes | 1–255 chars. |
-| `description` | `string` | No | ≤ 1000 chars. |
-| `onExpireTransitionToBillingCycleKey` | `string` | No | Key of billing cycle to transition to automatically. |
-| `metadata` | `Record<string, unknown>` | No | Extra data. |
+| `displayName` | `string` | Yes | 1–255 characters. |
+| `description` | `string` | No | ≤1000 characters. |
+| `onExpireTransitionToBillingCycleKey` | `string` | No | Billing cycle key for auto transition. |
+| `metadata` | `Record<string, unknown>` | No | JSON-safe metadata. |
 
 ### UpdatePlanDto
-All fields optional: `displayName`, `description`, `onExpireTransitionToBillingCycleKey`, `metadata`.
+All `CreatePlanDto` fields become optional for updates.
 
 ### PlanDto
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `productKey` | `string` | Yes | Parent product key. |
-| `key` | `string` | Yes | Plan key. |
-| `displayName` | `string` | Yes | |
-| `description` | `string \| null` | No | |
-| `status` | `string` | Yes | `'active'` or `'archived'`. |
-| `onExpireTransitionToBillingCycleKey` | `string \| null` | No | |
-| `metadata` | `Record<string, unknown> \| null` | No | |
-| `createdAt` | `string` | Yes | ISO timestamp. |
-| `updatedAt` | `string` | Yes | ISO timestamp. |
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `productKey` | `string` | Parent product key. |
+| `key` | `string` | Plan key. |
+| `displayName` | `string` | Human-friendly name. |
+| `description` | <code>string &#124; null</code> | Optional description. |
+| `status` | `string` | `active` or `archived`. |
+| `onExpireTransitionToBillingCycleKey` | <code>string &#124; null</code> | Transition target key. |
+| `metadata` | <code>Record&lt;string, unknown&gt; &#124; null</code> | Stored metadata. |
+| `createdAt` | `string` | ISO timestamp. |
+| `updatedAt` | `string` | ISO timestamp. |
 
 ### PlanFilterDto
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `productKey` | `string` | No | Filter by product. |
-| `status` | `'active' \| 'archived'` | No | |
-| `search` | `string` | No | |
-| `sortBy` | `'displayName' \| 'createdAt'` | No | |
-| `sortOrder` | `'asc' \| 'desc'` | No | |
-| `limit` | `number` | No | 1–100, default 50. |
-| `offset` | `number` | No | ≥0, default 0. |
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `productKey` | `string` | Filter by product. |
+| `status` | <code>'active' &#124; 'archived'</code> | Lifecycle filter. |
+| `search` | `string` | Text search. |
+| `sortBy` | <code>'displayName' &#124; 'createdAt'</code> | Sort column. |
+| `sortOrder` | <code>'asc' &#124; 'desc'</code> | Sort direction. |
+| `limit` | `number` | 1–100 (default 50). |
+| `offset` | `number` | ≥0 (default 0). |
 
 ## Related Workflows
-- Plans require the product to exist first (`ProductManagementService`).
-- A plan cannot be deleted while billing cycles (`BillingCycleManagementService`) or subscriptions (`SubscriptionManagementService`) reference it.
-- Plan feature values feed into the feature resolution order used by `FeatureCheckerService`.
+- Products must exist before plans can be created (`ProductManagementService`).
+- Plans cannot be deleted while billing cycles (`BillingCycleManagementService`) or subscriptions (`SubscriptionManagementService`) reference them.
+- Plan feature values participate in the feature resolution hierarchy enforced by `FeatureCheckerService`.

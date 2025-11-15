@@ -1,12 +1,11 @@
 # Stripe Integration Service Reference
 
 ## Service Overview
-The Stripe Integration Service synchronizes verified Stripe webhook events with Subscrio subscriptions. #### Signature
- verification happens outside of Subscrio (your webhook endpoint must verify before calling `processStripeEvent`). The service currently focuses on subscription lifecycle handling, payment status updates, and scaffolding for plan/billing-cycle mapping.
+`StripeIntegrationService` connects verified Stripe webhook events to Subscrio subscriptions. Your infrastructure is responsible for signature verification—call `processStripeEvent` only after Stripe’s SDK validates the payload. The built-in handlers cover subscription lifecycle events, payment success/failure, and a helper for bootstrapping Subscrio subscriptions that reference Stripe customers/prices.
 
-- Store Stripe customer IDs in `Customer.externalBillingId` so events can resolve the correct customer.
-- Store Stripe price IDs in `BillingCycle.externalProductId` to map to plan/billing cycle combinations.
-- The default handlers log unimplemented portions (e.g., plan mapping). Extend them as needed for your deployment.
+- Persist Stripe customer IDs in `Customer.externalBillingId` so events can resolve customers.
+- Persist Stripe price IDs in `BillingCycle.externalProductId` so events can map to billing cycles (and therefore plans).
+- Plan mapping for new subscriptions is left to implementors; the default handler throws until you add custom logic.
 
 ## Accessing the Service
 ```typescript
@@ -18,20 +17,19 @@ const stripeService = subscrio.stripe;
 
 ## Method Catalog
 
-| Method | Description |
- | Returns
+| Method | Description | Returns |
 | --- | --- | --- |
-| `processStripeEvent` | Entrypoint for verified Stripe webhook events | `Promise<void>` |
-| `createStripeSubscription` | Helper to create a placeholder Subscrio subscription tied to Stripe | `Promise<Subscription>` |
+| `processStripeEvent` | Entry point for verified Stripe webhook events | `Promise<void>` |
+| `createStripeSubscription` | Helper to create a Subscrio subscription tied to Stripe metadata | `Promise<Subscription>` |
 
-*(Handlers invoked by `processStripeEvent` are internal but documented below for completeness.)*
+*(Handlers invoked internally by `processStripeEvent` are described for completeness.)*
 
 ## Method Reference
 
 ### processStripeEvent
 
 #### Description
- Consumes a verified `Stripe.Event` and routes it to the appropriate handler.
+Routes a verified `Stripe.Event` to the appropriate handler (subscription lifecycle or invoice events).
 
 #### Signature
 ```typescript
@@ -42,7 +40,7 @@ processStripeEvent(event: Stripe.Event): Promise<void>
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `event` | `Stripe.Event` | Yes | Fully verified Stripe webhook payload. |
+| `event` | `Stripe.Event` | Yes | Stripe webhook payload that your endpoint already verified. |
 
 #### Returns
 `Promise<void>`
@@ -55,33 +53,42 @@ processStripeEvent(event: Stripe.Event): Promise<void>
   - `customer.subscription.trial_will_end`
   - `invoice.payment_succeeded`
   - `invoice.payment_failed`
-- Unhandled event types are ignored (logged for observability).
+- Unhandled event types are ignored (logged in development).
+- Missing entities (customer, plan, billing cycle, subscription) throw so you can fix data mapping.
 
 #### Potential Errors
 
 | Error | When |
 | --- | --- |
-| `NotFoundError` | Handler cannot resolve required Subscrio entities (customer, plan, billing cycle, subscription). |
-| `ValidationError` | Misconfigured data detected (e.g., missing `externalBillingId`). |
+| `NotFoundError` | Customer, billing cycle, plan, or subscription cannot be resolved. |
+| `ValidationError` | Required data such as `externalBillingId` is missing. |
 
-### Stripe Event Handlers (internal)
+#### Example
+```typescript
+import Stripe from 'stripe';
+
+const event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+await stripeService.processStripeEvent(event);
+```
+
+#### Internal Handlers
 - **`handleSubscriptionCreated`**
-  - Looks up the customer via `externalBillingId`.
-  - Attempts to find a billing cycle using Stripe price ID (`externalProductId`).
-  - Throws `NotFoundError` today as a reminder to implement plan mapping logic tailored to your billing setup.
+  - Loads customer by `externalBillingId`.
+  - Attempts to map Stripe price ID → billing cycle via `externalProductId`.
+  - Throws `NotFoundError` today to force implementors to supply plan mapping logic.
 - **`handleSubscriptionUpdated`**
-  - Syncs period start/end, status, and renewal dates from Stripe payload.
+  - Syncs current period start/end and cancellation state from Stripe onto the local subscription.
 - **`handleSubscriptionDeleted`**
-  - Marks the Subscrio subscription expired.
+  - Calls `subscription.expire()` when Stripe marks the subscription deleted.
 - **`handlePaymentSucceeded` / `handlePaymentFailed`**
-  - Updates subscription/payment status accordingly.
+  - Finds the subscription by `stripeSubscriptionId` and updates timestamps/status placeholders for future expansion.
 - **`handleTrialWillEnd`**
-  - Hook for sending notifications or triggering workflows.
+  - Hook for notifications; currently logs in development environments.
 
 ### createStripeSubscription
 
 #### Description
- Helper for implementations that need to bootstrap a Subscrio subscription tied to a Stripe customer/price before full automation is built.
+Bootstraps a Subscrio subscription linked to Stripe metadata (customer/billing-cycle) while you build deeper automation.
 
 #### Signature
 ```typescript
@@ -97,18 +104,18 @@ createStripeSubscription(
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `customerKey` | `string` | Yes | Customer in Subscrio (must have `externalBillingId`). |
+| `customerKey` | `string` | Yes | Customer key (must have `externalBillingId`). |
 | `planKey` | `string` | Yes | Plan being subscribed to. |
-| `billingCycleKey` | `string` | Yes | Billing cycle governing cadence. |
-| `stripePriceId` | `string` | Yes | Stripe price ID (currently stored for reference). |
+| `billingCycleKey` | `string` | Yes | Billing cycle governing the cadence. |
+| `stripePriceId` | `string` | Yes | Stripe price identifier (stored for reference). |
 
 #### Returns
-`Promise<Subscription>` – domain subscription entity (with placeholder Stripe subscription ID).
+`Promise<Subscription>` – the saved domain subscription (with placeholder `stripeSubscriptionId`).
 
 #### Expected Results
-- Ensures customer exists and has `externalBillingId`.
-- Ensures plan and billing cycle exist.
-- Generates a subscription key, sets activation/current period dates, and saves the subscription with a placeholder `stripeSubscriptionId`.
+- Validates entities and ensures customer has `externalBillingId`.
+- Generates a subscription key, sets activation/current period timestamps, and saves the subscription.
+- Leaves a placeholder `stripeSubscriptionId` for later reconciliation.
 
 #### Potential Errors
 
@@ -121,14 +128,15 @@ createStripeSubscription(
 ```typescript
 const sub = await stripeService.createStripeSubscription(
   'cust_123',
-  'annual-pro',
-  'annual-pro-12m',
-  'price_123'
+  'pro-plan',
+  'pro-plan-annual',
+  'price_ABC123'
 );
+console.log(sub.key);
 ```
 
 ## Related Workflows
-- **Webhook verification Your HTTP endpoint must verify Stripe signatures before calling `processStripeEvent`.
-- **Customer sync Persist Stripe customer IDs to `Customer.externalBillingId` when provisioning users.
-- **Billing cycle mapping Store Stripe price IDs in `BillingCycle.externalProductId` to help resolve incoming subscription events.
-- **Extending handlers Customize handler logic (especially plan mapping) to align with your Stripe product/price structure.
+- **Webhook verification** – Your HTTP endpoint must verify Stripe signatures with `stripe.webhooks.constructEvent` (or equivalent) before calling `processStripeEvent`.
+- **Customer sync** – Persist Stripe customer IDs to `Customer.externalBillingId` when provisioning accounts so events can resolve them.
+- **Billing-cycle mapping** – Store Stripe price IDs in `BillingCycle.externalProductId` to map subscriptions/billing cycles accurately.
+- **Extend handlers** – Customize `handleSubscriptionCreated` (and others) to map Stripe subscriptions to your plan structure and to push data back to Stripe when needed.
