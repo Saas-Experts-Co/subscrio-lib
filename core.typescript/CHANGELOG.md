@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.10] - 2025-11-15
+
+### Added
+- Automatic Stripe customer synchronization and broader event mapping coverage, plus refreshed integration docs to clarify setup end to end.
+- Modular core API reference documentation and a rewritten getting started guide to accelerate onboarding.
+
+### Changed
+- Standardized all reference content into modular service files with consistent formatting, including expanded TypeScript service guidance and refined billing cycle docs.
+
+### Removed
+- API key management feature and its supporting documentation, reflecting the streamlined direct-import architecture.
+- Legacy monolithic documentation directory, replaced by the new reference structure.
+
 ## [0.1.9] - 2025-11-13
 
 ### Changed

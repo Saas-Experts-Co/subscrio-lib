@@ -1,6 +1,6 @@
 {
   "name": "@saas-experts/subscrio",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "TypeScript subscription management library with feature flags, billing cycles, and Stripe integration",
   "author": "Subscrio Team",
   "license": "MIT",
