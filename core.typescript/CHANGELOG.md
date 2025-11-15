@@ -57,7 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostgreSQL integration with Drizzle ORM
 - Stripe webhook processing and integration
 - Feature resolution hierarchy (subscription overrides → plan values → defaults)
-- API key management with scoped permissions
 - Comprehensive TypeScript type definitions
 - ESM and CommonJS dual package support
 - Full test suite with E2E testing
@@ -71,7 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Billing Cycles**: Flexible billing periods (monthly, annual, custom)
 - **Feature Resolution**: Smart hierarchy for determining feature access
 - **Stripe Integration**: Webhook processing and payment synchronization
-- **API Keys**: Secure API access with admin and readonly scopes
 - **TypeScript Support**: Full type safety and excellent developer experience
 
 ### Technical Details

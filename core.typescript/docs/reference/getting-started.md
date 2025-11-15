@@ -313,7 +313,6 @@ All service-level documentation now lives in dedicated markdown files so each me
 | PlanManagementService | Plans, feature values, transitions | [`plans.md`](./plans.md) |
 | BillingCycleManagementService | Billing cadence + price mappings | [`billing-cycles.md`](./billing-cycles.md) |
 | CustomerManagementService | Customer lifecycle | [`customers.md`](./customers.md) |
-| APIKeyManagementService | API key issuance and validation | [`api-keys.md`](./api-keys.md) |
 | SubscriptionManagementService | Subscriptions, overrides, batch jobs | [`subscriptions.md`](./subscriptions.md) |
 | FeatureCheckerService | Runtime feature resolution APIs | [`feature-checker.md`](./feature-checker.md) |
 | StripeIntegrationService | Stripe webhook processing & helpers | [`stripe-integration.md`](./stripe-integration.md) |

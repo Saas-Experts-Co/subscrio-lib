@@ -76,23 +76,6 @@ export const customers = pgTable('customers', {
   updated_at: timestamp('updated_at').notNull().defaultNow()
 });
 
-export const api_keys = pgTable('api_keys', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  key: text('key').notNull().unique(),  // External reference key
-  key_hash: text('key_hash').notNull().unique(),
-  display_name: text('display_name').notNull(),
-  description: text('description'),
-  status: text('status').notNull(),
-  scope: text('scope').notNull(),
-  expires_at: timestamp('expires_at'),
-  last_used_at: timestamp('last_used_at'),
-  ip_whitelist: jsonb('ip_whitelist'),
-  created_by: text('created_by'),
-  metadata: jsonb('metadata'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-  updated_at: timestamp('updated_at').notNull().defaultNow()
-});
-
 export const subscriptions = pgTable('subscriptions', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),  // External reference key

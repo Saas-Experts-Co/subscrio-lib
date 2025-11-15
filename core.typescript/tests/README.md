@@ -82,7 +82,6 @@ tests/
     ├── features.test.ts
     ├── plans.test.ts
     ├── customers.test.ts
-    ├── api-keys.test.ts
     ├── subscriptions.test.ts
     ├── billing-cycles.test.ts
     ├── feature-checker.test.ts    # CRITICAL - test resolution hierarchy
@@ -194,14 +193,6 @@ Every public method must have tests:
 - `archiveCustomer(key)` - Archive customer
 - `unarchiveCustomer(key)` - Unarchive customer
 - `deleteCustomer(key)` - Delete customer
-
-### APIKeyManagementService (`subscrio.apiKeys`)
-- `createAPIKey(dto)` - Create new API key (returns plaintext)
-- `updateAPIKey(key, dto)` - Update existing API key
-- `revokeAPIKey(key)` - Revoke API key
-- `deleteAPIKey(key)` - Delete API key
-- `validateAPIKey(plaintextKey, requiredScope?)` - Validate API key
-- `getAPIKeyByPlaintext(plaintextKey)` - Get API key by plaintext
 
 ### SubscriptionManagementService (`subscrio.subscriptions`)
 - `createSubscription(dto)` - Create new subscription

@@ -13,7 +13,6 @@ A comprehensive TypeScript library for subscription management, feature flags, b
 - 🏷️ **Stripe Integration** - Seamless payment processing and webhook handling
 - 🗄️ **PostgreSQL Ready** - Built on Drizzle ORM with full type safety
 - 📊 **Feature Resolution** - Smart hierarchy: subscription overrides → plan values → defaults
-- 🔐 **API Key Management** - Secure API access with scoped permissions
 - ⚡ **TypeScript First** - Full type safety and excellent developer experience
 
 ## Installation
@@ -110,7 +109,6 @@ console.log(`Customer can have ${maxUsers} users`); // "100"
 - **`subscrio.customers`** - Customer management
 - **`subscrio.subscriptions`** - Subscription lifecycle
 - **`subscrio.featureChecker`** - Feature access checking
-- **`subscrio.apiKeys`** - API key management
 - **`subscrio.stripe`** - Stripe integration
 
 ### Instance Methods

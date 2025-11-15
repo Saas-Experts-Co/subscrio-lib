@@ -86,25 +86,6 @@ export class SchemaInstaller {
       )
     `);
 
-    await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS api_keys (
-        id BIGSERIAL PRIMARY KEY,
-        key TEXT NOT NULL UNIQUE,
-        key_hash TEXT NOT NULL UNIQUE,
-        display_name TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL,
-        scope TEXT NOT NULL,
-        expires_at TIMESTAMP,
-        last_used_at TIMESTAMP,
-        ip_whitelist JSONB,
-        created_by TEXT,
-        metadata JSONB,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )
-    `);
-
     // Junction table for products and features
     await this.db.execute(sql`
       CREATE TABLE IF NOT EXISTS product_features (
@@ -346,7 +327,6 @@ export class SchemaInstaller {
       'plan_features',                   // References plans, features
       'plans',                           // References products, billing_cycles
       'product_features',                // References products, features
-      'api_keys',                        // No foreign keys
       'features',                        // Referenced by product_features, plan_features
       'products',                        // Referenced by product_features, plans
       'customers',                       // Referenced by subscriptions

@@ -7,7 +7,6 @@ import { IProductRepository } from './application/repositories/IProductRepositor
 import { IFeatureRepository } from './application/repositories/IFeatureRepository.js';
 import { IPlanRepository } from './application/repositories/IPlanRepository.js';
 import { ICustomerRepository } from './application/repositories/ICustomerRepository.js';
-import { IAPIKeyRepository } from './application/repositories/IAPIKeyRepository.js';
 import { ISubscriptionRepository } from './application/repositories/ISubscriptionRepository.js';
 import { IBillingCycleRepository } from './application/repositories/IBillingCycleRepository.js';
 
@@ -16,7 +15,6 @@ import { DrizzleProductRepository } from './infrastructure/repositories/DrizzleP
 import { DrizzleFeatureRepository } from './infrastructure/repositories/DrizzleFeatureRepository.js';
 import { DrizzlePlanRepository } from './infrastructure/repositories/DrizzlePlanRepository.js';
 import { DrizzleCustomerRepository } from './infrastructure/repositories/DrizzleCustomerRepository.js';
-import { DrizzleAPIKeyRepository } from './infrastructure/repositories/DrizzleAPIKeyRepository.js';
 import { DrizzleSubscriptionRepository } from './infrastructure/repositories/DrizzleSubscriptionRepository.js';
 import { DrizzleBillingCycleRepository } from './infrastructure/repositories/DrizzleBillingCycleRepository.js';
 
@@ -25,7 +23,6 @@ import { ProductManagementService } from './application/services/ProductManageme
 import { FeatureManagementService } from './application/services/FeatureManagementService.js';
 import { PlanManagementService } from './application/services/PlanManagementService.js';
 import { CustomerManagementService } from './application/services/CustomerManagementService.js';
-import { APIKeyManagementService } from './application/services/APIKeyManagementService.js';
 import { SubscriptionManagementService } from './application/services/SubscriptionManagementService.js';
 import { BillingCycleManagementService } from './application/services/BillingCycleManagementService.js';
 import { FeatureCheckerService } from './application/services/FeatureCheckerService.js';
@@ -46,7 +43,6 @@ export class Subscrio {
   private readonly featureRepo: IFeatureRepository;
   private readonly planRepo: IPlanRepository;
   private readonly customerRepo: ICustomerRepository;
-  private readonly apiKeyRepo: IAPIKeyRepository;
   private readonly subscriptionRepo: ISubscriptionRepository;
   private readonly billingCycleRepo: IBillingCycleRepository;
   
@@ -55,7 +51,6 @@ export class Subscrio {
   public readonly features: FeatureManagementService;
   public readonly plans: PlanManagementService;
   public readonly customers: CustomerManagementService;
-  public readonly apiKeys: APIKeyManagementService;
   public readonly subscriptions: SubscriptionManagementService;
   public readonly billingCycles: BillingCycleManagementService;
   public readonly featureChecker: FeatureCheckerService;
@@ -71,7 +66,6 @@ export class Subscrio {
     this.featureRepo = new DrizzleFeatureRepository(this.db);
     this.planRepo = new DrizzlePlanRepository(this.db);
     this.customerRepo = new DrizzleCustomerRepository(this.db);
-    this.apiKeyRepo = new DrizzleAPIKeyRepository(this.db);
     this.subscriptionRepo = new DrizzleSubscriptionRepository(this.db);
     this.billingCycleRepo = new DrizzleBillingCycleRepository(this.db);
 
@@ -88,7 +82,6 @@ export class Subscrio {
       this.subscriptionRepo
     );
     this.customers = new CustomerManagementService(this.customerRepo);
-    this.apiKeys = new APIKeyManagementService(this.apiKeyRepo);
     this.subscriptions = new SubscriptionManagementService(
       this.subscriptionRepo,
       this.customerRepo,

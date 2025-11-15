@@ -10,7 +10,7 @@ export function generateId(): string {
 
 /**
  * Generate a short, unique key with prefix for external reference
- * Example: "ak_a1b2c3d4" for API keys, "sub_x9y8z7" for subscriptions
+ * Example: "sub_a1b2c3d4" for subscriptions, "plan_x9y8z7" for plans
  */
 export function generateKey(prefix: string): string {
   const uuid = uuidv7();

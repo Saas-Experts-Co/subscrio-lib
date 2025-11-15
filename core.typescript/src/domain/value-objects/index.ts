@@ -4,8 +4,6 @@ export * from './FeatureValueType.js';
 export * from './PlanStatus.js';
 export * from './BillingCycleStatus.js';
 export * from './CustomerStatus.js';
-export * from './APIKeyStatus.js';
-export * from './APIKeyScope.js';
 export * from './SubscriptionStatus.js';
 export * from './OverrideType.js';
 export * from './DurationUnit.js';
