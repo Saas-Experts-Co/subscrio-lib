@@ -13,7 +13,19 @@ export default defineConfig({
       formats: ['es', 'cjs']
     },
     rollupOptions: {
-      external: ['pg', 'drizzle-orm', 'stripe', 'zod', 'bcryptjs', 'uuidv7', 'crypto']
+      external: [
+        'pg',
+        'drizzle-orm',
+        'stripe',
+        'zod',
+        'bcryptjs',
+        'uuidv7',
+        'crypto',
+        'fs/promises',
+        'fs',
+        'path',
+        'util'
+      ]
     }
   },
   plugins: [
