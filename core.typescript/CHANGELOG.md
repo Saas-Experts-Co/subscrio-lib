@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.11] - 2025-11-17
+
+### Added
+- ConfigSyncDto and ConfigSyncService integration into Subscrio for configuration synchronization
+
+### Changed
+- Updated Vite configuration to include additional external dependencies
+
+### Removed
+- CONFIG_SYNC.md documentation file
+
 ## [0.1.10] - 2025-11-15
 
 ### Added
