@@ -27,6 +27,7 @@ import { SubscriptionManagementService } from './application/services/Subscripti
 import { BillingCycleManagementService } from './application/services/BillingCycleManagementService.js';
 import { FeatureCheckerService } from './application/services/FeatureCheckerService.js';
 import { StripeIntegrationService } from './application/services/StripeIntegrationService.js';
+import { ConfigSyncService } from './application/services/ConfigSyncService.js';
 
 // Domain services
 // FeatureValueResolver is instantiated within FeatureCheckerService
@@ -55,6 +56,7 @@ export class Subscrio {
   public readonly billingCycles: BillingCycleManagementService;
   public readonly featureChecker: FeatureCheckerService;
   public readonly stripe: StripeIntegrationService;
+  public readonly configSync: ConfigSyncService;
 
   constructor(config: SubscrioConfig) {
     // Initialize database
@@ -108,6 +110,7 @@ export class Subscrio {
       this.planRepo,
       this.billingCycleRepo
     );
+    this.configSync = new ConfigSyncService(this);
   }
 
   /**

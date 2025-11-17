@@ -12,6 +12,7 @@ export * from './application/dtos/PlanDto.js';
 export * from './application/dtos/CustomerDto.js';
 export * from './application/dtos/SubscriptionDto.js';
 export * from './application/dtos/BillingCycleDto.js';
+export * from './application/dtos/ConfigSyncDto.js';
 
 // Errors
 export * from './application/errors/index.js';
