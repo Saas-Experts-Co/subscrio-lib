@@ -28,11 +28,14 @@ export class SchemaInstaller {
    * Create all database tables
    */
   private async createTables(): Promise<void> {
+    // Create schema first
+    await this.db.execute(sql`CREATE SCHEMA IF NOT EXISTS subscrio`);
+    
     // Create tables in dependency order
     
     // Core tables (no dependencies)
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS products (
+      CREATE TABLE IF NOT EXISTS subscrio.products (
         id BIGSERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
         display_name TEXT NOT NULL,
@@ -45,7 +48,7 @@ export class SchemaInstaller {
     `);
 
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS features (
+      CREATE TABLE IF NOT EXISTS subscrio.features (
         id BIGSERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
         display_name TEXT NOT NULL,
@@ -62,7 +65,7 @@ export class SchemaInstaller {
     `);
 
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS customers (
+      CREATE TABLE IF NOT EXISTS subscrio.customers (
         id BIGSERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
         display_name TEXT,
@@ -76,7 +79,7 @@ export class SchemaInstaller {
     `);
 
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS system_config (
+      CREATE TABLE IF NOT EXISTS subscrio.system_config (
         id BIGSERIAL PRIMARY KEY,
         config_key TEXT NOT NULL UNIQUE,
         config_value TEXT NOT NULL,
@@ -88,10 +91,10 @@ export class SchemaInstaller {
 
     // Junction table for products and features
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS product_features (
+      CREATE TABLE IF NOT EXISTS subscrio.product_features (
         id BIGSERIAL PRIMARY KEY,
-        product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        feature_id BIGINT NOT NULL REFERENCES features(id) ON DELETE CASCADE,
+        product_id BIGINT NOT NULL REFERENCES subscrio.products(id) ON DELETE CASCADE,
+        feature_id BIGINT NOT NULL REFERENCES subscrio.features(id) ON DELETE CASCADE,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         UNIQUE(product_id, feature_id)
       )
@@ -100,9 +103,9 @@ export class SchemaInstaller {
     // Plans table (depends on products)
     // Note: on_expire_transition_to_billing_cycle_id FK added after billing_cycles table is created
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS plans (
+      CREATE TABLE IF NOT EXISTS subscrio.plans (
         id BIGSERIAL PRIMARY KEY,
-        product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        product_id BIGINT NOT NULL REFERENCES subscrio.products(id) ON DELETE CASCADE,
         key TEXT NOT NULL,
         display_name TEXT NOT NULL,
         description TEXT,
@@ -116,9 +119,9 @@ export class SchemaInstaller {
 
     // Billing cycles (depends on plans)
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS billing_cycles (
+      CREATE TABLE IF NOT EXISTS subscrio.billing_cycles (
         id BIGSERIAL PRIMARY KEY,
-        plan_id BIGINT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+        plan_id BIGINT NOT NULL REFERENCES subscrio.plans(id) ON DELETE CASCADE,
         key TEXT NOT NULL,
         display_name TEXT NOT NULL,
         description TEXT,
@@ -142,24 +145,24 @@ export class SchemaInstaller {
         -- Add column if it doesn't exist
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'plans' AND column_name = 'on_expire_transition_to_billing_cycle_id'
+          WHERE table_schema = 'subscrio' AND table_name = 'plans' AND column_name = 'on_expire_transition_to_billing_cycle_id'
         ) THEN
-          ALTER TABLE plans ADD COLUMN on_expire_transition_to_billing_cycle_id BIGINT;
+          ALTER TABLE subscrio.plans ADD COLUMN on_expire_transition_to_billing_cycle_id BIGINT;
         END IF;
         
         -- Check if billing_cycles.id is BIGINT (not UUID from old schema)
         SELECT data_type INTO billing_cycles_id_type
         FROM information_schema.columns
-        WHERE table_name = 'billing_cycles' AND column_name = 'id';
+        WHERE table_schema = 'subscrio' AND table_name = 'billing_cycles' AND column_name = 'id';
         
         -- Only add FK constraint if billing_cycles.id is BIGINT and constraint doesn't exist
         IF billing_cycles_id_type = 'bigint' AND NOT EXISTS (
           SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'plans_on_expire_transition_to_billing_cycle_id_fkey'
+          WHERE table_schema = 'subscrio' AND constraint_name = 'plans_on_expire_transition_to_billing_cycle_id_fkey'
         ) THEN
-          ALTER TABLE plans ADD CONSTRAINT plans_on_expire_transition_to_billing_cycle_id_fkey 
+          ALTER TABLE subscrio.plans ADD CONSTRAINT plans_on_expire_transition_to_billing_cycle_id_fkey 
             FOREIGN KEY (on_expire_transition_to_billing_cycle_id) 
-            REFERENCES billing_cycles(id);
+            REFERENCES subscrio.billing_cycles(id);
         END IF;
       END $$;
     `);
@@ -170,19 +173,19 @@ export class SchemaInstaller {
       BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'billing_cycles' AND column_name = 'status'
+          WHERE table_schema = 'subscrio' AND table_name = 'billing_cycles' AND column_name = 'status'
         ) THEN
-          ALTER TABLE billing_cycles ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+          ALTER TABLE subscrio.billing_cycles ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
         END IF;
       END $$;
     `);
 
     // Plan features (junction table)
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS plan_features (
+      CREATE TABLE IF NOT EXISTS subscrio.plan_features (
         id BIGSERIAL PRIMARY KEY,
-        plan_id BIGINT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-        feature_id BIGINT NOT NULL REFERENCES features(id) ON DELETE CASCADE,
+        plan_id BIGINT NOT NULL REFERENCES subscrio.plans(id) ON DELETE CASCADE,
+        feature_id BIGINT NOT NULL REFERENCES subscrio.features(id) ON DELETE CASCADE,
         value TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -193,12 +196,12 @@ export class SchemaInstaller {
 
     // Subscriptions (depends on customers and plans)
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS subscriptions (
+      CREATE TABLE IF NOT EXISTS subscrio.subscriptions (
         id BIGSERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
-        customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-        plan_id BIGINT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
-        billing_cycle_id BIGINT NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
+        customer_id BIGINT NOT NULL REFERENCES subscrio.customers(id) ON DELETE CASCADE,
+        plan_id BIGINT NOT NULL REFERENCES subscrio.plans(id) ON DELETE CASCADE,
+        billing_cycle_id BIGINT NOT NULL REFERENCES subscrio.billing_cycles(id) ON DELETE CASCADE,
         is_archived BOOLEAN NOT NULL DEFAULT FALSE,
         activation_date TIMESTAMPTZ,
         expiration_date TIMESTAMPTZ,
@@ -215,10 +218,10 @@ export class SchemaInstaller {
 
     // Subscription feature overrides
     await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS subscription_feature_overrides (
+      CREATE TABLE IF NOT EXISTS subscrio.subscription_feature_overrides (
         id BIGSERIAL PRIMARY KEY,
-        subscription_id BIGINT NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
-        feature_id BIGINT NOT NULL REFERENCES features(id) ON DELETE CASCADE,
+        subscription_id BIGINT NOT NULL REFERENCES subscrio.subscriptions(id) ON DELETE CASCADE,
+        feature_id BIGINT NOT NULL REFERENCES subscrio.features(id) ON DELETE CASCADE,
         value TEXT NOT NULL,
         override_type TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -232,15 +235,20 @@ export class SchemaInstaller {
       BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'subscriptions' AND column_name = 'is_archived'
+          WHERE table_schema = 'subscrio' AND table_name = 'subscriptions' AND column_name = 'is_archived'
         ) THEN
-          ALTER TABLE subscriptions ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+          ALTER TABLE subscrio.subscriptions ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
         END IF;
       END $$;
     `);
 
+    // Create subscription status view
     await this.db.execute(sql`
-      CREATE OR REPLACE VIEW subscription_status_view AS
+      DROP VIEW IF EXISTS subscrio.subscription_status_view CASCADE;
+    `);
+    
+    await this.db.execute(sql`
+      CREATE VIEW subscrio.subscription_status_view AS
       SELECT
         s.id,
         s.key,
@@ -266,7 +274,7 @@ export class SchemaInstaller {
           WHEN s.trial_end_date IS NOT NULL AND s.trial_end_date > NOW() THEN 'trial'
           ELSE 'active'
         END AS computed_status
-      FROM subscriptions s;
+      FROM subscrio.subscriptions s;
     `);
   }
 
@@ -316,7 +324,7 @@ export class SchemaInstaller {
    * Drop all Subscrio tables (in reverse dependency order)
    */
   async dropAll(): Promise<void> {
-    await this.db.execute(sql`DROP VIEW IF EXISTS subscription_status_view`);
+    await this.db.execute(sql`DROP VIEW IF EXISTS subscrio.subscription_status_view`);
 
     // Drop tables in reverse dependency order to avoid foreign key constraint errors
     // Tables with foreign keys must be dropped before the tables they reference
@@ -335,7 +343,7 @@ export class SchemaInstaller {
     ];
 
     for (const table of tablesToDrop) {
-      await this.db.execute(sql.raw(`DROP TABLE IF EXISTS ${table} CASCADE`));
+      await this.db.execute(sql.raw(`DROP TABLE IF EXISTS subscrio.${table} CASCADE`));
     }
   }
 }

@@ -1023,23 +1023,23 @@ async function cleanupDemoEntities(subscrio: Subscrio) {
   // Note: These may affect 0 rows or fail if tables don't exist (when using --recreate)
   console.log('🗑️  Deleting demo entities...');
   await safeDelete(
-    `DELETE FROM subscriptions WHERE key IN ('acme-subscription', 'acme-free-subscription')`,
+    `DELETE FROM subscrio.subscriptions WHERE key IN ('acme-subscription', 'acme-free-subscription')`,
     'Deleting subscriptions'
   );
-  await safeDelete(`DELETE FROM customers WHERE key = 'acme-corp'`, 'Deleting customers');
+  await safeDelete(`DELETE FROM subscrio.customers WHERE key = 'acme-corp'`, 'Deleting customers');
   await safeDelete(
-    `DELETE FROM billing_cycles WHERE key IN ('free-forever', 'starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`,
+    `DELETE FROM subscrio.billing_cycles WHERE key IN ('free-forever', 'starter-monthly', 'starter-annual', 'professional-monthly', 'professional-annual', 'enterprise-monthly', 'enterprise-annual')`,
     'Deleting billing cycles'
   );
   await safeDelete(
-    `DELETE FROM plans WHERE key IN ('free', 'starter', 'professional', 'enterprise')`,
+    `DELETE FROM subscrio.plans WHERE key IN ('free', 'starter', 'professional', 'enterprise')`,
     'Deleting plans'
   );
   await safeDelete(
-    `DELETE FROM features WHERE key IN ('max-projects', 'max-users-per-project', 'gantt-charts', 'custom-branding', 'api-access')`,
+    `DELETE FROM subscrio.features WHERE key IN ('max-projects', 'max-users-per-project', 'gantt-charts', 'custom-branding', 'api-access')`,
     'Deleting features'
   );
-  await safeDelete(`DELETE FROM products WHERE key = 'projecthub'`, 'Deleting products');
+  await safeDelete(`DELETE FROM subscrio.products WHERE key = 'projecthub'`, 'Deleting products');
 
   console.log('✅ Demo entities cleanup completed');
   console.log('═'.repeat(50) + '\n');

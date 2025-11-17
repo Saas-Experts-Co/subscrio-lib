@@ -1,7 +1,9 @@
-import { pgTable, text, integer, timestamp, jsonb, boolean, unique, bigserial, bigint, pgView } from 'drizzle-orm/pg-core';
+import { pgSchema, text, integer, timestamp, jsonb, boolean, unique, bigserial, bigint } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-export const products = pgTable('products', {
+export const subscrioSchema = pgSchema('subscrio');
+
+export const products = subscrioSchema.table('products', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name').notNull(),
@@ -12,7 +14,7 @@ export const products = pgTable('products', {
   updated_at: timestamp('updated_at').notNull().defaultNow()
 });
 
-export const features = pgTable('features', {
+export const features = subscrioSchema.table('features', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name').notNull(),
@@ -27,7 +29,7 @@ export const features = pgTable('features', {
   updated_at: timestamp('updated_at').notNull().defaultNow()
 });
 
-export const product_features = pgTable('product_features', {
+export const product_features = subscrioSchema.table('product_features', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   product_id: bigint('product_id', { mode: 'number' }).notNull().references(() => products.id, { onDelete: 'cascade' }),
   feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
@@ -36,7 +38,7 @@ export const product_features = pgTable('product_features', {
   uniqueProductFeature: unique().on(table.product_id, table.feature_id)
 }));
 
-export const plans = pgTable('plans', {
+export const plans = subscrioSchema.table('plans', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   product_id: bigint('product_id', { mode: 'number' }).notNull().references(() => products.id, { onDelete: 'cascade' }),
   key: text('key').notNull(),
@@ -52,7 +54,7 @@ export const plans = pgTable('plans', {
   uniqueProductKey: unique().on(table.product_id, table.key)
 }));
 
-export const plan_features = pgTable('plan_features', {
+export const plan_features = subscrioSchema.table('plan_features', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
   feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
@@ -64,7 +66,7 @@ export const plan_features = pgTable('plan_features', {
 }));
 
 
-export const customers = pgTable('customers', {
+export const customers = subscrioSchema.table('customers', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),
   display_name: text('display_name'),
@@ -76,7 +78,7 @@ export const customers = pgTable('customers', {
   updated_at: timestamp('updated_at').notNull().defaultNow()
 });
 
-export const subscriptions = pgTable('subscriptions', {
+export const subscriptions = subscrioSchema.table('subscriptions', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   key: text('key').notNull().unique(),  // External reference key
   customer_id: bigint('customer_id', { mode: 'number' }).notNull().references(() => customers.id, { onDelete: 'cascade' }),
@@ -95,7 +97,7 @@ export const subscriptions = pgTable('subscriptions', {
   is_archived: boolean('is_archived').notNull().default(false)
 });
 
-export const subscriptionStatusView = pgView('subscription_status_view').as((qb) =>
+export const subscriptionStatusView = subscrioSchema.view('subscription_status_view').as((qb) =>
   qb
     .select({
       id: subscriptions.id,
@@ -128,7 +130,7 @@ export const subscriptionStatusView = pgView('subscription_status_view').as((qb)
     .from(subscriptions)
 );
 
-export const subscription_feature_overrides = pgTable('subscription_feature_overrides', {
+export const subscription_feature_overrides = subscrioSchema.table('subscription_feature_overrides', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   subscription_id: bigint('subscription_id', { mode: 'number' }).notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
   feature_id: bigint('feature_id', { mode: 'number' }).notNull().references(() => features.id, { onDelete: 'cascade' }),
@@ -139,7 +141,7 @@ export const subscription_feature_overrides = pgTable('subscription_feature_over
   uniqueSubscriptionFeature: unique().on(table.subscription_id, table.feature_id)
 }));
 
-export const billing_cycles = pgTable('billing_cycles', {
+export const billing_cycles = subscrioSchema.table('billing_cycles', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   plan_id: bigint('plan_id', { mode: 'number' }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
   key: text('key').notNull(),
@@ -155,7 +157,7 @@ export const billing_cycles = pgTable('billing_cycles', {
   uniquePlanKey: unique().on(table.plan_id, table.key)
 }));
 
-export const system_config = pgTable('system_config', {
+export const system_config = subscrioSchema.table('system_config', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   config_key: text('config_key').notNull().unique(),
   config_value: text('config_value').notNull(),
