@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.12] - 2025-11-17
+
+### Added
+- 
+
+### Changed
+- Moved tables to their own schema
+
+### Fixed
+- 
+
+
 ## [0.1.11] - 2025-11-17
 
 ### Added
