@@ -22,7 +22,7 @@ const subscrio = new Subscrio({
 | --- | --- | --- |
 | `installSchema` | Creates every Subscrio database table, seeds configuration rows, and optionally writes the admin passphrase hash | `Promise<void>` |
 | `migrate` | Runs pending database migrations to update the schema to the latest version | `Promise<number>` |
-| `verifySchema` | Confirms whether the Subscrio schema is already installed | `Promise<boolean>` |
+| `verifySchema` | Confirms whether the Subscrio schema is already installed and returns the current schema version | `Promise<string | null>` |
 | `dropSchema` | Removes every table created by Subscrio (for local development resets or automated tests) | `Promise<void>` |
 | `close` | Closes the shared Drizzle/pg connection pool so Node processes can exit cleanly | `Promise<void>` |
 
@@ -240,12 +240,12 @@ This is useful for local development and CI/CD pipelines.
 ### verifySchema
 
 #### Description
- Confirms whether the Subscrio schema is already installed so callers can decide to run `installSchema()` or proceed with normal operations.
+ Confirms whether the Subscrio schema is already installed and returns the current schema version. Returns `null` if the schema is not installed, allowing callers to decide whether to run `installSchema()` or proceed with normal operations.
 
 #### Signature
 
 ```typescript
-verifySchema(): Promise<boolean>
+verifySchema(): Promise<string | null>
 ```
 
 #### Inputs
@@ -260,15 +260,17 @@ verifySchema(): Promise<boolean>
 
 #### Returns
 
-`Promise<boolean>` that resolves to `true` when every required table/index exists; `false` otherwise.
+`Promise<string | null>` that resolves to the current schema version (e.g., `"1.1.0"`) when the schema is installed, or `null` if the schema is not installed.
 
 #### Return Properties
 
-- `boolean` – indicates whether the schema is ready for use.
+- `string | null` – the schema version string if installed, or `null` if not installed.
 
 #### Expected Results
 
 - Executes lightweight checks on required tables and indexes via the schema installer.
+- If schema exists, retrieves and returns the current schema version from `system_config`.
+- Returns `null` if schema is not installed or version cannot be determined.
 
 #### Potential Errors
 
@@ -279,9 +281,11 @@ verifySchema(): Promise<boolean>
 #### Example
 
 ```typescript
-const ready = await subscrio.verifySchema();
-if (!ready) {
+const version = await subscrio.verifySchema();
+if (version === null) {
   console.warn('Subscrio schema missing – run installSchema() first.');
+} else {
+  console.log(`Schema version: ${version}`);
 }
 ```
 

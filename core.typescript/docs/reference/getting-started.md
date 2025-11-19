@@ -25,11 +25,12 @@ async function main() {
   const subscrio = new Subscrio(config);
 
   // Check if schema exists
-  const schemaExists = await subscrio.verifySchema();
-  if (!schemaExists) {
+  const schemaVersion = await subscrio.verifySchema();
+  if (schemaVersion === null) {
     await subscrio.installSchema();
     console.log('Schema installed.');
   } else {
+    console.log(`Schema version: ${schemaVersion}`);
     // NOTE: Only include this migration code if you want your application
     // to automatically run migrations at startup. Alternatively, run migrations
     // manually via CLI (npm run migrate) or as a separate deployment step.

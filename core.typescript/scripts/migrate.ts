@@ -29,11 +29,12 @@ async function main() {
     const subscrio = new Subscrio(config);
 
     // Verify schema exists
-    const schemaExists = await subscrio.verifySchema();
-    if (!schemaExists) {
+    const schemaVersion = await subscrio.verifySchema();
+    if (schemaVersion === null) {
       console.error('❌ Subscrio schema not found. Run installSchema() first.');
       process.exit(1);
     }
+    console.log(`📋 Current schema version: ${schemaVersion}\n`);
 
     // Run migrations
     const migrationsApplied = await subscrio.migrate();

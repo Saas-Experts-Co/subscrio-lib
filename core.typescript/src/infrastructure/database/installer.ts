@@ -1,6 +1,5 @@
 import { DrizzleDb } from './drizzle.js';
 import { 
-  products,
   system_config 
 } from './schema.js';
 import { sql } from 'drizzle-orm';
@@ -295,15 +294,12 @@ export class SchemaInstaller {
 
   /**
    * Verify schema installation
+   * Returns the schema version if installed, null otherwise
    */
-  async verify(): Promise<boolean> {
-    try {
-      // Try to query the products table
-      await this.db.select().from(products).limit(1);
-      return true;
-    } catch (error) {
-      return false;
-    }
+  async verify(): Promise<string | null> {
+    // getCurrentSchemaVersion() already handles errors and returns null
+    // if the schema doesn't exist or system_config table is missing
+    return await this.getCurrentSchemaVersion();
   }
 
   /**

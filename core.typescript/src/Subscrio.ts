@@ -122,8 +122,9 @@ export class Subscrio {
 
   /**
    * Verify schema installation
+   * Returns the schema version if installed, null otherwise
    */
-  async verifySchema(): Promise<boolean> {
+  async verifySchema(): Promise<string | null> {
     return await this.installer.verify();
   }
 
