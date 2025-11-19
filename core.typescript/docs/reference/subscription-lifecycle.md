@@ -49,6 +49,36 @@ flowchart LR
 
 The diagram illustrates common flows but does not represent every edge case (e.g., reactivation or plan transitions). Any state may move directly to `cancelled` or `expired` when the relevant date is set retroactively.
 
+## Subscription Transitions
+
+When a subscription expires and its plan has an `onExpireTransitionToBillingCycleKey` configured, the subscription can be automatically transitioned to a new plan. This is handled by the `transitionExpiredSubscriptions()` method.
+
+### Transition Process
+
+1. **Expired subscriptions** with transition-enabled plans are identified
+2. **Old subscription** is marked as transitioned (archived with `transitioned_at` timestamp)
+3. **New subscription** is created to the transition billing cycle
+4. **Subscription key** is versioned: `original-key` → `original-key-v1` → `original-key-v2`, etc.
+
+### Transition Tracking
+
+- **`transitioned_at`**: UTC timestamp set when a subscription is transitioned
+- **Archived status**: Transitioned subscriptions are archived (`isArchived = true`)
+- **Stripe IDs**: Original Stripe subscription ID remains on the archived subscription for historical reference
+- **Feature overrides**: Do not carry over to the new subscription
+- **Metadata**: Carries over to the new subscription
+
+### Querying Transitioned Subscriptions
+
+To find all subscriptions that were transitioned:
+
+```sql
+SELECT * FROM subscrio.subscriptions 
+WHERE transitioned_at IS NOT NULL;
+```
+
+Or filter by transition date range for auditing purposes.
+
 ## Practical Tips
 
 - Setting `trialEndDate` automatically enters `trial` until the timestamp is reached. Remove or backdate the field to exit trial immediately.

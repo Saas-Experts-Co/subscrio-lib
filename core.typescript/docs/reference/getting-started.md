@@ -24,8 +24,22 @@ async function main() {
   const config = loadConfig();
   const subscrio = new Subscrio(config);
 
-  await subscrio.installSchema();
-  console.log('Schema installed, ready to use Subscrio services.');
+  // Check if schema exists
+  const schemaExists = await subscrio.verifySchema();
+  if (!schemaExists) {
+    await subscrio.installSchema();
+    console.log('Schema installed.');
+  } else {
+    // NOTE: Only include this migration code if you want your application
+    // to automatically run migrations at startup. Alternatively, run migrations
+    // manually via CLI (npm run migrate) or as a separate deployment step.
+    const migrationsApplied = await subscrio.migrate();
+    if (migrationsApplied > 0) {
+      console.log(`Applied ${migrationsApplied} migration(s).`);
+    }
+  }
+  
+  console.log('Ready to use Subscrio services.');
 }
 
 main().catch((error) => {
@@ -35,6 +49,24 @@ main().catch((error) => {
 ```
 
 Run with `ts-node` or compile to JavaScript. This sets up the database tables and exposes the service collection on `subscrio`.
+
+### Running Migrations
+
+When you update the `@subscrio/core` package, you may need to run migrations to update your database schema. You can do this in two ways:
+
+**Option 1: Programmatically**
+```typescript
+const migrationsApplied = await subscrio.migrate();
+```
+
+**Option 2: CLI Command**
+```bash
+npm run migrate
+# or if installed globally
+npx @subscrio/core migrate
+```
+
+The migration system tracks schema versions in the `system_config` table and only applies pending migrations, so it's safe to run multiple times.
 
 ## Step 2 – Define Features
 

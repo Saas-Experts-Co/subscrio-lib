@@ -307,6 +307,11 @@ export class SchemaInstaller {
   }
 
   /**
+   * Current schema version - increment when adding migrations
+   */
+  private readonly CURRENT_SCHEMA_VERSION = '1.1.0';
+
+  /**
    * Setup initial system configuration
    */
   private async setupInitialConfig(adminPassphrase?: string): Promise<void> {
@@ -330,6 +335,160 @@ export class SchemaInstaller {
         updated_at: now()
       });
     }
+
+    // Set initial schema version if not exists
+    const versionCheck = await this.db
+      .select()
+      .from(system_config)
+      .where(sql`${system_config.config_key} = 'schema_version'`)
+      .limit(1);
+
+    if (versionCheck.length === 0) {
+      await this.db.insert(system_config).values({
+        config_key: 'schema_version',
+        config_value: this.CURRENT_SCHEMA_VERSION,
+        encrypted: false,
+        created_at: now(),
+        updated_at: now()
+      });
+    }
+  }
+
+  /**
+   * Get current schema version from system_config
+   */
+  async getCurrentSchemaVersion(): Promise<string | null> {
+    try {
+      const [record] = await this.db
+        .select()
+        .from(system_config)
+        .where(sql`${system_config.config_key} = 'schema_version'`)
+        .limit(1);
+      
+      return record?.config_value ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Update schema version in system_config
+   */
+  private async updateSchemaVersion(version: string): Promise<void> {
+    const existing = await this.db
+      .select()
+      .from(system_config)
+      .where(sql`${system_config.config_key} = 'schema_version'`)
+      .limit(1);
+
+    if (existing.length > 0) {
+      await this.db
+        .update(system_config)
+        .set({
+          config_value: version,
+          updated_at: now()
+        })
+        .where(sql`${system_config.config_key} = 'schema_version'`);
+    } else {
+      await this.db.insert(system_config).values({
+        config_key: 'schema_version',
+        config_value: version,
+        encrypted: false,
+        created_at: now(),
+        updated_at: now()
+      });
+    }
+  }
+
+  /**
+   * Run pending migrations
+   * Returns the number of migrations applied
+   */
+  async migrate(): Promise<number> {
+    const currentVersion = await this.getCurrentSchemaVersion();
+    let migrationsApplied = 0;
+
+    // Migration 1.1.0: Add transitioned_at column to subscriptions
+    if (!currentVersion || this.compareVersions(currentVersion, '1.1.0') < 0) {
+      await this.migrateTo_1_1_0();
+      await this.updateSchemaVersion('1.1.0');
+      migrationsApplied++;
+    }
+
+    return migrationsApplied;
+  }
+
+  /**
+   * Migration 1.1.0: Add transitioned_at column to subscriptions
+   */
+  private async migrateTo_1_1_0(): Promise<void> {
+    // Add transitioned_at column if it doesn't exist
+    await this.db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'subscrio' AND table_name = 'subscriptions' AND column_name = 'transitioned_at'
+        ) THEN
+          ALTER TABLE subscrio.subscriptions ADD COLUMN transitioned_at TIMESTAMPTZ;
+        END IF;
+      END $$;
+    `);
+
+    // Update subscription_status_view to include transitioned_at
+    await this.db.execute(sql`
+      DROP VIEW IF EXISTS subscrio.subscription_status_view CASCADE;
+    `);
+    
+    await this.db.execute(sql`
+      CREATE VIEW subscrio.subscription_status_view AS
+      SELECT
+        s.id,
+        s.key,
+        s.customer_id,
+        s.plan_id,
+        s.billing_cycle_id,
+        s.activation_date,
+        s.expiration_date,
+        s.cancellation_date,
+        s.trial_end_date,
+        s.current_period_start,
+        s.current_period_end,
+        s.stripe_subscription_id,
+        s.metadata,
+        s.created_at,
+        s.updated_at,
+        s.is_archived,
+        s.transitioned_at,
+        CASE
+          WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date > NOW() THEN 'cancellation_pending'
+          WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date <= NOW() THEN 'cancelled'
+          WHEN s.expiration_date IS NOT NULL AND s.expiration_date <= NOW() THEN 'expired'
+          WHEN s.activation_date IS NOT NULL AND s.activation_date > NOW() THEN 'pending'
+          WHEN s.trial_end_date IS NOT NULL AND s.trial_end_date > NOW() THEN 'trial'
+          ELSE 'active'
+        END AS computed_status
+      FROM subscrio.subscriptions s;
+    `);
+  }
+
+  /**
+   * Compare two version strings (e.g., "1.0.0" vs "1.1.0")
+   * Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+   */
+  private compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+      const part1 = parts1[i] || 0;
+      const part2 = parts2[i] || 0;
+      
+      if (part1 < part2) return -1;
+      if (part1 > part2) return 1;
+    }
+    
+    return 0;
   }
 
   /**

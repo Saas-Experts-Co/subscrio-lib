@@ -128,6 +128,18 @@ export class Subscrio {
   }
 
   /**
+   * Run pending database migrations
+   * 
+   * Migrations are tracked via schema_version in system_config.
+   * This method runs only pending migrations and updates the version.
+   * 
+   * @returns Number of migrations applied
+   */
+  async migrate(): Promise<number> {
+    return await this.installer.migrate();
+  }
+
+  /**
    * Drop all database tables (WARNING: Destructive!)
    */
   async dropSchema(): Promise<void> {

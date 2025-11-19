@@ -31,6 +31,7 @@ const subscriptions = subscrio.subscriptions;
 | `addFeatureOverride` | Adds or updates a feature override | `Promise<void>` |
 | `removeFeatureOverride` | Removes a feature override | `Promise<void>` |
 | `clearTemporaryOverrides` | Removes temporary overrides | `Promise<void>` |
+| `transitionExpiredSubscriptions` | Processes expired subscriptions and transitions them to configured plans | `Promise<TransitionExpiredSubscriptionsReport>` |
 
 ## Method Reference
 
@@ -502,6 +503,69 @@ clearTemporaryOverrides(subscriptionKey: string): Promise<void>
 await subscriptions.clearTemporaryOverrides('sub_1001');
 ```
 
+### transitionExpiredSubscriptions
+
+#### Description
+Processes expired subscriptions and automatically transitions them to configured plans. This method finds all expired subscriptions whose plans have an `onExpireTransitionToBillingCycleKey` configured, archives the old subscription, and creates a new subscription to the transition billing cycle.
+
+#### Signature
+```typescript
+transitionExpiredSubscriptions(): Promise<TransitionExpiredSubscriptionsReport>
+```
+
+#### Inputs
+_None_ – automatically finds expired subscriptions with transition plans.
+
+#### Returns
+`Promise<TransitionExpiredSubscriptionsReport>` with counts and errors.
+
+#### Return Properties
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `processed` | `number` | Total subscriptions processed. |
+| `transitioned` | `number` | Subscriptions successfully transitioned. |
+| `archived` | `number` | Subscriptions archived (same as transitioned). |
+| `errors` | `Array<{subscriptionKey: string, error: string}>` | Any errors encountered during processing. |
+
+#### Expected Results
+- Queries expired subscriptions (status='expired', not archived) with transition-enabled plans using an optimized database join.
+- For each expired subscription:
+  - Marks old subscription as transitioned (sets `isArchived = true` and `transitioned_at` timestamp)
+  - Creates new subscription to the transition billing cycle
+  - Generates versioned subscription key: `original-key` → `original-key-v1` (or increments if already versioned)
+  - Preserves metadata from old subscription
+  - Does not carry over feature overrides or Stripe subscription IDs
+- Returns a report of processed, transitioned, and archived subscriptions.
+
+#### Potential Errors
+Errors are captured in the report's `errors` array rather than thrown. Common errors include:
+- Plan not found
+- Customer not found
+- Billing cycle not found
+- Generated subscription key already exists
+
+#### Example
+```typescript
+// Run transition process (typically called from a cron job or scheduled task)
+const report = await subscriptions.transitionExpiredSubscriptions();
+
+console.log(`Processed: ${report.processed}`);
+console.log(`Transitioned: ${report.transitioned}`);
+console.log(`Errors: ${report.errors.length}`);
+
+if (report.errors.length > 0) {
+  report.errors.forEach(err => {
+    console.error(`Subscription ${err.subscriptionKey}: ${err.error}`);
+  });
+}
+```
+
+#### Usage Notes
+- **When to call**: Typically run as a scheduled job (cron, background worker) to process expired subscriptions periodically.
+- **Idempotent**: Safe to run multiple times; only processes subscriptions that haven't been transitioned yet.
+- **Stripe integration**: Original Stripe subscription ID remains on the archived subscription. The new subscription does not have a Stripe ID (you may need to create a new Stripe subscription if using Stripe).
+- **Query optimization**: Uses an optimized database query with joins to only fetch expired subscriptions whose plans have transition requirements.
 
 > Need the full explanation of how each status works? See [`subscription-lifecycle.md`](./subscription-lifecycle.md) for detailed rules, diagrams, and practical guidance.
 
@@ -569,3 +633,4 @@ Adds:
 - `FeatureCheckerService` relies on subscription data for resolving feature access; keep overrides up to date.
 - `StripeIntegrationService` uses subscription CRUD for webhook synchronization.
 - When deleting or transitioning plans/billing cycles, ensure subscriptions point to valid entities; run your own data migrations when changing plan relationships.
+- **Subscription Transitions**: Use `transitionExpiredSubscriptions()` to automatically migrate expired subscriptions to new plans. Typically run as a scheduled job (cron, background worker) to process expired subscriptions periodically. See [`subscription-lifecycle.md`](./subscription-lifecycle.md) for details on transition behavior.

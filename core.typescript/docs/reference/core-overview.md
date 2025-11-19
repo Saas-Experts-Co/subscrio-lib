@@ -16,6 +16,18 @@ const subscrio = new Subscrio({
 });
 ```
 
+## Method Catalog
+
+| Method | Description | Returns |
+| --- | --- | --- |
+| `installSchema` | Creates every Subscrio database table, seeds configuration rows, and optionally writes the admin passphrase hash | `Promise<void>` |
+| `migrate` | Runs pending database migrations to update the schema to the latest version | `Promise<number>` |
+| `verifySchema` | Confirms whether the Subscrio schema is already installed | `Promise<boolean>` |
+| `dropSchema` | Removes every table created by Subscrio (for local development resets or automated tests) | `Promise<void>` |
+| `close` | Closes the shared Drizzle/pg connection pool so Node processes can exit cleanly | `Promise<void>` |
+
+## Method Reference
+
 ### Constructor
 
 #### Description
@@ -159,6 +171,71 @@ Resolves with `void` once the schema is fully installed.
 ```typescript
 await subscrio.installSchema('super-secret-passphrase');
 ```
+
+### migrate
+
+#### Description
+Runs pending database migrations to update the schema to the latest version. Migrations are tracked via `schema_version` in the `system_config` table, so only pending migrations are applied.
+
+#### Signature
+
+```typescript
+migrate(): Promise<number>
+```
+
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| _None_ |  |  |  |
+
+#### Input Properties
+
+- None.
+
+#### Returns
+
+`Promise<number>` that resolves to the number of migrations applied.
+
+#### Return Properties
+
+- `number` – count of migrations that were applied (0 if database is up to date).
+
+#### Expected Results
+
+- Checks current schema version from `system_config`.
+- Runs only pending migrations (those with version numbers greater than current).
+- Updates `schema_version` in `system_config` after each migration.
+- Returns count of migrations applied.
+
+#### Potential Errors
+
+| Error | When |
+| --- | --- |
+| `ConfigurationError` | Database connection unavailable or migration fails. |
+
+#### Example
+
+```typescript
+const migrationsApplied = await subscrio.migrate();
+if (migrationsApplied > 0) {
+  console.log(`Applied ${migrationsApplied} migration(s)`);
+} else {
+  console.log('Database is up to date');
+}
+```
+
+#### Migration CLI
+
+You can also run migrations via CLI:
+
+```bash
+npm run migrate
+# or
+npx @subscrio/core migrate
+```
+
+This is useful for local development and CI/CD pipelines.
 
 ### verifySchema
 
