@@ -692,6 +692,14 @@ export class SubscriptionManagementService {
         }
 
         // Get transition billing cycle
+        if (!plan.props.onExpireTransitionToBillingCycleKey) {
+          report.errors.push({
+            subscriptionKey: expiredSubscription.key,
+            error: `Plan '${plan.id}' does not have onExpireTransitionToBillingCycleKey set`
+          });
+          continue;
+        }
+
         const transitionBillingCycle = await this.billingCycleRepository.findByKey(
           plan.props.onExpireTransitionToBillingCycleKey
         );
