@@ -3,13 +3,12 @@
 ## [0.1.13] - 2025-11-19
 
 ### Added
-- 
-
-### Changed
-- 
+- Database migration functionality for managing schema changes
+- Subscription transition handling when subscriptions expire, allowing automatic transitions to specified billing cycles
+- Schema updates to support subscription expiration transitions
 
 ### Fixed
-- 
+- Validation for `onExpireTransitionToBillingCycleKey` parameter in subscription management to prevent invalid transitions
 
 
 ## [0.1.13] - 2025-01-27
