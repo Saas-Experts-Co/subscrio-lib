@@ -2,7 +2,7 @@ import { ISubscriptionRepository } from '../../application/repositories/ISubscri
 import { Subscription, FeatureOverride } from '../../domain/entities/Subscription.js';
 import { SubscriptionMapper } from '../../application/mappers/SubscriptionMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
-import { subscriptions, subscription_feature_overrides, subscriptionStatusView } from '../database/schema.js';
+import { subscriptions, subscription_feature_overrides, subscriptionStatusView, plans } from '../database/schema.js';
 import { eq, and, desc, asc, inArray, gte, lte, isNotNull, isNull } from 'drizzle-orm';
 import { SubscriptionFilterDto } from '../../application/dtos/SubscriptionDto.js';
 import { OverrideType } from '../../domain/value-objects/OverrideType.js';
@@ -56,7 +56,8 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
           current_period_end: record.current_period_end,
           stripe_subscription_id: record.stripe_subscription_id,
           metadata: record.metadata,
-          updated_at: record.updated_at
+          updated_at: record.updated_at,
+          transitioned_at: record.transitioned_at
         })
         .where(eq(subscriptions.id, subscription.id));
 
@@ -141,10 +142,17 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
   }
 
   async findByStripeId(stripeId: string): Promise<Subscription | null> {
+    // Only find active (non-archived) subscriptions by Stripe ID
+    // Archived subscriptions keep their Stripe ID for historical reference
     const [record] = await this.db
       .select()
       .from(subscriptionStatusView)
-      .where(eq(subscriptionStatusView.stripe_subscription_id, stripeId))
+      .where(
+        and(
+          eq(subscriptionStatusView.stripe_subscription_id, stripeId),
+          eq(subscriptionStatusView.is_archived, false)
+        )
+      )
       .limit(1);
     
     if (!record) return null;
@@ -360,5 +368,48 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
       .limit(1);
 
     return !!record;
+  }
+
+  async findExpiredWithTransitionPlans(limit: number = 1000): Promise<Subscription[]> {
+    // Query expired subscriptions (status='expired') that are not archived
+    // and whose plan has a transition requirement (on_expire_transition_to_billing_cycle_id IS NOT NULL)
+    const records = await this.db
+      .select({
+        id: subscriptionStatusView.id,
+        key: subscriptionStatusView.key,
+        customer_id: subscriptionStatusView.customer_id,
+        plan_id: subscriptionStatusView.plan_id,
+        billing_cycle_id: subscriptionStatusView.billing_cycle_id,
+        activation_date: subscriptionStatusView.activation_date,
+        expiration_date: subscriptionStatusView.expiration_date,
+        cancellation_date: subscriptionStatusView.cancellation_date,
+        trial_end_date: subscriptionStatusView.trial_end_date,
+        current_period_start: subscriptionStatusView.current_period_start,
+        current_period_end: subscriptionStatusView.current_period_end,
+        stripe_subscription_id: subscriptionStatusView.stripe_subscription_id,
+        metadata: subscriptionStatusView.metadata,
+        created_at: subscriptionStatusView.created_at,
+        updated_at: subscriptionStatusView.updated_at,
+        is_archived: subscriptionStatusView.is_archived,
+        computed_status: subscriptionStatusView.computed_status
+      })
+      .from(subscriptionStatusView)
+      .innerJoin(plans, eq(subscriptionStatusView.plan_id, plans.id))
+      .where(
+        and(
+          eq(subscriptionStatusView.computed_status, 'expired'),
+          eq(subscriptionStatusView.is_archived, false),
+          isNotNull(plans.on_expire_transition_to_billing_cycle_id)
+        )
+      )
+      .limit(limit)
+      .orderBy(desc(subscriptionStatusView.expiration_date));
+
+    const subscriptionsWithOverrides = [];
+    for (const record of records) {
+      const featureOverrides = await this.loadFeatureOverrides(record.id);
+      subscriptionsWithOverrides.push(SubscriptionMapper.toDomain(record, featureOverrides));
+    }
+    return subscriptionsWithOverrides;
   }
 }

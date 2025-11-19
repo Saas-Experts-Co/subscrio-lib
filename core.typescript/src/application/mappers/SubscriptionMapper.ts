@@ -49,7 +49,8 @@ export class SubscriptionMapper {
         featureOverrides,
         metadata: raw.metadata,
         createdAt: new Date(raw.created_at),
-        updatedAt: new Date(raw.updated_at)
+        updatedAt: new Date(raw.updated_at),
+        transitionedAt: raw.transitioned_at ? new Date(raw.transitioned_at) : undefined
       },
       raw.id as number | undefined
     );
@@ -71,7 +72,8 @@ export class SubscriptionMapper {
       stripe_subscription_id: subscription.props.stripeSubscriptionId ?? null,
       metadata: subscription.props.metadata ?? null,
       created_at: subscription.props.createdAt,
-      updated_at: subscription.props.updatedAt
+      updated_at: subscription.props.updatedAt,
+      transitioned_at: subscription.props.transitionedAt ?? null
     };
     
     // Only include id for updates (not inserts)

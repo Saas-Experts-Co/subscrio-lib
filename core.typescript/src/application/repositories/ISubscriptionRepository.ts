@@ -18,5 +18,8 @@ export interface ISubscriptionRepository {
   // Foreign key checks
   hasSubscriptionsForPlan(planId: number): Promise<boolean>;
   hasSubscriptionsForBillingCycle(billingCycleId: number): Promise<boolean>;
+  
+  // Find expired subscriptions with transition plans (for transition processing)
+  findExpiredWithTransitionPlans(limit?: number): Promise<Subscription[]>;
 }
 

@@ -28,6 +28,19 @@ import {
 } from '../errors/index.js';
 import { FeatureValueValidator } from '../utils/FeatureValueValidator.js';
 
+/**
+ * Transition report for expired subscription processing
+ */
+export interface TransitionExpiredSubscriptionsReport {
+  processed: number;
+  transitioned: number;
+  archived: number;
+  errors: Array<{
+    subscriptionKey: string;
+    error: string;
+  }>;
+}
+
 export class SubscriptionManagementService {
   constructor(
     private readonly subscriptionRepository: ISubscriptionRepository,
@@ -604,6 +617,148 @@ export class SubscriptionManagementService {
     }
     
     return endDate;
+  }
+
+  /**
+   * Generate versioned subscription key from base key
+   * Examples:
+   * - "sub-abc" -> "sub-abc-v1"
+   * - "sub-abc-v1" -> "sub-abc-v2"
+   * - "sub-abc-v5" -> "sub-abc-v6"
+   */
+  private generateVersionedKey(baseKey: string): string {
+    const versionPattern = /-v(\d+)$/;
+    const match = baseKey.match(versionPattern);
+    
+    if (match) {
+      const currentVersion = parseInt(match[1], 10);
+      const base = baseKey.replace(versionPattern, '');
+      return `${base}-v${currentVersion + 1}`;
+    } else {
+      return `${baseKey}-v1`;
+    }
+  }
+
+  /**
+   * Process expired subscriptions and transition them to configured plans.
+   * 
+   * This method:
+   * 1. Finds all expired subscriptions (status='expired', not archived) whose plan has a transition requirement
+   * 2. For each expired subscription:
+   *    - Archives the old subscription
+   *    - Creates a new subscription to the transition billing cycle
+   *    - New subscription key is versioned: original key + "-vX" (or increments if already versioned)
+   * 
+   * Note: Plans do not have grace periods. A subscription is expired when
+   * `expirationDate <= NOW()` and there is no cancellation.
+   * 
+   * @returns Report of processed subscriptions
+   */
+  async transitionExpiredSubscriptions(): Promise<TransitionExpiredSubscriptionsReport> {
+    const report: TransitionExpiredSubscriptionsReport = {
+      processed: 0,
+      transitioned: 0,
+      archived: 0,
+      errors: []
+    };
+
+    // Find all expired subscriptions with transition plans (optimized query with join)
+    const expiredSubscriptions = await this.subscriptionRepository.findExpiredWithTransitionPlans(1000);
+
+    for (const expiredSubscription of expiredSubscriptions) {
+      try {
+        report.processed++;
+
+        // Get the plan (already verified to have transition in query, but need it for the key)
+        const plan = await this.planRepository.findById(expiredSubscription.planId);
+        if (!plan) {
+          report.errors.push({
+            subscriptionKey: expiredSubscription.key,
+            error: `Plan with id '${expiredSubscription.planId}' not found`
+          });
+          continue;
+        }
+
+        // Plan already verified to have transition requirement in query
+        // Transition configured - archive old subscription and create new one
+        // Get customer
+        const customer = await this.customerRepository.findById(expiredSubscription.customerId);
+        if (!customer) {
+          report.errors.push({
+            subscriptionKey: expiredSubscription.key,
+            error: `Customer with id '${expiredSubscription.customerId}' not found`
+          });
+          continue;
+        }
+
+        // Get transition billing cycle
+        const transitionBillingCycle = await this.billingCycleRepository.findByKey(
+          plan.props.onExpireTransitionToBillingCycleKey
+        );
+        if (!transitionBillingCycle) {
+          report.errors.push({
+            subscriptionKey: expiredSubscription.key,
+            error: `Billing cycle with key '${plan.props.onExpireTransitionToBillingCycleKey}' not found`
+          });
+          continue;
+        }
+
+        // Mark subscription as transitioned (archives it and sets transitioned_at)
+        expiredSubscription.markAsTransitioned();
+        await this.subscriptionRepository.save(expiredSubscription);
+        report.archived++;
+
+        // Generate versioned key for new subscription
+        const newSubscriptionKey = this.generateVersionedKey(expiredSubscription.key);
+        
+        // Check if key already exists (shouldn't happen, but be safe)
+        const existing = await this.subscriptionRepository.findByKey(newSubscriptionKey);
+        if (existing) {
+          report.errors.push({
+            subscriptionKey: expiredSubscription.key,
+            error: `Generated subscription key '${newSubscriptionKey}' already exists`
+          });
+          continue;
+        }
+
+        // Create new subscription to transition billing cycle
+        const currentPeriodStart = now();
+        const currentPeriodEnd = this.calculatePeriodEnd(
+          currentPeriodStart,
+          transitionBillingCycle
+        );
+
+        const newSubscription = new Subscription({
+          key: newSubscriptionKey,
+          customerId: customer.id!,
+          planId: transitionBillingCycle.props.planId,
+          billingCycleId: transitionBillingCycle.id!,
+          status: SubscriptionStatus.Active,
+          isArchived: false,
+          activationDate: currentPeriodStart,
+          expirationDate: undefined, // New subscription doesn't expire unless set
+          cancellationDate: undefined,
+          trialEndDate: undefined,
+          currentPeriodStart,
+          currentPeriodEnd,
+          stripeSubscriptionId: undefined, // New subscription doesn't have Stripe ID (old archived subscription keeps its Stripe ID)
+          featureOverrides: [], // Overrides don't carry over to new subscription
+          metadata: expiredSubscription.props.metadata, // Carry over metadata
+          createdAt: now(),
+          updatedAt: now()
+        });
+
+        await this.subscriptionRepository.save(newSubscription);
+        report.transitioned++;
+      } catch (error) {
+        report.errors.push({
+          subscriptionKey: expiredSubscription.key,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return report;
   }
 
 }

@@ -29,6 +29,7 @@ export interface SubscriptionProps {
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
+  transitionedAt?: Date; // UTC datetime when subscription was transitioned to a new plan
 }
 
 export class Subscription extends Entity<SubscriptionProps> {
@@ -76,6 +77,13 @@ export class Subscription extends Entity<SubscriptionProps> {
   archive(): void {
     // Archive does not change any properties - just sets the archive flag
     this.props.isArchived = true;
+    this.props.updatedAt = now();
+  }
+
+  markAsTransitioned(): void {
+    // Mark subscription as transitioned - archives it and sets transitioned_at timestamp
+    this.props.isArchived = true;
+    this.props.transitionedAt = now();
     this.props.updatedAt = now();
   }
 

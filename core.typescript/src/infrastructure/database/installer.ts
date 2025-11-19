@@ -212,7 +212,8 @@ export class SchemaInstaller {
         stripe_subscription_id TEXT UNIQUE,
         metadata JSONB,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        transitioned_at TIMESTAMPTZ
       )
     `);
 
@@ -242,6 +243,19 @@ export class SchemaInstaller {
       END $$;
     `);
 
+    // Add transitioned_at column to existing subscriptions table if it doesn't exist
+    await this.db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'subscrio' AND table_name = 'subscriptions' AND column_name = 'transitioned_at'
+        ) THEN
+          ALTER TABLE subscrio.subscriptions ADD COLUMN transitioned_at TIMESTAMPTZ;
+        END IF;
+      END $$;
+    `);
+
     // Create subscription status view
     await this.db.execute(sql`
       DROP VIEW IF EXISTS subscrio.subscription_status_view CASCADE;
@@ -266,6 +280,7 @@ export class SchemaInstaller {
         s.created_at,
         s.updated_at,
         s.is_archived,
+        s.transitioned_at,
         CASE
           WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date > NOW() THEN 'cancellation_pending'
           WHEN s.cancellation_date IS NOT NULL AND s.cancellation_date <= NOW() THEN 'cancelled'

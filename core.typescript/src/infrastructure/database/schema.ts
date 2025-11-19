@@ -94,7 +94,8 @@ export const subscriptions = subscrioSchema.table('subscriptions', {
   metadata: jsonb('metadata'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  is_archived: boolean('is_archived').notNull().default(false)
+  is_archived: boolean('is_archived').notNull().default(false),
+  transitioned_at: timestamp('transitioned_at', { withTimezone: true })
 });
 
 export const subscriptionStatusView = subscrioSchema.view('subscription_status_view').as((qb) =>
@@ -116,6 +117,7 @@ export const subscriptionStatusView = subscrioSchema.view('subscription_status_v
       created_at: subscriptions.created_at,
       updated_at: subscriptions.updated_at,
       is_archived: subscriptions.is_archived,
+      transitioned_at: subscriptions.transitioned_at,
       computed_status: sql<string>`
         CASE
           WHEN ${subscriptions.cancellation_date} IS NOT NULL AND ${subscriptions.cancellation_date} > NOW() THEN 'cancellation_pending'
