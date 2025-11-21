@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.15] - 2025-11-21
+
+### Fixed
+- Enhanced validation for `onExpireTransitionToBillingCycleKey` to ensure the referenced billing cycle exists across all plans within the same product, preventing invalid transition configurations
+
+### Changed
+- Enhanced subscription lifecycle documentation with comprehensive trial scenarios and best practices, including detailed guidance on trial end behaviors and billing period configuration
+
 ## [0.1.14] - 2025-11-19
 
 ### Added
