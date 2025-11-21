@@ -1,6 +1,8 @@
 import { Subscription, FeatureOverride } from '../../domain/entities/Subscription.js';
 import { SubscriptionDto } from '../dtos/SubscriptionDto.js';
 import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
+import { Customer } from '../../domain/entities/Customer.js';
+import { CustomerMapper } from './CustomerMapper.js';
 
 export class SubscriptionMapper {
   static toDto(
@@ -8,7 +10,8 @@ export class SubscriptionMapper {
     customerKey: string,
     productKey: string,
     planKey: string,
-    billingCycleKey: string
+    billingCycleKey: string,
+    customer?: Customer | null
   ): SubscriptionDto {
     return {
       key: subscription.key,
@@ -25,6 +28,7 @@ export class SubscriptionMapper {
       currentPeriodEnd: subscription.props.currentPeriodEnd?.toISOString() ?? null,
       stripeSubscriptionId: subscription.props.stripeSubscriptionId ?? null,
       metadata: subscription.props.metadata ?? null,
+      customer: customer ? CustomerMapper.toDto(customer) : null,
       createdAt: subscription.props.createdAt.toISOString(),
       updatedAt: subscription.props.updatedAt.toISOString()
     };

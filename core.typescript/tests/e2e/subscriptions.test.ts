@@ -865,6 +865,212 @@ describe('Subscriptions E2E Tests', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results.some(s => s.key === subscription.key)).toBe(true);
     });
+
+    test('filters subscriptions by isArchived in listSubscriptions', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: `archive-filter-customer-${Date.now()}`,
+        displayName: 'Archive Filter Customer'
+      });
+
+      const product = await subscrio.products.createProduct({
+        key: `archive-filter-product-${Date.now()}`,
+        displayName: 'Archive Filter Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: `archive-filter-plan-${Date.now()}`,
+        displayName: 'Archive Filter Plan'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Create archived subscription
+      const archivedSub = await subscrio.subscriptions.createSubscription({
+        key: `archived-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+      await subscrio.subscriptions.archiveSubscription(archivedSub.key);
+
+      // Create non-archived subscription
+      const activeSub = await subscrio.subscriptions.createSubscription({
+        key: `active-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+
+      // Test filtering for archived
+      const archivedSubs = await subscrio.subscriptions.listSubscriptions({
+        customerKey: customer.key,
+        isArchived: true
+      });
+      expect(archivedSubs.length).toBeGreaterThan(0);
+      expect(archivedSubs.some(s => s.key === archivedSub.key)).toBe(true);
+      expect(archivedSubs.every(s => s.key !== activeSub.key)).toBe(true);
+
+      // Test filtering for non-archived
+      const activeSubs = await subscrio.subscriptions.listSubscriptions({
+        customerKey: customer.key,
+        isArchived: false
+      });
+      expect(activeSubs.some(s => s.key === activeSub.key)).toBe(true);
+      expect(activeSubs.every(s => s.key !== archivedSub.key)).toBe(true);
+    });
+
+    test('filters subscriptions by isArchived in findSubscriptions', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: `archive-find-customer-${Date.now()}`,
+        displayName: 'Archive Find Customer'
+      });
+
+      const product = await subscrio.products.createProduct({
+        key: `archive-find-product-${Date.now()}`,
+        displayName: 'Archive Find Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: `archive-find-plan-${Date.now()}`,
+        displayName: 'Archive Find Plan'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Create archived subscription
+      const archivedSub = await subscrio.subscriptions.createSubscription({
+        key: `archived-find-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+      await subscrio.subscriptions.archiveSubscription(archivedSub.key);
+
+      // Create non-archived subscription
+      const activeSub = await subscrio.subscriptions.createSubscription({
+        key: `active-find-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+
+      // Test filtering for archived
+      const archivedSubs = await subscrio.subscriptions.findSubscriptions({
+        customerKey: customer.key,
+        isArchived: true
+      });
+      expect(archivedSubs.length).toBeGreaterThan(0);
+      expect(archivedSubs.some(s => s.key === archivedSub.key)).toBe(true);
+      expect(archivedSubs.every(s => s.key !== activeSub.key)).toBe(true);
+
+      // Test filtering for non-archived
+      const activeSubs = await subscrio.subscriptions.findSubscriptions({
+        customerKey: customer.key,
+        isArchived: false
+      });
+      expect(activeSubs.some(s => s.key === activeSub.key)).toBe(true);
+      expect(activeSubs.every(s => s.key !== archivedSub.key)).toBe(true);
+    });
+
+    test('returns customer property in listSubscriptions results', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: `customer-prop-customer-${Date.now()}`,
+        displayName: 'Customer Prop Test',
+        email: 'test@example.com'
+      });
+
+      const product = await subscrio.products.createProduct({
+        key: `customer-prop-product-${Date.now()}`,
+        displayName: 'Customer Prop Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: `customer-prop-plan-${Date.now()}`,
+        displayName: 'Customer Prop Plan'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const subscription = await subscrio.subscriptions.createSubscription({
+        key: `customer-prop-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+
+      const subscriptions = await subscrio.subscriptions.listSubscriptions({
+        customerKey: customer.key
+      });
+
+      const foundSub = subscriptions.find(s => s.key === subscription.key);
+      expect(foundSub).toBeDefined();
+      expect(foundSub?.customer).toBeDefined();
+      expect(foundSub?.customer?.key).toBe(customer.key);
+      expect(foundSub?.customer?.displayName).toBe(customer.displayName);
+      expect(foundSub?.customer?.email).toBe(customer.email);
+      expect(foundSub?.customer?.status).toBe(customer.status);
+    });
+
+    test('returns customer property in findSubscriptions results', async () => {
+      const customer = await subscrio.customers.createCustomer({
+        key: `customer-find-customer-${Date.now()}`,
+        displayName: 'Customer Find Test',
+        email: 'find@example.com'
+      });
+
+      const product = await subscrio.products.createProduct({
+        key: `customer-find-product-${Date.now()}`,
+        displayName: 'Customer Find Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: product.key,
+        key: `customer-find-plan-${Date.now()}`,
+        displayName: 'Customer Find Plan'
+      });
+
+      const billingCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan.key,
+        key: `test-monthly-${Date.now()}`,
+        displayName: 'Test Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const subscription = await subscrio.subscriptions.createSubscription({
+        key: `customer-find-sub-${Date.now()}`,
+        customerKey: customer.key,
+        billingCycleKey: billingCycle.key
+      });
+
+      const subscriptions = await subscrio.subscriptions.findSubscriptions({
+        customerKey: customer.key
+      });
+
+      const foundSub = subscriptions.find(s => s.key === subscription.key);
+      expect(foundSub).toBeDefined();
+      expect(foundSub?.customer).toBeDefined();
+      expect(foundSub?.customer?.key).toBe(customer.key);
+      expect(foundSub?.customer?.displayName).toBe(customer.displayName);
+      expect(foundSub?.customer?.email).toBe(customer.email);
+      expect(foundSub?.customer?.status).toBe(customer.status);
+    });
   });
 
   describe('Feature Override Management', () => {

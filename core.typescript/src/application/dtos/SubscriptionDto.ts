@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CustomerDto } from './CustomerDto.js';
 
 // Helper to transform empty strings to undefined for optional date fields
 const optionalDateField = () =>
@@ -65,6 +66,7 @@ export interface SubscriptionDto {
   currentPeriodEnd?: string | null;
   stripeSubscriptionId?: string | null;
   metadata?: Record<string, unknown> | null;
+  customer?: CustomerDto | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +76,7 @@ export const SubscriptionFilterDtoSchema = z.object({
   productKey: z.string().optional(),
   planKey: z.string().optional(),
   status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired']).optional(),
+  isArchived: z.boolean().optional(),
   sortBy: z.enum(['activationDate', 'expirationDate', 'createdAt', 'updatedAt', 'currentPeriodStart', 'currentPeriodEnd']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
@@ -89,6 +92,7 @@ export const DetailedSubscriptionFilterDtoSchema = z.object({
   planKey: z.string().optional(),
   billingCycleKey: z.string().optional(),
   status: z.enum(['pending', 'active', 'trial', 'cancelled', 'cancellation_pending', 'expired']).optional(),
+  isArchived: z.boolean().optional(),
   
   // Date range filters
   activationDateFrom: z.date().optional(),

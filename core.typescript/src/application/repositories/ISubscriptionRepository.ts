@@ -1,4 +1,5 @@
 import { Subscription } from '../../domain/entities/Subscription.js';
+import { Customer } from '../../domain/entities/Customer.js';
 import { SubscriptionFilterDto } from '../dtos/SubscriptionDto.js';
 
 export interface ISubscriptionRepository {
@@ -7,7 +8,7 @@ export interface ISubscriptionRepository {
   findByKey(key: string): Promise<Subscription | null>;
   findByCustomerId(customerId: number, filters?: SubscriptionFilterDto): Promise<Subscription[]>;
   findByStripeId(stripeSubscriptionId: string): Promise<Subscription | null>;
-  findAll(filters?: SubscriptionFilterDto): Promise<Subscription[]>;
+  findAll(filters?: SubscriptionFilterDto): Promise<Array<{ subscription: Subscription; customer: Customer | null }>>;
   findByIds(ids: number[]): Promise<Subscription[]>;
   delete(id: number): Promise<void>;
   exists(id: number): Promise<boolean>;

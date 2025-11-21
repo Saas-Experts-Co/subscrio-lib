@@ -1,8 +1,10 @@
 import { ISubscriptionRepository } from '../../application/repositories/ISubscriptionRepository.js';
 import { Subscription, FeatureOverride } from '../../domain/entities/Subscription.js';
+import { Customer } from '../../domain/entities/Customer.js';
 import { SubscriptionMapper } from '../../application/mappers/SubscriptionMapper.js';
+import { CustomerMapper } from '../../application/mappers/CustomerMapper.js';
 import { DrizzleDb } from '../database/drizzle.js';
-import { subscriptions, subscription_feature_overrides, subscriptionStatusView, plans } from '../database/schema.js';
+import { subscriptions, subscription_feature_overrides, subscriptionStatusView, plans, customers } from '../database/schema.js';
 import { eq, and, desc, asc, inArray, gte, lte, isNotNull, isNull } from 'drizzle-orm';
 import { SubscriptionFilterDto } from '../../application/dtos/SubscriptionDto.js';
 import { OverrideType } from '../../domain/value-objects/OverrideType.js';
@@ -161,9 +163,42 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
     return SubscriptionMapper.toDomain(record, featureOverrides);
   }
 
-  async findAll(filters?: SubscriptionFilterDto): Promise<Subscription[]> {
-    // Build SQL query with proper WHERE clauses for IDs
-    let query = this.db.select().from(subscriptionStatusView);
+  async findAll(filters?: SubscriptionFilterDto): Promise<Array<{ subscription: Subscription; customer: Customer | null }>> {
+    // Build SQL query with proper WHERE clauses for IDs and join with customers
+    let query = this.db
+      .select({
+        // Subscription fields from view
+        id: subscriptionStatusView.id,
+        key: subscriptionStatusView.key,
+        customer_id: subscriptionStatusView.customer_id,
+        plan_id: subscriptionStatusView.plan_id,
+        billing_cycle_id: subscriptionStatusView.billing_cycle_id,
+        activation_date: subscriptionStatusView.activation_date,
+        expiration_date: subscriptionStatusView.expiration_date,
+        cancellation_date: subscriptionStatusView.cancellation_date,
+        trial_end_date: subscriptionStatusView.trial_end_date,
+        current_period_start: subscriptionStatusView.current_period_start,
+        current_period_end: subscriptionStatusView.current_period_end,
+        stripe_subscription_id: subscriptionStatusView.stripe_subscription_id,
+        metadata: subscriptionStatusView.metadata,
+        created_at: subscriptionStatusView.created_at,
+        updated_at: subscriptionStatusView.updated_at,
+        is_archived: subscriptionStatusView.is_archived,
+        transitioned_at: subscriptionStatusView.transitioned_at,
+        computed_status: subscriptionStatusView.computed_status,
+        // Customer fields
+        customer_id_field: customers.id,
+        customer_key: customers.key,
+        customer_display_name: customers.display_name,
+        customer_email: customers.email,
+        customer_external_billing_id: customers.external_billing_id,
+        customer_status: customers.status,
+        customer_metadata: customers.metadata,
+        customer_created_at: customers.created_at,
+        customer_updated_at: customers.updated_at
+      })
+      .from(subscriptionStatusView)
+      .innerJoin(customers, eq(subscriptionStatusView.customer_id, customers.id));
 
     if (filters) {
       const conditions = [];
@@ -183,6 +218,11 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
       // Filter by billing cycle ID (resolved from billingCycleKey in service layer)
       if ((filters as any).billingCycleId) {
         conditions.push(eq(subscriptionStatusView.billing_cycle_id, (filters as any).billingCycleId));
+      }
+
+      // Filter by is_archived
+      if (filters.isArchived !== undefined) {
+        conditions.push(eq(subscriptionStatusView.is_archived, filters.isArchived));
       }
 
       // Filter by date ranges (can be done in SQL)
@@ -272,12 +312,53 @@ export class DrizzleSubscriptionRepository implements ISubscriptionRepository {
 
     const records = await query;
     
-    const subscriptionsWithOverrides = [];
+    const results: Array<{ subscription: Subscription; customer: Customer | null }> = [];
     for (const record of records) {
       const featureOverrides = await this.loadFeatureOverrides(record.id);
-      subscriptionsWithOverrides.push(SubscriptionMapper.toDomain(record, featureOverrides));
+      
+      // Map subscription from the view record
+      const subscriptionRecord = {
+        id: record.id,
+        key: record.key,
+        customer_id: record.customer_id,
+        plan_id: record.plan_id,
+        billing_cycle_id: record.billing_cycle_id,
+        activation_date: record.activation_date,
+        expiration_date: record.expiration_date,
+        cancellation_date: record.cancellation_date,
+        trial_end_date: record.trial_end_date,
+        current_period_start: record.current_period_start,
+        current_period_end: record.current_period_end,
+        stripe_subscription_id: record.stripe_subscription_id,
+        metadata: record.metadata,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+        is_archived: record.is_archived,
+        transitioned_at: record.transitioned_at,
+        computed_status: record.computed_status
+      };
+      const subscription = SubscriptionMapper.toDomain(subscriptionRecord, featureOverrides);
+      
+      // Map customer
+      let customer: Customer | null = null;
+      if (record.customer_id_field) {
+        const customerRecord = {
+          id: record.customer_id_field,
+          key: record.customer_key,
+          display_name: record.customer_display_name,
+          email: record.customer_email,
+          external_billing_id: record.customer_external_billing_id,
+          status: record.customer_status,
+          metadata: record.customer_metadata,
+          created_at: record.customer_created_at,
+          updated_at: record.customer_updated_at
+        };
+        customer = CustomerMapper.toDomain(customerRecord);
+      }
+      
+      results.push({ subscription, customer });
     }
-    return subscriptionsWithOverrides;
+    return results;
   }
 
   async findByCustomerId(customerId: number, filters?: any): Promise<Subscription[]> {

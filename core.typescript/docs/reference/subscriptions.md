@@ -211,6 +211,7 @@ listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]>
 - Validates filters.
 - Resolves external keys to IDs; returns empty array if lookups fail.
 - Queries the status view so status filters reflect real time.
+- Each result includes the full `customer` object (CustomerDto) populated from the customers table join.
 
 #### Potential Errors
 
@@ -222,7 +223,13 @@ listSubscriptions(filters?: SubscriptionFilterDto): Promise<SubscriptionDto[]>
 ```typescript
 const activeSubs = await subscriptions.listSubscriptions({
   productKey: 'pro-suite',
-  status: 'active'
+  status: 'active',
+  isArchived: false
+});
+
+// Each subscription includes the full customer object
+activeSubs.forEach(sub => {
+  console.log(sub.customer?.displayName);
 });
 ```
 
@@ -248,6 +255,7 @@ findSubscriptions(filters: DetailedSubscriptionFilterDto): Promise<SubscriptionD
 #### Expected Results
 - Validates filters.
 - Executes more complex SQL against the status view and supporting tables.
+- Each result includes the full `customer` object (CustomerDto) populated from the customers table join.
 
 #### Potential Errors
 
@@ -606,6 +614,7 @@ Fields optional: `billingCycleKey`, `expirationDate`, `cancellationDate`, `trial
 | `currentPeriodEnd` | <code>string &#124; null</code> | No | `null` when billing cycle duration is `forever`. |
 | `stripeSubscriptionId` | <code>string &#124; null</code> | No | |
 | `metadata` | <code>Record&lt;string, unknown&gt; &#124; null</code> | No | |
+| `customer` | <code>CustomerDto &#124; null</code> | No | Full customer object populated from join (available in `listSubscriptions` and `findSubscriptions` results). |
 | `createdAt` | `string` | Yes | ISO timestamp. |
 | `updatedAt` | `string` | Yes | ISO timestamp. |
 
@@ -616,6 +625,7 @@ Fields optional: `billingCycleKey`, `expirationDate`, `cancellationDate`, `trial
 | `productKey` | `string` | No | |
 | `planKey` | `string` | No | |
 | `status` | Subscription status string | No | Filters by computed status (post-fetch). |
+| `isArchived` | `boolean` | No | Filters by `is_archived` flag. `true` for archived, `false` for non-archived, `undefined` for all. |
 | `sortBy` | <code>'activationDate' &#124; 'expirationDate' &#124; 'createdAt' &#124; 'updatedAt' &#124; 'currentPeriodStart' &#124; 'currentPeriodEnd'</code> | No | |
 | `sortOrder` | <code>'asc' &#124; 'desc'</code> | No | |
 | `limit` | `number` | No | 1–100 (default 50). |
@@ -624,6 +634,7 @@ Fields optional: `billingCycleKey`, `expirationDate`, `cancellationDate`, `trial
 ### DetailedSubscriptionFilterDto
 Adds:
 - `billingCycleKey`
+- `isArchived` - Filters by `is_archived` flag. `true` for archived, `false` for non-archived, `undefined` for all.
 - Date ranges: `activationDateFrom/To`, `expirationDateFrom/To`, `trialEndDateFrom/To`, `currentPeriodStartFrom/To`, `currentPeriodEndFrom/To`
 - Booleans: `hasStripeId`, `hasTrial`, `hasFeatureOverrides`
 - `featureKey`, `metadataKey`, `metadataValue`

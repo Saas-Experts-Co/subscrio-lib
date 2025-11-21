@@ -373,6 +373,11 @@ export class SubscriptionManagementService {
     if ('hasTrial' in filters && filters.hasTrial !== undefined) {
       resolved.hasTrial = filters.hasTrial;
     }
+    
+    // Pass through isArchived filter
+    if ('isArchived' in filters && filters.isArchived !== undefined) {
+      resolved.isArchived = filters.isArchived;
+    }
 
     return resolved;
   }
@@ -395,24 +400,26 @@ export class SubscriptionManagementService {
       return [];
     }
 
-    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status)
+    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status, isArchived)
     const dbFilters: any = {
       ...resolvedFilters,
       sortBy: filters?.sortBy,
       sortOrder: filters?.sortOrder,
       limit: filters?.limit,
       offset: filters?.offset,
-      status: filters?.status
+      status: filters?.status,
+      isArchived: filters?.isArchived
     };
 
-    // Query repository with IDs - filtering happens in SQL
-    const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
+    // Query repository with IDs - filtering happens in SQL, returns subscription + customer
+    const results = await this.subscriptionRepository.findAll(dbFilters);
 
     // Map to DTOs
     const dtos: SubscriptionDto[] = [];
-    for (const subscription of subscriptions) {
+    for (const { subscription, customer } of results) {
+      // Get keys for plan, product, billing cycle (customer is already available from join)
       const keys = await this.resolveSubscriptionKeys(subscription);
-      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
+      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey, customer));
     }
     return dtos;
   }
@@ -435,33 +442,35 @@ export class SubscriptionManagementService {
       return [];
     }
 
-    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status)
+    // Merge resolved IDs with other filter properties (sortBy, sortOrder, limit, offset, status, isArchived)
     const dbFilters: any = {
       ...resolvedFilters,
       sortBy: filters.sortBy,
       sortOrder: filters.sortOrder,
       limit: filters.limit,
       offset: filters.offset,
-      status: filters.status
+      status: filters.status,
+      isArchived: filters.isArchived
     };
 
-    // Query repository with IDs - filtering happens in SQL
-    const subscriptions = await this.subscriptionRepository.findAll(dbFilters);
+    // Query repository with IDs - filtering happens in SQL, returns subscription + customer
+    const results = await this.subscriptionRepository.findAll(dbFilters);
 
     // Filter by hasFeatureOverrides (unavoidable post-fetch since it requires loading feature overrides)
-    let filteredSubscriptions = subscriptions;
+    let filteredResults = results;
     if (filters.hasFeatureOverrides !== undefined) {
       const hasOverrides = filters.hasFeatureOverrides;
-      filteredSubscriptions = filteredSubscriptions.filter(s => 
-        hasOverrides ? s.props.featureOverrides.length > 0 : s.props.featureOverrides.length === 0
+      filteredResults = filteredResults.filter(({ subscription }) => 
+        hasOverrides ? subscription.props.featureOverrides.length > 0 : subscription.props.featureOverrides.length === 0
       );
     }
 
     // Map to DTOs
     const dtos: SubscriptionDto[] = [];
-    for (const subscription of filteredSubscriptions) {
+    for (const { subscription, customer } of filteredResults) {
+      // Get keys for plan, product, billing cycle (customer is already available from join)
       const keys = await this.resolveSubscriptionKeys(subscription);
-      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey));
+      dtos.push(SubscriptionMapper.toDto(subscription, keys.customerKey, keys.productKey, keys.planKey, keys.billingCycleKey, customer));
     }
     return dtos;
   }
