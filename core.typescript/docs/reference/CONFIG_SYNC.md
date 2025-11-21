@@ -155,7 +155,7 @@ interface PlanConfig {
   key: string;                    // Required, unique within product, immutable
   displayName: string;            // Required
   description?: string;           // Optional
-  onExpireTransitionToBillingCycleKey?: string;  // Optional, must reference billing cycle in same plan
+  onExpireTransitionToBillingCycleKey?: string;  // Optional, must reference billing cycle in any plan within same product
   metadata?: Record<string, unknown>;  // Optional
   archived?: boolean;             // Optional, defaults to false
   featureValues?: Record<string, string>;  // Optional, feature key -> value mapping
@@ -421,7 +421,7 @@ The sync service performs comprehensive validation:
 ### Reference Validation
 - All feature keys referenced in products must exist in features array
 - All feature keys in `plan.featureValues` must be associated with the product
-- `onExpireTransitionToBillingCycleKey` must reference a valid billing cycle in the same plan
+- `onExpireTransitionToBillingCycleKey` must reference a valid billing cycle in any plan within the same product
 
 ### Feature Value Validation
 - Toggle features: values must be `"true"` or `"false"`

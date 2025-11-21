@@ -674,21 +674,25 @@ describe('Config Sync E2E Tests', () => {
 
   describe('syncFromJson - Billing Cycle References', () => {
     test('validates onExpireTransitionToBillingCycleKey references', async () => {
-      const config: ConfigSyncDto = {
+      const productKey1 = uniqueKey('validation-test-product');
+      const productKey2 = uniqueKey('validation-test-product');
+      
+      // Test 1: Should fail when billing cycle doesn't exist in any plan within the product
+      const invalidConfig: ConfigSyncDto = {
         version: '1.0',
         features: [],
         products: [
           {
-            key: 'product',
+            key: productKey1,
             displayName: 'Product',
             plans: [
               {
-                key: 'plan',
+                key: uniqueKey('plan'),
                 displayName: 'Plan',
                 onExpireTransitionToBillingCycleKey: 'non-existent-cycle',  // Invalid reference
                 billingCycles: [
                   {
-                    key: 'monthly',
+                    key: uniqueKey('monthly'),
                     displayName: 'Monthly',
                     durationValue: 1,
                     durationUnit: 'months'
@@ -700,10 +704,480 @@ describe('Config Sync E2E Tests', () => {
         ]
       };
 
-      // Should fail validation because billing cycle key doesn't match
+      // Should fail validation because billing cycle key doesn't exist in any plan within the product
       await expect(
-        subscrio.configSync.syncFromJson(config)
+        subscrio.configSync.syncFromJson(invalidConfig)
       ).rejects.toThrow();
+
+      // Test 2: Should succeed when billing cycle exists in a different plan within the same product
+      const trialPlanKey = uniqueKey('trial-plan');
+      const freePlanKey = uniqueKey('free-plan');
+      const freeForeverCycleKey = uniqueKey('free-forever');
+      
+      const validCrossPlanConfig: ConfigSyncDto = {
+        version: '1.0',
+        features: [],
+        products: [
+          {
+            key: productKey2,
+            displayName: 'Product',
+            plans: [
+              {
+                key: trialPlanKey,
+                displayName: 'Trial Plan',
+                onExpireTransitionToBillingCycleKey: freeForeverCycleKey,  // References billing cycle from different plan
+                billingCycles: [
+                  {
+                    key: uniqueKey('trial-cycle'),
+                    displayName: 'Trial Cycle',
+                    durationValue: 14,
+                    durationUnit: 'days'
+                  }
+                ]
+              },
+              {
+                key: freePlanKey,
+                displayName: 'Free Plan',
+                billingCycles: [
+                  {
+                    key: freeForeverCycleKey,
+                    displayName: 'Free Forever',
+                    durationUnit: 'forever'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      // Should succeed because the referenced billing cycle exists in another plan within the same product
+      const report = await subscrio.configSync.syncFromJson(validCrossPlanConfig);
+      expect(report).toBeDefined();
+      expect(report.errors).toHaveLength(0);
+      
+      // Verify that the trial plan has the onExpireTransitionToBillingCycleKey set to the free-forever cycle
+      // which exists in a DIFFERENT plan (free-plan) within the same product
+      const trialPlan = await subscrio.plans.getPlan(trialPlanKey);
+      expect(trialPlan).toBeDefined();
+      expect(trialPlan?.onExpireTransitionToBillingCycleKey).toBe(freeForeverCycleKey);
+      
+      // Verify that the free-forever billing cycle exists and is associated with the free-plan, not trial-plan
+      const freeForeverCycle = await subscrio.billingCycles.getBillingCycle(freeForeverCycleKey);
+      expect(freeForeverCycle).toBeDefined();
+      expect(freeForeverCycle?.planKey).toBe(freePlanKey); // Should be in free-plan, not trial-plan
+      
+      // Verify that trial-plan has its own billing cycle
+      const trialCycles = await subscrio.billingCycles.getBillingCyclesByPlan(trialPlanKey);
+      expect(trialCycles.length).toBeGreaterThan(0);
+      expect(trialCycles.some(bc => bc.key === freeForeverCycleKey)).toBe(false); // free-forever should NOT be in trial-plan
+      
+      // Verify that free-plan has the free-forever cycle
+      const freePlanCycles = await subscrio.billingCycles.getBillingCyclesByPlan(freePlanKey);
+      expect(freePlanCycles.some(bc => bc.key === freeForeverCycleKey)).toBe(true); // free-forever SHOULD be in free-plan
+    });
+  });
+
+  describe('syncFromJson - onExpireTransitionToBillingCycleKey Updates', () => {
+    /**
+     * Tests that onExpireTransitionToBillingCycleKey is properly set/updated during sync.
+     * 
+     * This test verifies the specific issue where onExpireTransitionToBillingCycleKey
+     * wasn't being set when provided in the config sync.
+     * 
+     * Setup: Create plans with onExpireTransitionToBillingCycleKey set to null,
+     *        and create billing cycles for those plans.
+     * Test: Sync with config that sets onExpireTransitionToBillingCycleKey and verify
+     *       the stored value is correctly updated.
+     */
+    test('sets onExpireTransitionToBillingCycleKey when provided in config', async () => {
+      const productKey = uniqueKey('transition-test-product');
+      const plan1Key = uniqueKey('plan-without-transition');
+      const plan2Key = uniqueKey('plan-with-transition');
+      const cycle1Key = uniqueKey('monthly-cycle');
+      const cycle2Key = uniqueKey('yearly-cycle');
+      const transitionCycleKey = uniqueKey('transition-cycle');
+
+      // Setup: Create product and plans manually
+      await subscrio.products.createProduct({
+        key: productKey,
+        displayName: 'Transition Test Product'
+      });
+
+      // Create plan 1: without onExpireTransitionToBillingCycleKey (null)
+      const plan1 = await subscrio.plans.createPlan({
+        productKey: productKey,
+        key: plan1Key,
+        displayName: 'Plan Without Transition'
+        // onExpireTransitionToBillingCycleKey not set, should be null
+      });
+
+      // Create plan 2: without onExpireTransitionToBillingCycleKey initially
+      const plan2 = await subscrio.plans.createPlan({
+        productKey: productKey,
+        key: plan2Key,
+        displayName: 'Plan With Transition'
+        // onExpireTransitionToBillingCycleKey not set, should be null
+      });
+
+      // Create billing cycles for plan1
+      const cycle1 = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan1Key,
+        key: cycle1Key,
+        displayName: 'Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const cycle2 = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan1Key,
+        key: cycle2Key,
+        displayName: 'Yearly',
+        durationValue: 1,
+        durationUnit: 'years'
+      });
+
+      // Create transition cycle for plan2
+      const transitionCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: plan2Key,
+        key: transitionCycleKey,
+        displayName: 'Transition Cycle',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Verify initial state - onExpireTransitionToBillingCycleKey should be null
+      const plan1Before = await subscrio.plans.getPlan(plan1Key);
+      const plan2Before = await subscrio.plans.getPlan(plan2Key);
+      
+      expect(plan1Before?.onExpireTransitionToBillingCycleKey).toBeNull();
+      expect(plan2Before?.onExpireTransitionToBillingCycleKey).toBeNull();
+
+      // Test: Sync with config that sets onExpireTransitionToBillingCycleKey
+      const config: ConfigSyncDto = {
+        version: '1.0',
+        features: [],
+        products: [
+          {
+            key: productKey,
+            displayName: 'Transition Test Product',
+            plans: [
+              {
+                key: plan1Key,
+                displayName: 'Plan Without Transition',
+                // Set onExpireTransitionToBillingCycleKey to cycle2
+                onExpireTransitionToBillingCycleKey: cycle2Key,
+                billingCycles: [
+                  {
+                    key: cycle1Key,
+                    displayName: 'Monthly',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  },
+                  {
+                    key: cycle2Key,
+                    displayName: 'Yearly',
+                    durationValue: 1,
+                    durationUnit: 'years'
+                  }
+                ]
+              },
+              {
+                key: plan2Key,
+                displayName: 'Plan With Transition',
+                // Set onExpireTransitionToBillingCycleKey to transitionCycle
+                onExpireTransitionToBillingCycleKey: transitionCycleKey,
+                billingCycles: [
+                  {
+                    key: transitionCycleKey,
+                    displayName: 'Transition Cycle',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const report = await subscrio.configSync.syncFromJson(config);
+
+      // Verify no errors
+      expect(report.errors).toHaveLength(0);
+
+      // Verify the onExpireTransitionToBillingCycleKey was set
+      const plan1After = await subscrio.plans.getPlan(plan1Key);
+      const plan2After = await subscrio.plans.getPlan(plan2Key);
+
+      console.log('Plan1 before:', plan1Before?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan1 after:', plan1After?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan2 before:', plan2Before?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan2 after:', plan2After?.onExpireTransitionToBillingCycleKey);
+      console.log('Sync report:', JSON.stringify(report, null, 2));
+
+      // This is the critical assertion - onExpireTransitionToBillingCycleKey should be set
+      expect(plan1After?.onExpireTransitionToBillingCycleKey).toBe(cycle2Key);
+      expect(plan2After?.onExpireTransitionToBillingCycleKey).toBe(transitionCycleKey);
+
+      // Verify plans were updated (not created)
+      expect(report.updated.plans).toBeGreaterThanOrEqual(2);
+    });
+
+    test('preserves onExpireTransitionToBillingCycleKey when not in config', async () => {
+      const productKey = uniqueKey('preserve-test-product');
+      const planKey = uniqueKey('preserve-plan');
+      const cycleKey = uniqueKey('preserve-cycle');
+      const transitionCycleKey = uniqueKey('preserve-transition-cycle');
+
+      // Setup: Create plan with onExpireTransitionToBillingCycleKey already set
+      await subscrio.products.createProduct({
+        key: productKey,
+        displayName: 'Preserve Test Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: productKey,
+        key: planKey,
+        displayName: 'Preserve Plan'
+      });
+
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: planKey,
+        key: cycleKey,
+        displayName: 'Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const transitionCycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: planKey,
+        key: transitionCycleKey,
+        displayName: 'Transition',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Set onExpireTransitionToBillingCycleKey initially
+      await subscrio.plans.updatePlan(planKey, {
+        onExpireTransitionToBillingCycleKey: transitionCycleKey
+      });
+
+      // Verify it's set
+      const planBefore = await subscrio.plans.getPlan(planKey);
+      expect(planBefore?.onExpireTransitionToBillingCycleKey).toBe(transitionCycleKey);
+
+      // Test: Sync with config that does NOT include onExpireTransitionToBillingCycleKey
+      const config: ConfigSyncDto = {
+        version: '1.0',
+        features: [],
+        products: [
+          {
+            key: productKey,
+            displayName: 'Preserve Test Product',
+            plans: [
+              {
+                key: planKey,
+                displayName: 'Preserve Plan Updated',
+                // onExpireTransitionToBillingCycleKey NOT included in config
+                billingCycles: [
+                  {
+                    key: cycleKey,
+                    displayName: 'Monthly',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  },
+                  {
+                    key: transitionCycleKey,
+                    displayName: 'Transition',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const report = await subscrio.configSync.syncFromJson(config);
+
+      // Verify the onExpireTransitionToBillingCycleKey is preserved
+      const planAfter = await subscrio.plans.getPlan(planKey);
+
+      console.log('Plan before:', planBefore?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan after:', planAfter?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan displayName before:', planBefore?.displayName);
+      console.log('Plan displayName after:', planAfter?.displayName);
+
+      // Should be preserved since it's not in config
+      expect(planAfter?.onExpireTransitionToBillingCycleKey).toBe(transitionCycleKey);
+      // But displayName should be updated
+      expect(planAfter?.displayName).toBe('Preserve Plan Updated');
+    });
+
+    test('does not clear onExpireTransitionToBillingCycleKey when field is undefined in config', async () => {
+      const productKey = uniqueKey('clear-test-product');
+      const planKey = uniqueKey('clear-plan');
+      const cycleKey = uniqueKey('clear-cycle');
+
+      // Setup: Create plan with onExpireTransitionToBillingCycleKey set
+      await subscrio.products.createProduct({
+        key: productKey,
+        displayName: 'Clear Test Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: productKey,
+        key: planKey,
+        displayName: 'Clear Plan'
+      });
+
+      const cycle = await subscrio.billingCycles.createBillingCycle({
+        planKey: planKey,
+        key: cycleKey,
+        displayName: 'Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      // Set onExpireTransitionToBillingCycleKey initially
+      await subscrio.plans.updatePlan(planKey, {
+        onExpireTransitionToBillingCycleKey: cycleKey
+      });
+
+      // Verify it's set
+      const planBefore = await subscrio.plans.getPlan(planKey);
+      expect(planBefore?.onExpireTransitionToBillingCycleKey).toBe(cycleKey);
+
+      // Test: Sync with config that explicitly omits onExpireTransitionToBillingCycleKey
+      // (by not including it in the plan config)
+      const config: ConfigSyncDto = {
+        version: '1.0',
+        features: [],
+        products: [
+          {
+            key: productKey,
+            displayName: 'Clear Test Product',
+            plans: [
+              {
+                key: planKey,
+                displayName: 'Clear Plan',
+                // onExpireTransitionToBillingCycleKey is undefined (not in config)
+                // This should NOT clear the existing value
+                billingCycles: [
+                  {
+                    key: cycleKey,
+                    displayName: 'Monthly',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const report = await subscrio.configSync.syncFromJson(config);
+
+      const planAfter = await subscrio.plans.getPlan(planKey);
+
+      console.log('Plan before:', planBefore?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan after:', planAfter?.onExpireTransitionToBillingCycleKey);
+
+      // When field is not in config, it should be preserved (not cleared)
+      // This tests that undefined in config doesn't clear existing values
+      expect(planAfter?.onExpireTransitionToBillingCycleKey).toBe(cycleKey);
+    });
+
+    test('updates onExpireTransitionToBillingCycleKey from one value to another', async () => {
+      const productKey = uniqueKey('update-test-product');
+      const planKey = uniqueKey('update-plan');
+      const cycle1Key = uniqueKey('cycle-1');
+      const cycle2Key = uniqueKey('cycle-2');
+
+      // Setup: Create plan with onExpireTransitionToBillingCycleKey set to cycle1
+      await subscrio.products.createProduct({
+        key: productKey,
+        displayName: 'Update Test Product'
+      });
+
+      const plan = await subscrio.plans.createPlan({
+        productKey: productKey,
+        key: planKey,
+        displayName: 'Update Plan'
+      });
+
+      const cycle1 = await subscrio.billingCycles.createBillingCycle({
+        planKey: planKey,
+        key: cycle1Key,
+        displayName: 'Monthly',
+        durationValue: 1,
+        durationUnit: 'months'
+      });
+
+      const cycle2 = await subscrio.billingCycles.createBillingCycle({
+        planKey: planKey,
+        key: cycle2Key,
+        displayName: 'Yearly',
+        durationValue: 1,
+        durationUnit: 'years'
+      });
+
+      // Set onExpireTransitionToBillingCycleKey initially to cycle1
+      await subscrio.plans.updatePlan(planKey, {
+        onExpireTransitionToBillingCycleKey: cycle1Key
+      });
+
+      // Verify it's set to cycle1
+      const planBefore = await subscrio.plans.getPlan(planKey);
+      expect(planBefore?.onExpireTransitionToBillingCycleKey).toBe(cycle1Key);
+
+      // Test: Sync with config that changes onExpireTransitionToBillingCycleKey to cycle2
+      const config: ConfigSyncDto = {
+        version: '1.0',
+        features: [],
+        products: [
+          {
+            key: productKey,
+            displayName: 'Update Test Product',
+            plans: [
+              {
+                key: planKey,
+                displayName: 'Update Plan',
+                onExpireTransitionToBillingCycleKey: cycle2Key, // Change to cycle2
+                billingCycles: [
+                  {
+                    key: cycle1Key,
+                    displayName: 'Monthly',
+                    durationValue: 1,
+                    durationUnit: 'months'
+                  },
+                  {
+                    key: cycle2Key,
+                    displayName: 'Yearly',
+                    durationValue: 1,
+                    durationUnit: 'years'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const report = await subscrio.configSync.syncFromJson(config);
+
+      const planAfter = await subscrio.plans.getPlan(planKey);
+
+      console.log('Plan before:', planBefore?.onExpireTransitionToBillingCycleKey);
+      console.log('Plan after:', planAfter?.onExpireTransitionToBillingCycleKey);
+      console.log('Sync report updated plans:', report.updated.plans);
+
+      // Should be updated to cycle2
+      expect(planAfter?.onExpireTransitionToBillingCycleKey).toBe(cycle2Key);
+      expect(report.updated.plans).toBeGreaterThanOrEqual(1);
     });
   });
 });

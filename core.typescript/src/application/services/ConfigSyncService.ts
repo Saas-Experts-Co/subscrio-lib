@@ -401,6 +401,9 @@ export class ConfigSyncService {
     }
 
     // Phase 5: Sync Plans (Dependent on Products)
+    // Track plans that need onExpireTransitionToBillingCycleKey set after billing cycles are created
+    const plansPendingTransitionKey: Array<{ planKey: string; transitionKey: string }> = [];
+    
     for (const productConfig of validatedConfig.products) {
       if (!productConfig.plans) continue;
 
@@ -409,6 +412,21 @@ export class ConfigSyncService {
           // Plan keys are globally unique, so lookup by key only
           const existing = plansByKey.get(planConfig.key);
           
+          // Check if billing cycle exists in database or will be created in this config
+          const transitionBillingCycleKey = planConfig.onExpireTransitionToBillingCycleKey;
+          const transitionBillingCycleExistsInDb = transitionBillingCycleKey
+            ? billingCyclesByKey.has(transitionBillingCycleKey)
+            : false;
+          
+          // Check if billing cycle exists in config (will be created in this sync)
+          const transitionBillingCycleExistsInConfig = transitionBillingCycleKey
+            ? validatedConfig.products.some(p => 
+                p.plans?.some(plan => 
+                  plan.billingCycles?.some(bc => bc.key === transitionBillingCycleKey)
+                )
+              )
+            : false;
+          
           if (!existing) {
             // Create new plan
             const createDto: CreatePlanDto = {
@@ -416,12 +434,25 @@ export class ConfigSyncService {
               key: planConfig.key,
               displayName: planConfig.displayName,
               description: planConfig.description,
-              onExpireTransitionToBillingCycleKey: planConfig.onExpireTransitionToBillingCycleKey,
               metadata: planConfig.metadata
             };
             
+            // Only set onExpireTransitionToBillingCycleKey if billing cycle already exists in database
+            // If it only exists in config, we'll set it after billing cycles are created
+            if (transitionBillingCycleExistsInDb && planConfig.onExpireTransitionToBillingCycleKey) {
+              createDto.onExpireTransitionToBillingCycleKey = planConfig.onExpireTransitionToBillingCycleKey;
+            }
+            
             await this.subscrio.plans.createPlan(createDto);
             report.created.plans++;
+            
+            // If billing cycle doesn't exist in DB yet but exists in config, defer setting the transition key
+            if (planConfig.onExpireTransitionToBillingCycleKey && !transitionBillingCycleExistsInDb && transitionBillingCycleExistsInConfig) {
+              plansPendingTransitionKey.push({
+                planKey: planConfig.key,
+                transitionKey: planConfig.onExpireTransitionToBillingCycleKey
+              });
+            }
             
             // Archive if needed
             if (planConfig.archived === true) {
@@ -433,15 +464,46 @@ export class ConfigSyncService {
             const needsUpdate = hasPlanChanges(planConfig, existing);
             
             if (needsUpdate) {
-              const updateDto: UpdatePlanDto = {
-                displayName: planConfig.displayName,
-                description: planConfig.description,
-                onExpireTransitionToBillingCycleKey: planConfig.onExpireTransitionToBillingCycleKey,
-                metadata: planConfig.metadata
-              };
+              const updateDto: UpdatePlanDto = {};
               
-              await this.subscrio.plans.updatePlan(planConfig.key, updateDto);
-              report.updated.plans++;
+              // Only include fields that are explicitly provided in config
+              if (planConfig.displayName !== undefined) {
+                updateDto.displayName = planConfig.displayName;
+              }
+              if (planConfig.description !== undefined) {
+                updateDto.description = planConfig.description;
+              }
+              // Only set onExpireTransitionToBillingCycleKey if billing cycle exists in database
+              // If it only exists in config, defer until after billing cycles are created
+              if (planConfig.onExpireTransitionToBillingCycleKey !== undefined) {
+                if (transitionBillingCycleExistsInDb) {
+                  updateDto.onExpireTransitionToBillingCycleKey = planConfig.onExpireTransitionToBillingCycleKey;
+                } else if (transitionBillingCycleExistsInConfig) {
+                  // Defer setting the transition key until billing cycle is created
+                  plansPendingTransitionKey.push({
+                    planKey: planConfig.key,
+                    transitionKey: planConfig.onExpireTransitionToBillingCycleKey
+                  });
+                }
+              }
+              if (planConfig.metadata !== undefined) {
+                updateDto.metadata = planConfig.metadata;
+              }
+              
+              // Only update if there are fields to update
+              if (Object.keys(updateDto).length > 0) {
+                await this.subscrio.plans.updatePlan(planConfig.key, updateDto);
+                report.updated.plans++;
+              }
+            } else if (planConfig.onExpireTransitionToBillingCycleKey !== undefined && !transitionBillingCycleExistsInDb && transitionBillingCycleExistsInConfig) {
+              // Even if no other changes, we may need to defer setting the transition key
+              const currentTransitionKey = existing.onExpireTransitionToBillingCycleKey;
+              if (currentTransitionKey !== planConfig.onExpireTransitionToBillingCycleKey) {
+                plansPendingTransitionKey.push({
+                  planKey: planConfig.key,
+                  transitionKey: planConfig.onExpireTransitionToBillingCycleKey
+                });
+              }
             }
             
             // Handle archive status
@@ -573,6 +635,32 @@ export class ConfigSyncService {
             });
           }
         }
+      }
+    }
+
+    // Phase 7: Set deferred onExpireTransitionToBillingCycleKey values
+    // Now that all billing cycles are created, update plans that were waiting for their transition keys
+    for (const { planKey, transitionKey } of plansPendingTransitionKey) {
+      try {
+        // Verify billing cycle now exists
+        const billingCycle = await this.subscrio.billingCycles.getBillingCycle(transitionKey);
+        if (billingCycle) {
+          await this.subscrio.plans.updatePlan(planKey, {
+            onExpireTransitionToBillingCycleKey: transitionKey
+          });
+        } else {
+          report.errors.push({
+            entityType: 'plan',
+            key: planKey,
+            message: `Billing cycle key '${transitionKey}' referenced in onExpireTransitionToBillingCycleKey does not exist`
+          });
+        }
+      } catch (error) {
+        report.errors.push({
+          entityType: 'plan',
+          key: planKey,
+          message: `Failed to set onExpireTransitionToBillingCycleKey: ${error instanceof Error ? error.message : String(error)}`
+        });
       }
     }
 

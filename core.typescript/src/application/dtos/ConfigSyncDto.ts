@@ -257,6 +257,16 @@ export const ConfigSyncDtoSchema = z.object({
     
     // Validate plan feature values and references
     if (product.plans) {
+      // Collect all billing cycle keys from all plans in this product for cross-plan validation
+      const allProductBillingCycleKeys = new Set<string>();
+      for (const plan of product.plans) {
+        if (plan.billingCycles) {
+          for (const billingCycle of plan.billingCycles) {
+            allProductBillingCycleKeys.add(billingCycle.key);
+          }
+        }
+      }
+      
       for (const plan of product.plans) {
         // Validate feature keys in plan.featureValues exist in product.features
         if (plan.featureValues) {
@@ -297,13 +307,12 @@ export const ConfigSyncDtoSchema = z.object({
           }
         }
         
-        // Validate onExpireTransitionToBillingCycleKey references valid billing cycle in same plan
+        // Validate onExpireTransitionToBillingCycleKey references valid billing cycle in same product
         if (plan.onExpireTransitionToBillingCycleKey) {
-          const billingCycleKeys = new Set((plan.billingCycles || []).map(bc => bc.key));
-          if (!billingCycleKeys.has(plan.onExpireTransitionToBillingCycleKey)) {
+          if (!allProductBillingCycleKeys.has(plan.onExpireTransitionToBillingCycleKey)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
-              message: `Billing cycle key '${plan.onExpireTransitionToBillingCycleKey}' referenced in plan '${plan.key}' does not exist in plan's billingCycles`,
+              message: `Billing cycle key '${plan.onExpireTransitionToBillingCycleKey}' referenced in plan '${plan.key}' does not exist in any plan's billingCycles within product '${product.key}'`,
               path: ['products']
             });
           }
