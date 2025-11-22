@@ -58,6 +58,7 @@ export interface SubscriptionDto {
   planKey: string;
   billingCycleKey: string;
   status: string;
+  isArchived: boolean;
   activationDate?: string | null;
   expirationDate?: string | null;
   cancellationDate?: string | null;

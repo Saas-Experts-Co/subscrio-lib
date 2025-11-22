@@ -20,6 +20,7 @@ export class SubscriptionMapper {
       planKey,
       billingCycleKey,
       status: subscription.status,
+      isArchived: subscription.isArchived,
       activationDate: subscription.props.activationDate?.toISOString() ?? null,
       expirationDate: subscription.props.expirationDate?.toISOString() ?? null,
       cancellationDate: subscription.props.cancellationDate?.toISOString() ?? null,

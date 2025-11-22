@@ -606,6 +606,7 @@ Fields optional: `billingCycleKey`, `expirationDate`, `cancellationDate`, `trial
 | `planKey` | `string` | Yes | Derived from billing cycle. |
 | `billingCycleKey` | `string` | Yes | |
 | `status` | `string` | Yes | `'pending'`, `'active'`, `'trial'`, `'cancelled'`, `'cancellation_pending'`, or `'expired'`. |
+| `isArchived` | `boolean` | Yes | Archive flag - `true` for archived subscriptions (e.g., after transition), `false` for active subscriptions. |
 | `activationDate` | <code>string &#124; null</code> | No | |
 | `expirationDate` | <code>string &#124; null</code> | No | |
 | `cancellationDate` | <code>string &#124; null</code> | No | |
