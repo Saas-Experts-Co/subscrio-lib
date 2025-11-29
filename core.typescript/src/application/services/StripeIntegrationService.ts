@@ -8,7 +8,7 @@ import { Plan } from '../../domain/entities/Plan.js';
 import { Customer } from '../../domain/entities/Customer.js';
 import { generateKey } from '../../infrastructure/utils/uuid.js';
 import Stripe from 'stripe';
-import { NotFoundError, ValidationError } from '../errors/index.js';
+import { NotFoundError, ValidationError, ConfigurationError, ConflictError } from '../errors/index.js';
 import { SubscriptionStatus } from '../../domain/value-objects/SubscriptionStatus.js';
 import { now } from '../../infrastructure/utils/date.js';
 
@@ -20,7 +20,8 @@ export class StripeIntegrationService {
     private readonly subscriptionRepository: ISubscriptionRepository,
     private readonly customerRepository: ICustomerRepository,
     private readonly planRepository: IPlanRepository,
-    private readonly billingCycleRepository: IBillingCycleRepository
+    private readonly billingCycleRepository: IBillingCycleRepository,
+    private readonly config?: { stripe?: { secretKey?: string } }
   ) {}
 
   /**
@@ -83,13 +84,28 @@ export class StripeIntegrationService {
 
     const { billingCycle, plan } = await this.resolvePlanFromSubscription(stripeSubscription);
 
-    const existing = await this.subscriptionRepository.findByStripeId(stripeSubscription.id);
-    if (existing) {
-      this.applyStripeSubscriptionFields(existing, customer.id!, plan.id!, billingCycle.id!, stripeSubscription);
-      await this.subscriptionRepository.save(existing);
+    // First check if subscription already linked by Stripe ID
+    const existingByStripeId = await this.subscriptionRepository.findByStripeId(stripeSubscription.id);
+    if (existingByStripeId) {
+      this.applyStripeSubscriptionFields(existingByStripeId, customer.id!, plan.id!, billingCycle.id!, stripeSubscription);
+      await this.subscriptionRepository.save(existingByStripeId);
       return;
     }
 
+    // Check metadata for existing subscription to link
+    const existingByMetadata = await this.findSubscriptionByMetadata(
+      stripeSubscription.metadata,
+      customer.id!
+    );
+
+    if (existingByMetadata) {
+      // Link existing subscription to Stripe
+      this.applyStripeSubscriptionFields(existingByMetadata, customer.id!, plan.id!, billingCycle.id!, stripeSubscription);
+      await this.subscriptionRepository.save(existingByMetadata);
+      return;
+    }
+
+    // No existing subscription found, create new one
     const subscriptionKey =
       this.getMetadataValue(stripeSubscription.metadata, SUBSCRIO_SUBSCRIPTION_KEY_METADATA_KEYS) ??
       generateKey('sub');
@@ -412,5 +428,212 @@ export class StripeIntegrationService {
 
     existing.setExternalBillingId(undefined);
     await this.customerRepository.save(existing);
+  }
+
+  /**
+   * Find subscription by metadata (subscription key)
+   * Verifies the subscription belongs to the specified customer
+   */
+  private async findSubscriptionByMetadata(
+    metadata: Stripe.Metadata | null | undefined,
+    customerId: number
+  ): Promise<Subscription | null> {
+    // Look up by subscription key (external ID)
+    const subscriptionKey = this.getMetadataValue(
+      metadata,
+      SUBSCRIO_SUBSCRIPTION_KEY_METADATA_KEYS
+    );
+
+    if (subscriptionKey) {
+      const subscription = await this.subscriptionRepository.findByKey(subscriptionKey);
+      // Verify it belongs to the customer
+      if (subscription && subscription.props.customerId === customerId) {
+        return subscription;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get Stripe client instance
+   * Uses provided secret key or falls back to config
+   */
+  private getStripeClient(secretKey?: string): Stripe {
+    const key = secretKey || this.config?.stripe?.secretKey;
+    if (!key) {
+      throw new ConfigurationError(
+        'Stripe secret key is required. Provide it in config.stripe.secretKey or pass stripeSecretKey parameter.'
+      );
+    }
+    return new Stripe(key, {
+      apiVersion: '2023-10-16'
+    });
+  }
+
+  /**
+   * Create a Stripe Checkout Session URL for subscription purchase
+   * 
+   * This helper method:
+   * - Ensures the customer exists in Stripe (creates if needed)
+   * - Sets proper metadata for webhook linking
+   * - Supports linking to existing Subscrio subscriptions
+   * - Provides full access to Stripe Checkout options
+   */
+  async createCheckoutSession(params: {
+    customerKey: string;
+    billingCycleKey: string;
+    subscriptionKey?: string;  // Optional: existing subscription key to update
+    stripeSecretKey?: string;  // Optional: override config Stripe key
+    successUrl: string;
+    cancelUrl: string;
+    // Convenience options
+    quantity?: number;
+    customerEmail?: string;
+    customerName?: string;
+    allowPromotionCodes?: boolean;
+    billingAddressCollection?: 'auto' | 'required';
+    paymentMethodTypes?: Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+    trialPeriodDays?: number;
+    metadata?: Record<string, string>;  // Additional custom metadata
+    // Full Stripe API access
+    stripeOptions?: Partial<Stripe.Checkout.SessionCreateParams>;
+  }): Promise<{ url: string; sessionId: string }> {
+    // Get Stripe client
+    const stripe = this.getStripeClient(params.stripeSecretKey);
+
+    // Find customer
+    const customer = await this.customerRepository.findByKey(params.customerKey);
+    if (!customer) {
+      throw new NotFoundError(`Customer with key '${params.customerKey}' not found`);
+    }
+
+    // Find billing cycle
+    const billingCycle = await this.billingCycleRepository.findByKey(params.billingCycleKey);
+    if (!billingCycle) {
+      throw new NotFoundError(`Billing cycle with key '${params.billingCycleKey}' not found`);
+    }
+
+    // Validate billing cycle has Stripe price ID
+    if (!billingCycle.props.externalProductId) {
+      throw new ValidationError(
+        `Billing cycle '${params.billingCycleKey}' does not have externalProductId set. ` +
+        `Set it to a Stripe price ID to enable checkout.`
+      );
+    }
+
+    // If subscription key provided, verify it exists and belongs to customer
+    if (params.subscriptionKey) {
+      const existingSubscription = await this.subscriptionRepository.findByKey(params.subscriptionKey);
+      if (!existingSubscription) {
+        throw new NotFoundError(`Subscription with key '${params.subscriptionKey}' not found`);
+      }
+      if (existingSubscription.props.customerId !== customer.id!) {
+        throw new ConflictError(
+          `Subscription '${params.subscriptionKey}' does not belong to customer '${params.customerKey}'`
+        );
+      }
+    }
+
+    // Ensure Stripe customer exists
+    let stripeCustomerId = customer.externalBillingId;
+    if (!stripeCustomerId) {
+      // Create Stripe customer
+      const stripeCustomer = await stripe.customers.create({
+        email: params.customerEmail,
+        name: params.customerName,
+        metadata: {
+          subscrioCustomerKey: customer.key
+        }
+      });
+      stripeCustomerId = stripeCustomer.id;
+
+      // Update customer with Stripe ID
+      customer.setExternalBillingId(stripeCustomerId);
+      await this.customerRepository.save(customer);
+    } else {
+      // Update existing Stripe customer metadata if needed
+      try {
+        await stripe.customers.update(stripeCustomerId, {
+          email: params.customerEmail,
+          name: params.customerName,
+          metadata: {
+            subscrioCustomerKey: customer.key
+          }
+        });
+      } catch (error) {
+        // If customer doesn't exist in Stripe, create it
+        if (error instanceof Stripe.errors.StripeError && error.code === 'resource_missing') {
+          const stripeCustomer = await stripe.customers.create({
+            email: params.customerEmail,
+            name: params.customerName,
+            metadata: {
+              subscrioCustomerKey: customer.key
+            }
+          });
+          stripeCustomerId = stripeCustomer.id;
+          customer.setExternalBillingId(stripeCustomerId);
+          await this.customerRepository.save(customer);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Build metadata for checkout session
+    const sessionMetadata: Record<string, string> = {
+      subscrioCustomerKey: customer.key,
+      ...(params.subscriptionKey && {
+        subscrioSubscriptionKey: params.subscriptionKey
+      }),
+      ...params.metadata
+    };
+
+    // Build line items
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
+      price: billingCycle.props.externalProductId,
+      quantity: params.quantity ?? 1
+    }];
+
+    // Build subscription data metadata (this goes on the subscription, not the session)
+    const subscriptionMetadata: Record<string, string> = {
+      subscrioCustomerKey: customer.key,
+      ...(params.subscriptionKey && {
+        subscrioSubscriptionKey: params.subscriptionKey
+      }),
+      ...params.metadata
+    };
+
+    // Build base checkout session params
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      customer: stripeCustomerId,
+      mode: 'subscription',
+      line_items: lineItems,
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+      metadata: sessionMetadata,
+      subscription_data: {
+        metadata: subscriptionMetadata,
+        ...(params.trialPeriodDays && { trial_period_days: params.trialPeriodDays })
+      },
+      ...(params.customerEmail && { customer_email: params.customerEmail }),
+      ...(params.allowPromotionCodes !== undefined && { allow_promotion_codes: params.allowPromotionCodes }),
+      ...(params.billingAddressCollection && { billing_address_collection: params.billingAddressCollection }),
+      ...(params.paymentMethodTypes && { payment_method_types: params.paymentMethodTypes }),
+      // Merge in any additional Stripe options
+      ...params.stripeOptions
+    };
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    if (!session.url) {
+      throw new ValidationError('Stripe checkout session was created but did not return a URL');
+    }
+
+    return {
+      url: session.url,
+      sessionId: session.id
+    };
   }
 }

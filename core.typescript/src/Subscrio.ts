@@ -108,7 +108,8 @@ export class Subscrio {
       this.subscriptionRepo,
       this.customerRepo,
       this.planRepo,
-      this.billingCycleRepo
+      this.billingCycleRepo,
+      config  // Pass config for Stripe secret key access
     );
     this.configSync = new ConfigSyncService(this);
   }

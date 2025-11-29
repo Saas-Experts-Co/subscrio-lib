@@ -21,6 +21,7 @@ const stripeService = subscrio.stripe;
 | --- | --- | --- |
 | `processStripeEvent` | Entry point for verified Stripe webhook events | `Promise<void>` |
 | `createStripeSubscription` | Helper to create a Subscrio subscription tied to Stripe metadata | `Promise<Subscription>` |
+| `createCheckoutSession` | Generate Stripe Checkout URL with automatic customer creation and subscription linking | `Promise<{ url: string; sessionId: string }>` |
 
 *(Handlers invoked internally by `processStripeEvent` are described for completeness.)*
 
@@ -78,7 +79,13 @@ await stripeService.processStripeEvent(event);
 - **`handleCustomerDeleted`**
   - Clears `externalBillingId` when Stripe deletes a customer.
 - **`handleSubscriptionCreated`**
-  - Resolves the customer, billing cycle (via `externalProductId`), and owning plan, then creates or refreshes the Subscrio subscription with `stripeSubscriptionId`, period dates, and metadata.
+  - Resolves the customer, billing cycle (via `externalProductId`), and owning plan.
+  - **Subscription Linking Behavior:**
+    1. First checks if a subscription with the Stripe subscription ID already exists (already linked).
+    2. If metadata contains `subscrioSubscriptionKey`, looks up the existing Subscrio subscription by key.
+    3. If found and belongs to the customer, **updates the existing subscription** (links Stripe ID, updates plan/billing cycle, preserves feature overrides).
+    4. If no existing subscription found, **creates a new subscription**.
+  - Sets `stripeSubscriptionId`, period dates, and metadata on the subscription.
 - **`handleSubscriptionUpdated`**
   - Syncs plan/billing-cycle changes, period dates, and cancellation status for an existing subscription.
 - **`handleSubscriptionDeleted`**
@@ -134,6 +141,138 @@ const sub = await stripeService.createStripeSubscription(
   'price_ABC123'
 );
 console.log(sub.key);
+```
+
+### createCheckoutSession
+
+#### Description
+Generates a Stripe Checkout Session URL for subscription purchases. This helper method:
+- **Automatically creates Stripe customers** if they don't exist (sets proper metadata)
+- **Supports linking to existing Subscrio subscriptions** via `subscriptionKey` parameter
+- Provides full access to Stripe Checkout options including quantity, trial periods, and custom metadata
+- Sets all required metadata for webhook reconciliation
+
+When a customer completes checkout, the webhook handler will:
+- If `subscriptionKey` was provided: **update the existing subscription** (link Stripe ID, update plan/billing cycle)
+- If no `subscriptionKey`: **create a new subscription**
+
+#### Signature
+```typescript
+createCheckoutSession(params: {
+  customerKey: string;
+  billingCycleKey: string;
+  subscriptionKey?: string;  // Optional: existing subscription key to update
+  stripeSecretKey?: string;  // Optional: override config Stripe key
+  successUrl: string;
+  cancelUrl: string;
+  // Convenience options
+  quantity?: number;
+  customerEmail?: string;
+  customerName?: string;
+  allowPromotionCodes?: boolean;
+  billingAddressCollection?: 'auto' | 'required';
+  paymentMethodTypes?: Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+  trialPeriodDays?: number;
+  metadata?: Record<string, string>;  // Additional custom metadata
+  // Full Stripe API access
+  stripeOptions?: Partial<Stripe.Checkout.SessionCreateParams>;
+}): Promise<{ url: string; sessionId: string }>
+```
+
+#### Inputs
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customerKey` | `string` | Yes | Subscrio customer key. Stripe customer will be created if missing. |
+| `billingCycleKey` | `string` | Yes | Billing cycle key (must have `externalProductId` set to Stripe price ID). |
+| `subscriptionKey` | `string` | No | Existing Subscrio subscription key to link/update. If provided, webhook will update this subscription instead of creating new. |
+| `stripeSecretKey` | `string` | No | Stripe secret key (overrides `config.stripe.secretKey`). |
+| `successUrl` | `string` | Yes | URL to redirect after successful checkout. |
+| `cancelUrl` | `string` | Yes | URL to redirect if checkout is cancelled. |
+| `quantity` | `number` | No | Subscription quantity (default: 1). |
+| `customerEmail` | `string` | No | Pre-fill customer email in checkout. |
+| `customerName` | `string` | No | Pre-fill customer name in checkout. |
+| `allowPromotionCodes` | `boolean` | No | Enable promotion code input in checkout. |
+| `billingAddressCollection` | `'auto' \| 'required'` | No | Control billing address collection. |
+| `paymentMethodTypes` | `PaymentMethodType[]` | No | Restrict allowed payment methods. |
+| `trialPeriodDays` | `number` | No | Set trial period duration in days. |
+| `metadata` | `Record<string, string>` | No | Additional custom metadata to pass through. |
+| `stripeOptions` | `Partial<SessionCreateParams>` | No | Full Stripe API access for any checkout option. |
+
+#### Returns
+`Promise<{ url: string; sessionId: string }>` – Checkout URL to redirect user and session ID for tracking.
+
+#### Expected Results
+- **Stripe Customer Creation**: If customer doesn't have `externalBillingId`, creates Stripe customer automatically with `subscrioCustomerKey` metadata.
+- **Metadata Setup**: Sets `subscrioCustomerKey` and optionally `subscrioSubscriptionKey` in both session and subscription metadata.
+- **Subscription Linking**: If `subscriptionKey` provided, validates subscription exists and belongs to customer. Webhook will update this subscription when checkout completes.
+- **Full Stripe Support**: All Stripe Checkout options accessible via convenience parameters or `stripeOptions` for complete API access.
+
+#### Potential Errors
+
+| Error | When |
+| --- | --- |
+| `ConfigurationError` | Stripe secret key not provided (neither in config nor parameter). |
+| `NotFoundError` | Customer, billing cycle, or subscription (if key provided) not found. |
+| `ValidationError` | Billing cycle missing `externalProductId`, invalid URLs, etc. |
+| `ConflictError` | Subscription key provided but doesn't belong to customer. |
+
+#### Example: New Subscription
+```typescript
+// Create checkout for new subscription
+const { url, sessionId } = await subscrio.stripe.createCheckoutSession({
+  customerKey: 'customer_123',
+  billingCycleKey: 'pro-monthly',
+  successUrl: 'https://yourapp.com/success',
+  cancelUrl: 'https://yourapp.com/cancel',
+  quantity: 2,
+  allowPromotionCodes: true,
+  customerEmail: 'user@example.com'
+});
+
+// Redirect user to url
+window.location.href = url;
+```
+
+#### Example: Update Existing Subscription
+```typescript
+// Create checkout to update existing subscription (change plan/billing cycle)
+const { url, sessionId } = await subscrio.stripe.createCheckoutSession({
+  customerKey: 'customer_123',
+  billingCycleKey: 'pro-annual',  // New billing cycle
+  subscriptionKey: 'sub_456',      // Existing subscription to update
+  successUrl: 'https://yourapp.com/success',
+  cancelUrl: 'https://yourapp.com/cancel'
+});
+
+// When checkout completes, webhook will update subscription 'sub_456'
+// with new plan/billing cycle and link Stripe subscription ID
+```
+
+#### Example: Full Stripe API Access
+```typescript
+// Use stripeOptions for any Stripe Checkout parameter
+const { url } = await subscrio.stripe.createCheckoutSession({
+  customerKey: 'customer_123',
+  billingCycleKey: 'pro-monthly',
+  successUrl: 'https://yourapp.com/success',
+  cancelUrl: 'https://yourapp.com/cancel',
+  stripeOptions: {
+    consent_collection: {
+      terms_of_service: 'required'
+    },
+    phone_number_collection: {
+      enabled: true
+    },
+    custom_fields: [
+      {
+        key: 'company_name',
+        label: { type: 'custom', custom: 'Company Name' },
+        type: 'text'
+      }
+    ]
+  }
+});
 ```
 
 ## Related Workflows
